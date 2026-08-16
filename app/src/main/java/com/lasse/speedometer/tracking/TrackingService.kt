@@ -218,6 +218,7 @@ class TrackingService : Service(), LocationListener {
         longitude = longitude,
         altitudeM = if (hasAltitude()) altitude else null,
         speedMps = if (hasSpeed()) speed else null,
+        speedAccuracyMps = if (hasSpeedAccuracy()) speedAccuracyMetersPerSecond else null,
         accuracyM = if (hasAccuracy()) accuracy else null,
         bearingDeg = if (hasBearing()) bearing else null,
     )

@@ -10,7 +10,7 @@
     <string name="status_ready">Bereit</string>
     <string name="status_waiting">Warte auf GPS…</string>
     <string name="status_paused">Pausiert</string>
-    <string name="status_tracking">GPS-Aufzeichnung (±%1$s)</string>
+    <string name="status_tracking">GPS-Aufzeichnung (%1$s)</string>
     <string name="status_no_permission">Standortberechtigung nötig</string>
     <string name="stat_max">Max</string>
     <string name="stat_avg">Ø</string>

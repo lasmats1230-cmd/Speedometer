@@ -3,6 +3,7 @@ package com.lasse.speedometer.tracking
 import com.lasse.speedometer.data.prefs.SpeedSource
 import com.lasse.speedometer.util.GeoMath
 import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * Turns a stream of raw fixes into trip statistics.
@@ -51,6 +52,9 @@ class TripRecorder(
     private var paused = false
     private var stillSinceMs: Long? = null
 
+    /** Last speed the plausibility gate accepted, in metres per second. */
+    private var lastSpeedMps = 0f
+
     var state = TrackingState()
         private set
 
@@ -92,6 +96,7 @@ class TripRecorder(
         lastTickAt = 0L
         paused = false
         stillSinceMs = null
+        lastSpeedMps = 0f
     }
 
     fun pause(now: Long) {
@@ -150,23 +155,64 @@ class TripRecorder(
         val implausible = previous != null && segmentMs > 0 &&
             segmentM / (segmentMs / 1000.0) > MAX_PLAUSIBLE_MPS
 
-        val rawSpeed = when {
-            speedSource == SpeedSource.GNSS && fix.speedMps != null -> fix.speedMps
-            segmentMs > 0 && !implausible -> (segmentM / (segmentMs / 1000.0)).toFloat()
-            else -> 0f
+        // How far the fix has to move before the step counts as travel rather
+        // than the fix wandering inside its own error circle.
+        val minSegment = max(MIN_SEGMENT_M, accuracy * DRIFT_TOLERANCE)
+        val movedFarEnough = previous != null && !implausible && segmentM >= minSegment
+
+        // Without a Doppler reading, displacement is the only evidence of
+        // motion — and displacement smaller than the error circle is no
+        // evidence at all, so the bar is higher here than for distance.
+        val computedTrusted = segmentM >= max(MIN_SEGMENT_M, accuracy * COMPUTED_DRIFT_TOLERANCE)
+        val computedSpeed = if (segmentMs > 0 && !implausible && computedTrusted) {
+            (segmentM / (segmentMs / 1000.0)).toFloat()
+        } else {
+            0f
         }
-        val speed = if (rawSpeed < NOISE_FLOOR_MPS) 0f else rawSpeed
+
+        // The chip's Doppler speed is preferred, but only while it says it
+        // trusts itself. A poor solution falls back to distance over time.
+        val dopplerUsable = fix.speedMps != null &&
+            (fix.speedAccuracyMps == null || fix.speedAccuracyMps <= MAX_SPEED_ACCURACY_MPS)
+
+        val rawSpeed = when {
+            speedSource == SpeedSource.GNSS && dopplerUsable -> fix.speedMps!!
+            else -> computedSpeed
+        }
+        val floored = if (rawSpeed < NOISE_FLOOR_MPS) 0f else rawSpeed
+
+        // Nothing on a road changes speed this fast. Rejecting the reading
+        // rather than clamping it keeps one bad sample out of the maximum,
+        // which is otherwise a number the whole trip is remembered by.
+        val elapsedSeconds = segmentMs / 1000.0
+        val speed = if (
+            previous != null &&
+            elapsedSeconds > 0 &&
+            abs(floored - lastSpeedMps) / elapsedSeconds > MAX_ACCELERATION_MPS2
+        ) {
+            lastSpeedMps
+        } else {
+            floored
+        }
 
         if (autoPause) applyAutoPause(speed, now)
 
-        if (!paused && previous != null && !implausible && segmentM >= MIN_SEGMENT_M) {
+        // Distance needs both: a step bigger than the fix's own error, and a
+        // speed saying you were actually moving. Displacement alone spent 27
+        // parked minutes accumulating 0.78 km, because a stationary fix
+        // wanders several metres between samples while the speed reads zero.
+        if (!paused && movedFarEnough && speed >= NOISE_FLOOR_MPS) {
             distanceM += segmentM
         }
 
         val altitude = fix.altitudeM
         if (!paused && altitude != null) accumulateElevation(altitude, accuracy)
 
-        if (speed > maxSpeedMps) maxSpeedMps = speed.toDouble()
+        // Only a fix good enough to believe may set a new record.
+        if (speed > maxSpeedMps && accuracy <= MAX_SPEED_FIX_ACCURACY_M) {
+            maxSpeedMps = speed.toDouble()
+        }
+        lastSpeedMps = speed
 
         lastFix = fix
         lastAcceptedAt = now
@@ -289,11 +335,38 @@ class TripRecorder(
         /** Below this the reading is GPS jitter, not motion. */
         const val NOISE_FLOOR_MPS = 0.6f
 
-        /** Ignore sub-metre wobble so standing still doesn't accrue distance. */
-        const val MIN_SEGMENT_M = 1.5
+        /** Floor for the distance gate, however good the fix claims to be. */
+        const val MIN_SEGMENT_M = 3.0
+
+        /**
+         * A step must clear this fraction of the fix's own error before it
+         * counts as travel. Half a metre of movement inside a ±20 m fix is
+         * indistinguishable from the fix wandering.
+         */
+        const val DRIFT_TOLERANCE = 0.5
+
+        /**
+         * The stricter bar displacement must clear to stand in for a speed
+         * reading. Erring toward under-counting here is the right trade: a
+         * device with no Doppler solution should lose a little distance rather
+         * than invent kilometres while parked.
+         */
+        const val COMPUTED_DRIFT_TOLERANCE = 1.0
 
         /** ~1080 km/h — beyond this the fix is a glitch, not a journey. */
         const val MAX_PLAUSIBLE_MPS = 300.0
+
+        /**
+         * Roughly 0-100 km/h in three and a half seconds; quicker than any
+         * road vehicle sustains, so anything above it is a bad sample.
+         */
+        const val MAX_ACCELERATION_MPS2 = 8.0f
+
+        /** Beyond this the chip's own speed estimate is not worth having. */
+        const val MAX_SPEED_ACCURACY_MPS = 2.0f
+
+        /** A record top speed has to come from a fix worth believing. */
+        const val MAX_SPEED_FIX_ACCURACY_M = 25f
 
         const val MOVING_THRESHOLD_MPS = 0.8
         const val AUTO_PAUSE_MPS = 0.7f

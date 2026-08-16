@@ -24,6 +24,12 @@ data class Fix(
     val altitudeM: Double? = null,
     /** Doppler speed from the GNSS chip, when it reports one. */
     val speedMps: Float? = null,
+    /**
+     * The chip's own confidence in [speedMps], in metres per second. A large
+     * value means the Doppler solution is guesswork — which is exactly when it
+     * invents the spikes that would otherwise become a trip's top speed.
+     */
+    val speedAccuracyMps: Float? = null,
     val accuracyM: Float? = null,
     val bearingDeg: Float? = null,
 )

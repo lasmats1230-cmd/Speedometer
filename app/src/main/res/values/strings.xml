@@ -12,7 +12,7 @@
     <string name="status_ready">Ready</string>
     <string name="status_waiting">Waiting for GPS…</string>
     <string name="status_paused">Paused</string>
-    <string name="status_tracking">GPS tracking (±%1$s)</string>
+    <string name="status_tracking">GPS tracking (%1$s)</string>
     <string name="status_no_permission">Location permission needed</string>
     <string name="stat_max">Max</string>
     <string name="stat_avg">Avg</string>

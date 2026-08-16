@@ -18,7 +18,7 @@ class TripRecorderTest {
         timestamp: Long,
         latOffset: Double = 0.0,
         speed: Float? = null,
-        accuracy: Float = 5f,
+        accuracy: Float = 4f,
         altitude: Double? = null,
     ) = Fix(
         timestamp = timestamp,
@@ -103,9 +103,17 @@ class TripRecorderTest {
     fun `max speed keeps the highest reading`() {
         val recorder = TripRecorder()
         recorder.start(0L)
-        recorder.onFix(fix(0L, speed = 8f))
-        recorder.onFix(fix(1_000L, latOffset = hundredMetresLat / 10, speed = 28f))
-        recorder.onFix(fix(2_000L, latOffset = hundredMetresLat / 5, speed = 12f))
+        // Ramped rather than jumped: a 20 m/s step in one second is beyond
+        // any real vehicle, and the plausibility gate rejects it by design.
+        listOf(8f, 15f, 22f, 28f, 12f).forEachIndexed { index, speed ->
+            recorder.onFix(
+                fix(
+                    timestamp = index * 1000L,
+                    latOffset = hundredMetresLat / 5 * index,
+                    speed = speed,
+                )
+            )
+        }
 
         assertEquals(28.0, recorder.state.maxSpeedMps, 0.001)
     }
@@ -249,5 +257,160 @@ class TripRecorderTest {
 
         // 100 m covered over 10 s of movement.
         assertEquals(10.0, recorder.state.avgSpeedMps, 0.5)
+    }
+}
+
+/**
+ * Regressions from a real recording: 27 minutes parked produced 0.78 km of
+ * distance and a top speed of 270.9 km/h.
+ */
+class StationaryDriftTest {
+
+    private fun fix(
+        timestamp: Long,
+        latOffset: Double = 0.0,
+        lonOffset: Double = 0.0,
+        speed: Float? = null,
+        speedAccuracy: Float? = null,
+        accuracy: Float = 12f,
+    ) = Fix(
+        timestamp = timestamp,
+        latitude = 48.0 + latOffset,
+        longitude = 11.6 + lonOffset,
+        speedMps = speed,
+        speedAccuracyMps = speedAccuracy,
+        accuracyM = accuracy,
+    )
+
+    /** About 4 m of wander, well inside a ±12 m fix. */
+    private val drift = 0.000036
+
+    @Test
+    fun `parked for half an hour records no distance`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+
+        // 1 Hz for 30 minutes, jittering back and forth like a stationary fix.
+        repeat(1800) { index ->
+            recorder.onFix(
+                fix(
+                    timestamp = index * 1000L,
+                    latOffset = if (index % 2 == 0) drift else -drift,
+                    lonOffset = if (index % 3 == 0) drift else 0.0,
+                    speed = 0.2f,
+                )
+            )
+        }
+
+        assertEquals(0.0, recorder.state.distanceM, 0.001)
+        assertEquals(0.0, recorder.state.maxSpeedMps, 0.001)
+        assertEquals(0L, recorder.state.movingTimeMs)
+    }
+
+    @Test
+    fun `parked with no doppler reading still records nothing`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+
+        // Some chips report no speed at all, leaving displacement as the only
+        // evidence of motion — and it must not be believed inside the error.
+        repeat(600) { index ->
+            recorder.onFix(
+                fix(
+                    timestamp = index * 1000L,
+                    latOffset = if (index % 2 == 0) drift else -drift,
+                    speed = null,
+                )
+            )
+        }
+
+        assertEquals(0.0, recorder.state.distanceM, 0.001)
+        assertEquals(0.0, recorder.state.maxSpeedMps, 0.001)
+    }
+
+    @Test
+    fun `a doppler spike does not become the trip maximum`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+        recorder.onFix(fix(0L, speed = 0f))
+        recorder.onFix(fix(1_000L, speed = 0f))
+
+        // 75 m/s is 270 km/h, appearing from a standstill in one second.
+        recorder.onFix(fix(2_000L, speed = 75f))
+
+        assertEquals(0.0, recorder.state.maxSpeedMps, 0.001)
+    }
+
+    @Test
+    fun `a doppler reading the chip does not trust is ignored`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+        // Claimed 30 m/s, give or take 40 m/s — meaningless.
+        recorder.onFix(fix(0L, speed = 30f, speedAccuracy = 40f))
+
+        assertEquals(0.0, recorder.state.speedMps, 0.001)
+    }
+
+    @Test
+    fun `real acceleration is still recorded`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+
+        // 0 to 30 m/s over ten seconds — brisk, but a car does this.
+        (0..10).forEach { index ->
+            recorder.onFix(
+                fix(
+                    timestamp = index * 1000L,
+                    latOffset = 0.00027 * index,
+                    speed = 3f * index,
+                    speedAccuracy = 0.5f,
+                    accuracy = 6f,
+                )
+            )
+        }
+
+        assertEquals(30.0, recorder.state.maxSpeedMps, 0.001)
+        // The fixture walks 0.00027° of latitude per step, about 30 m.
+        assertTrue(
+            "expected real travel to accumulate, got ${recorder.state.distanceM}",
+            recorder.state.distanceM > 250.0,
+        )
+    }
+
+    @Test
+    fun `a top speed from a poor fix is not trusted`() {
+        val recorder = TripRecorder(minAccuracyM = 100f)
+        recorder.start(0L)
+        // Plausible acceleration, but the fix itself is 40 m wide.
+        (0..10).forEach { index ->
+            recorder.onFix(
+                fix(timestamp = index * 1000L, speed = 5f * index, accuracy = 40f)
+            )
+        }
+
+        assertEquals(0.0, recorder.state.maxSpeedMps, 0.001)
+    }
+
+    @Test
+    fun `genuine walking pace still accumulates distance`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+        // 1.4 m/s with a good fix: about 14 m between five-second samples.
+        (0..20).forEach { index ->
+            recorder.onFix(
+                fix(
+                    timestamp = index * 5_000L,
+                    latOffset = 0.000063 * index,
+                    speed = 1.4f,
+                    speedAccuracy = 0.4f,
+                    accuracy = 5f,
+                )
+            )
+        }
+
+        assertTrue(
+            "expected roughly 140 m, got ${recorder.state.distanceM}",
+            recorder.state.distanceM in 100.0..180.0,
+        )
     }
 }

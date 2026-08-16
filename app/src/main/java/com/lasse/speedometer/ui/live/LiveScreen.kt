@@ -442,7 +442,7 @@ private fun TransportControls(
                 icon = Icons.Filled.Stop,
                 contentDescription = stringResource(R.string.stop),
                 onClick = onStop,
-                size = 64.dp,
+                size = 56.dp,
                 container = MaterialTheme.colorScheme.errorContainer,
                 content = MaterialTheme.colorScheme.onErrorContainer,
             )
@@ -483,7 +483,7 @@ private fun TransportControls(
                 icon = Icons.Filled.Stop,
                 contentDescription = stringResource(R.string.stop),
                 onClick = onStop,
-                size = 64.dp,
+                size = 56.dp,
                 container = MaterialTheme.colorScheme.errorContainer,
                 content = MaterialTheme.colorScheme.onErrorContainer,
             )
@@ -498,7 +498,7 @@ private fun ControlButton(
     onClick: () -> Unit,
     container: Color,
     content: Color,
-    size: androidx.compose.ui.unit.Dp = 84.dp,
+    size: androidx.compose.ui.unit.Dp = 68.dp,
 ) {
     Surface(
         onClick = onClick,
