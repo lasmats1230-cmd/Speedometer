@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Speedometer</string>
+
+    <!-- Navigation -->
+    <string name="nav_live">Live</string>
+    <string name="nav_history">History</string>
+    <string name="nav_tools">Tools</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Live -->
+    <string name="status_ready">Ready</string>
+    <string name="status_waiting">Waiting for GPS…</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_tracking">GPS tracking (±%1$s)</string>
+    <string name="status_no_permission">Location permission needed</string>
+    <string name="stat_max">Max</string>
+    <string name="stat_avg">Avg</string>
+    <string name="stat_distance">Distance</string>
+    <string name="stat_time">Time</string>
+    <string name="start">Start</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="stop">Stop</string>
+    <string name="stop_and_save">Stop and save</string>
+    <string name="discard">Discard</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="finish_trip_title">Finish trip?</string>
+    <string name="finish_trip_message">Save this recording to your history or discard it.</string>
+    <string name="grant_location">Grant location access</string>
+    <string name="location_rationale">Speedometer needs location access to measure your speed and record your route.</string>
+
+    <!-- History -->
+    <string name="history">History</string>
+    <string name="tab_trips">Trips</string>
+    <string name="tab_tours">Tours</string>
+    <string name="no_trips_title">No trips yet.</string>
+    <string name="no_trips_body">Start a recording on the live view to see it here.</string>
+    <string name="no_tours_title">No tours yet.</string>
+    <string name="no_tours_body">Group several recordings into one tour from a trip\'s menu.</string>
+    <string name="download_gpx">Download GPX</string>
+    <string name="share_gpx">Share GPX</string>
+    <string name="sync_health_connect">Sync to Health Connect</string>
+    <string name="add_to_tour">Add to tour</string>
+    <string name="delete">Delete</string>
+    <string name="rename">Rename</string>
+    <string name="delete_all">Delete all</string>
+    <string name="delete_trip_title">Delete trip?</string>
+    <string name="delete_trip_message">This recording will be removed permanently.</string>
+    <string name="delete_all_title">Delete all trips?</string>
+    <string name="delete_all_message">Every recording will be removed permanently.</string>
+    <string name="new_tour">New tour…</string>
+    <string name="tour_name">Tour name</string>
+    <string name="create">Create</string>
+    <string name="trips_count">%1$d trips</string>
+
+    <!-- Detail -->
+    <string name="elevation">Elevation</string>
+    <string name="ascent">Ascent</string>
+    <string name="descent">Descent</string>
+    <string name="altitude">Altitude</string>
+    <string name="elevation_profile">Elevation profile</string>
+    <string name="speed_profile">Speed profile</string>
+    <string name="lowest">Lowest %1$s</string>
+    <string name="highest">Highest %1$s</string>
+    <string name="moving_time">Moving time</string>
+    <string name="back">Back</string>
+    <string name="more">More</string>
+
+    <!-- Tools -->
+    <string name="tools">Tools</string>
+    <string name="tab_compass">Compass</string>
+    <string name="tab_map">Map</string>
+    <string name="tab_routes">Routes</string>
+    <string name="import_route">Import GPX or TCX</string>
+    <string name="no_routes_title">No routes imported yet.</string>
+    <string name="no_routes_body">Import a GPX or TCX file to follow it on the live view.</string>
+    <string name="follow_route">Follow on live view</string>
+    <string name="stop_following">Stop following</string>
+    <string name="following">Following</string>
+    <string name="calibrate_compass">Move the phone in a figure eight to calibrate.</string>
+    <string name="no_compass">This device has no compass sensor.</string>
+    <string name="heading">Heading</string>
+    <string name="recenter">Recenter</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="settings_units">Units</string>
+    <string name="settings_unit_system">Unit system</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_dynamic_color">Material You colours</string>
+    <string name="settings_dynamic_color_summary">Use the colours from your wallpaper</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_keep_screen_on">Keep screen on while recording</string>
+    <string name="settings_recording">Recording</string>
+    <string name="settings_auto_pause">Auto pause</string>
+    <string name="settings_auto_pause_summary">Pause the timer when you stop moving</string>
+    <string name="settings_min_accuracy">Discard points less accurate than</string>
+    <string name="settings_speed_source">Speed source</string>
+    <string name="settings_health">Health Connect</string>
+    <string name="settings_health_connect">Connect Health Connect</string>
+    <string name="settings_health_auto">Sync new trips automatically</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_licenses">Map data © OpenStreetMap contributors</string>
+
+    <!-- Notification -->
+    <string name="notif_channel_name">Trip recording</string>
+    <string name="notif_channel_desc">Shows speed and distance while a trip is recording.</string>
+    <string name="notif_title">Recording trip</string>
+
+    <!-- Misc -->
+    <string name="saved">Trip saved</string>
+    <string name="synced">Synced to Health Connect</string>
+    <string name="health_unavailable">Health Connect is not available on this device</string>
+    <string name="import_failed">Could not read that file</string>
+    <string name="export_failed">Could not export the trip</string>
+    <string name="imported_route">Imported “%1$s”</string>
+</resources>
