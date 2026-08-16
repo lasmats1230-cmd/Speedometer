@@ -141,7 +141,7 @@
     <string name="battery_cycling">Cycling mode</string>
     <string name="battery_cycling_summary">After a few seconds, drops to speed and distance on black and stops drawing the map. Tap to bring it back.</string>
     <string name="battery_extreme">Extreme</string>
-    <string name="battery_extreme_summary">Minimal display from the moment recording starts, with the backlight turned right down. Recording accuracy is unaffected.</string>
+    <string name="battery_extreme_summary">For riding with the screen off: no map, the display is allowed to sleep, and the notification updates rarely. Fixes are still recorded at full rate.</string>
     <string name="tap_to_wake">Tap to show the full display</string>
 
     <!-- Appearance -->
@@ -224,4 +224,5 @@
     <string name="discard_trip_title">Discard this trip?</string>
     <string name="discard_trip_message">Recording stops and everything from this trip is thrown away. This cannot be undone.</string>
     <string name="layout_preview">Preview</string>
+    <string name="battery_extreme_map_off">Map off — extreme battery saving</string>
 </resources>

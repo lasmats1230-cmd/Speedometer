@@ -139,7 +139,7 @@
     <string name="battery_cycling">Fahrradmodus</string>
     <string name="battery_cycling_summary">Zeigt nach einigen Sekunden nur noch Geschwindigkeit und Strecke auf Schwarz und stellt das Zeichnen der Karte ein. Zum Zurückholen tippen.</string>
     <string name="battery_extreme">Extrem</string>
-    <string name="battery_extreme_summary">Minimale Anzeige ab dem Start der Aufzeichnung, mit stark reduzierter Helligkeit. Die Genauigkeit der Aufzeichnung bleibt unverändert.</string>
+    <string name="battery_extreme_summary">Für Fahrten mit ausgeschaltetem Bildschirm: keine Karte, das Display darf schlafen, die Benachrichtigung aktualisiert selten. Positionen werden weiter in voller Rate aufgezeichnet.</string>
     <string name="tap_to_wake">Tippen für die vollständige Anzeige</string>
 
     <!-- Appearance -->
@@ -221,4 +221,5 @@
     <string name="discard_trip_title">Diese Fahrt verwerfen?</string>
     <string name="discard_trip_message">Die Aufzeichnung endet und alles aus dieser Fahrt wird verworfen. Das lässt sich nicht rückgängig machen.</string>
     <string name="layout_preview">Vorschau</string>
+    <string name="battery_extreme_map_off">Karte aus — extremes Energiesparen</string>
 </resources>

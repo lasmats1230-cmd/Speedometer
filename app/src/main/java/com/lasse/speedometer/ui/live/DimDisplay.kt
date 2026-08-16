@@ -1,7 +1,5 @@
 package com.lasse.speedometer.ui.live
 
-import android.app.Activity
-import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,12 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,23 +24,20 @@ import com.lasse.speedometer.tracking.TrackingState
 import com.lasse.speedometer.util.Formatters
 
 /**
- * The pared-back screen the battery savers switch to.
+ * The pared-back readout cycling mode switches to.
  *
  * Everything expensive is gone: no map surface, no tiles being fetched or
  * rendered, no chrome. On an OLED panel the black background costs almost
- * nothing to light, which is the point.
+ * nothing to light, which is the point — this screen is meant to stay on and
+ * be glanced at, so it stays legible rather than dimming.
  */
 @Composable
 fun DimDisplay(
     state: TrackingState,
     settings: AppSettings,
-    /** Extreme mode drops the backlight as far as the system allows. */
-    lowBrightness: Boolean,
     onWake: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (lowBrightness) DimScreenBrightness()
-
     val interactionSource = remember { MutableInteractionSource() }
 
     Column(
@@ -98,24 +91,3 @@ fun DimDisplay(
         )
     }
 }
-
-/** Holds the backlight low for as long as this composable is on screen. */
-@Composable
-private fun DimScreenBrightness() {
-    val view = LocalView.current
-    DisposableEffect(Unit) {
-        val window = (view.context as? Activity)?.window
-        val previous = window?.attributes?.screenBrightness
-        window?.attributes = window?.attributes?.apply {
-            screenBrightness = LOW_BRIGHTNESS
-        }
-        onDispose {
-            window?.attributes = window?.attributes?.apply {
-                screenBrightness = previous
-                    ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-            }
-        }
-    }
-}
-
-private const val LOW_BRIGHTNESS = 0.02f

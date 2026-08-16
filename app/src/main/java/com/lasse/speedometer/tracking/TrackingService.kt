@@ -22,6 +22,7 @@ import com.lasse.speedometer.MainActivity
 import com.lasse.speedometer.R
 import com.lasse.speedometer.SpeedometerApp
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.util.Formatters
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -47,6 +48,7 @@ class TrackingService : Service(), LocationListener {
     private var tickerJob: Job? = null
     private var listening = false
     private var isForeground = false
+    private var lastNotificationAt = 0L
     private var settings = AppSettings()
 
     override fun onCreate() {
@@ -95,14 +97,14 @@ class TrackingService : Service(), LocationListener {
         if (recorder.state.status == TrackingStatus.IDLE) return
         recorder.pause(System.currentTimeMillis())
         publish()
-        updateNotification()
+        updateNotification(force = true)
     }
 
     private fun resumeRecording() {
         if (recorder.state.status != TrackingStatus.PAUSED) return
         recorder.resume(System.currentTimeMillis())
         publish()
-        updateNotification()
+        updateNotification(force = true)
     }
 
     private fun stopRecording(save: Boolean) {
@@ -269,8 +271,22 @@ class TrackingService : Service(), LocationListener {
         isForeground = false
     }
 
-    private fun updateNotification() {
+    /**
+     * Rebuilding a notification and handing it to the system every second is
+     * real work for a panel nobody is looking at. Extreme mode stretches that
+     * out; the GNSS subscription is untouched either way, so what lands in the
+     * database is identical.
+     */
+    private fun updateNotification(force: Boolean = false) {
         if (!isForeground) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        val interval = if (settings.batterySaver == BatterySaverMode.EXTREME) {
+            EXTREME_NOTIFICATION_INTERVAL_MS
+        } else {
+            NOTIFICATION_INTERVAL_MS
+        }
+        if (!force && now - lastNotificationAt < interval) return
+        lastNotificationAt = now
         getSystemService<NotificationManager>()?.notify(NOTIFICATION_ID, buildNotification())
     }
 
@@ -381,6 +397,8 @@ class TrackingService : Service(), LocationListener {
         private const val CHANNEL_ID = "trip_recording"
         private const val NOTIFICATION_ID = 1001
         private const val TICK_MS = 1000L
+        private const val NOTIFICATION_INTERVAL_MS = 2_000L
+        private const val EXTREME_NOTIFICATION_INTERVAL_MS = 20_000L
         private const val RECORDING_INTERVAL_MS = 1000L
         private const val IDLE_INTERVAL_MS = 3000L
         private const val LAST_KNOWN_MAX_AGE_MS = 5 * 60 * 1000L

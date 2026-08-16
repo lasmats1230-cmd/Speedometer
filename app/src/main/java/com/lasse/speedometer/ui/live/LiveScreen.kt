@@ -120,23 +120,22 @@ fun LiveScreen(
         }
     }
 
-    // Battery saving: extreme dims as soon as recording starts, cycling waits
-    // out the configured delay and comes back at a tap.
+    // The always-on readout belongs to cycling mode alone. Extreme mode is
+    // built around the screen being off, so it never takes the display over —
+    // doing so would leave no way to stop the recording.
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var dimmed by remember { mutableStateOf(false) }
     val recording = state.status == TrackingStatus.RECORDING ||
         state.status == TrackingStatus.ACQUIRING
+    val cyclingMode = settings.batterySaver == BatterySaverMode.CYCLING
+    val extremeMode = settings.batterySaver == BatterySaverMode.EXTREME
 
-    LaunchedEffect(settings.batterySaver, recording, lastInteraction, settings.dimDelaySeconds) {
-        dimmed = when {
-            !recording -> false
-            settings.batterySaver == BatterySaverMode.EXTREME -> true
-            settings.batterySaver == BatterySaverMode.CYCLING -> {
-                delay(settings.dimDelaySeconds * 1000L)
-                true
-            }
-
-            else -> false
+    LaunchedEffect(cyclingMode, recording, lastInteraction, settings.dimDelaySeconds) {
+        dimmed = if (recording && cyclingMode) {
+            delay(settings.dimDelaySeconds * 1000L)
+            true
+        } else {
+            false
         }
     }
 
@@ -151,7 +150,6 @@ fun LiveScreen(
         DimDisplay(
             state = state,
             settings = settings,
-            lowBrightness = settings.batterySaver == BatterySaverMode.EXTREME,
             onWake = {
                 dimmed = false
                 lastInteraction = System.currentTimeMillis()
@@ -174,7 +172,7 @@ fun LiveScreen(
     ) {
         // With the map hidden there is nothing to stretch, so the column
         // scrolls instead of leaving the controls floating in dead space.
-        val scrollable = layout.minimapSize == MinimapSize.HIDDEN
+        val scrollable = layout.minimapSize == MinimapSize.HIDDEN && !extremeMode
 
         Column(
             modifier = Modifier
@@ -249,7 +247,16 @@ fun LiveScreen(
             Spacer(Modifier.height(18.dp))
         }
 
-        if (layout.minimapSize != MinimapSize.HIDDEN) {
+        if (extremeMode) {
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = stringResource(R.string.battery_extreme_map_off),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 20.dp),
+            )
+        } else if (layout.minimapSize != MinimapSize.HIDDEN) {
             val mapModifier = when (layout.minimapSize) {
                 MinimapSize.SMALL -> Modifier.height(150.dp)
                 MinimapSize.MEDIUM -> Modifier.height(260.dp)

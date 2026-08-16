@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.ui.ImmersiveMode
 import com.lasse.speedometer.ui.nav.SpeedometerNavHost
@@ -57,9 +58,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Only hold the screen awake while something is actually recording.
-            LaunchedEffect(settings.keepScreenOn, tracking.isActive) {
-                if (settings.keepScreenOn && tracking.isActive) {
+            // Only hold the screen awake while something is actually
+            // recording — and never in extreme mode, whose entire purpose is
+            // letting the display sleep.
+            val holdScreen = settings.keepScreenOn &&
+                tracking.isActive &&
+                settings.batterySaver != BatterySaverMode.EXTREME
+            LaunchedEffect(holdScreen) {
+                if (holdScreen) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
