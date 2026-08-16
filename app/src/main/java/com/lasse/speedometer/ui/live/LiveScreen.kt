@@ -31,10 +31,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationDisabled
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +68,7 @@ import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
+import com.lasse.speedometer.ui.ImmersiveMode
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.TrackMap
@@ -91,7 +93,7 @@ fun LiveScreen(
     val editingWaypoint by viewModel.editingWaypoint.collectAsState()
 
     var hasLocationPermission by remember { mutableStateOf(context.hasLocationPermission()) }
-    var showFinishDialog by remember { mutableStateOf(false) }
+    var pendingFinish by remember { mutableStateOf<FinishAction?>(null) }
     var pendingStart by remember { mutableStateOf(false) }
     var newWaypointAt by remember { mutableStateOf<LatLng?>(null) }
 
@@ -136,6 +138,13 @@ fun LiveScreen(
 
             else -> false
         }
+    }
+
+    // The dim readout takes the whole panel, including the system bars and the
+    // app's own navigation bar.
+    DisposableEffect(dimmed) {
+        ImmersiveMode.set(dimmed)
+        onDispose { ImmersiveMode.set(false) }
     }
 
     if (dimmed) {
@@ -233,7 +242,8 @@ fun LiveScreen(
                 },
                 onPause = { TrackingController.pause(context) },
                 onResume = { TrackingController.resume(context) },
-                onStop = { showFinishDialog = true },
+                onSave = { pendingFinish = FinishAction.SAVE },
+                onDiscard = { pendingFinish = FinishAction.DISCARD },
             )
 
             Spacer(Modifier.height(18.dp))
@@ -292,26 +302,54 @@ fun LiveScreen(
         )
     }
 
-    if (showFinishDialog) {
+    pendingFinish?.let { action ->
+        val saving = action == FinishAction.SAVE
         AlertDialog(
-            onDismissRequest = { showFinishDialog = false },
-            title = { Text(stringResource(R.string.finish_trip_title)) },
-            text = { Text(stringResource(R.string.finish_trip_message)) },
+            onDismissRequest = { pendingFinish = null },
+            title = {
+                Text(
+                    stringResource(
+                        if (saving) R.string.save_trip_title else R.string.discard_trip_title
+                    )
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        if (saving) R.string.save_trip_message else R.string.discard_trip_message
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    showFinishDialog = false
-                    TrackingController.stopAndSave(context)
-                }) { Text(stringResource(R.string.save)) }
+                    pendingFinish = null
+                    if (saving) {
+                        TrackingController.stopAndSave(context)
+                    } else {
+                        TrackingController.stopAndDiscard(context)
+                    }
+                }) {
+                    Text(
+                        text = stringResource(if (saving) R.string.save else R.string.discard),
+                        color = if (saving) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showFinishDialog = false
-                    TrackingController.stopAndDiscard(context)
-                }) { Text(stringResource(R.string.discard)) }
+                TextButton(onClick = { pendingFinish = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
             },
         )
     }
 }
+
+/** Which of the two irreversible endings the user asked to confirm. */
+private enum class FinishAction { SAVE, DISCARD }
 
 /** The user's chosen tiles, wrapped into rows of [LayoutSettings.statColumns]. */
 @Composable
@@ -421,30 +459,33 @@ private fun StatusChip(
     }
 }
 
+/**
+ * Save and discard are deliberately separate buttons rather than two answers
+ * to one dialog: they are opposite outcomes, and one of them is irreversible.
+ * Both still confirm before acting.
+ */
 @Composable
 private fun TransportControls(
     status: TrackingStatus,
     onStart: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
-    onStop: () -> Unit,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
 ) {
+    val active = status != TrackingStatus.IDLE
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        AnimatedVisibility(
-            visible = status == TrackingStatus.PAUSED,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
+        AnimatedVisibility(visible = active, enter = fadeIn(), exit = fadeOut()) {
             ControlButton(
-                icon = Icons.Filled.Stop,
-                contentDescription = stringResource(R.string.stop),
-                onClick = onStop,
-                size = 56.dp,
-                container = MaterialTheme.colorScheme.errorContainer,
-                content = MaterialTheme.colorScheme.onErrorContainer,
+                icon = Icons.Filled.Check,
+                contentDescription = stringResource(R.string.save_trip),
+                onClick = onSave,
+                container = MaterialTheme.colorScheme.primaryContainer,
+                content = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
 
@@ -474,16 +515,11 @@ private fun TransportControls(
             )
         }
 
-        AnimatedVisibility(
-            visible = status == TrackingStatus.RECORDING || status == TrackingStatus.ACQUIRING,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
+        AnimatedVisibility(visible = active, enter = fadeIn(), exit = fadeOut()) {
             ControlButton(
-                icon = Icons.Filled.Stop,
-                contentDescription = stringResource(R.string.stop),
-                onClick = onStop,
-                size = 56.dp,
+                icon = Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.discard_trip),
+                onClick = onDiscard,
                 container = MaterialTheme.colorScheme.errorContainer,
                 content = MaterialTheme.colorScheme.onErrorContainer,
             )
@@ -491,6 +527,10 @@ private fun TransportControls(
     }
 }
 
+/**
+ * Every control is the same diameter, and every glyph is drawn into the same
+ * box, so no button reads as larger than its neighbour.
+ */
 @Composable
 private fun ControlButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -498,24 +538,26 @@ private fun ControlButton(
     onClick: () -> Unit,
     container: Color,
     content: Color,
-    size: androidx.compose.ui.unit.Dp = 68.dp,
 ) {
     Surface(
         onClick = onClick,
         shape = CircleShape,
         color = container,
         contentColor = content,
-        modifier = Modifier.size(size),
+        modifier = Modifier.size(CONTROL_SIZE),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(size * 0.42f),
+                modifier = Modifier.size(CONTROL_ICON_SIZE),
             )
         }
     }
 }
+
+private val CONTROL_SIZE = 68.dp
+private val CONTROL_ICON_SIZE = 30.dp
 
 private fun locationPermissions(): Array<String> = buildList {
     add(Manifest.permission.ACCESS_FINE_LOCATION)

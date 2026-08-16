@@ -1,5 +1,8 @@
 package com.lasse.speedometer.ui.settings
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
@@ -24,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -32,11 +36,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +77,8 @@ fun SettingsScreen(
 ) {
     val healthGranted by viewModel.healthPermissionsGranted.collectAsState()
     val language by viewModel.language.collectAsState()
+    var showLanguagePicker by remember { mutableStateOf(false) }
+    val activity = LocalContext.current.findActivity()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
@@ -126,13 +134,11 @@ fun SettingsScreen(
 
         item("language") {
             SettingsSection(stringResource(R.string.settings_language)) {
-                AppLanguage.entries.forEach { option ->
-                    RadioRow(
-                        title = stringResource(option.labelRes),
-                        selected = option == language,
-                        onClick = { viewModel.setLanguage(option) },
-                    )
-                }
+                NavigationRow(
+                    title = stringResource(R.string.settings_language),
+                    subtitle = stringResource(language.labelRes),
+                    onClick = { showLanguagePicker = true },
+                )
             }
         }
 
@@ -349,6 +355,43 @@ fun SettingsScreen(
 
         item("spacer") { Spacer(Modifier.height(24.dp)) }
     }
+
+    if (showLanguagePicker) {
+        AlertDialog(
+            onDismissRequest = { showLanguagePicker = false },
+            title = { Text(stringResource(R.string.settings_language)) },
+            text = {
+                Column {
+                    AppLanguage.entries.forEach { option ->
+                        RadioRow(
+                            title = stringResource(option.labelRes),
+                            selected = option == language,
+                            onClick = {
+                                showLanguagePicker = false
+                                // Android 13 and up restarts us itself.
+                                if (viewModel.setLanguage(option)) activity?.recreate()
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguagePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+}
+
+/** Unwraps the activity from whatever context wrappers Compose hands over. */
+private fun Context.findActivity(): Activity? {
+    var current = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }
 
 @OptIn(ExperimentalLayoutApi::class)

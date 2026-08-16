@@ -23,8 +23,6 @@
     <string name="discard">Verwerfen</string>
     <string name="save">Speichern</string>
     <string name="cancel">Abbrechen</string>
-    <string name="finish_trip_title">Fahrt beenden?</string>
-    <string name="finish_trip_message">Diese Aufzeichnung im Verlauf speichern oder verwerfen.</string>
 
     <!-- History -->
     <string name="history">Verlauf</string>
@@ -214,4 +212,13 @@
         <item quantity="one">Nach %1$d Sekunde abdunkeln</item>
         <item quantity="other">Nach %1$d Sekunden abdunkeln</item>
     </plurals>
+
+    <!-- Finish a trip -->
+    <string name="save_trip">Fahrt speichern</string>
+    <string name="discard_trip">Fahrt verwerfen</string>
+    <string name="save_trip_title">Diese Fahrt speichern?</string>
+    <string name="save_trip_message">Die Aufzeichnung endet und die Fahrt kommt in den Verlauf.</string>
+    <string name="discard_trip_title">Diese Fahrt verwerfen?</string>
+    <string name="discard_trip_message">Die Aufzeichnung endet und alles aus dieser Fahrt wird verworfen. Das lässt sich nicht rückgängig machen.</string>
+    <string name="layout_preview">Vorschau</string>
 </resources>

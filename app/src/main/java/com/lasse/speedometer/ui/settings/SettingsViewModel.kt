@@ -51,14 +51,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /**
-     * Changing language has to restart the activity: resources are resolved
-     * against the configuration attached when it was created.
+     * Changing language needs the activity rebuilt, since resources resolve
+     * against the configuration it was created with. Returns true when the
+     * caller has to do that restart itself.
      */
-    fun setLanguage(value: AppLanguage) {
-        val context = getApplication<Application>()
-        AppLocale.set(context, value)
-        RestartSignal.request()
-    }
+    fun setLanguage(value: AppLanguage): Boolean =
+        AppLocale.set(getApplication(), value)
 
     fun setUnits(value: UnitSystem) = update { settingsRepository.setUnits(value) }
     fun setThemeMode(value: ThemeMode) = update { settingsRepository.setThemeMode(value) }
@@ -88,17 +86,4 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         update { settingsRepository.moveStat(stat, offset, current) }
 
     private fun update(block: suspend () -> Unit) = viewModelScope.launch { block() }
-}
-
-/**
- * Lets a setting ask the activity to recreate itself, which changing the
- * language requires and nothing else does.
- */
-object RestartSignal {
-    private val _restarts = MutableStateFlow(0)
-    val restarts: StateFlow<Int> = _restarts.asStateFlow()
-
-    fun request() {
-        _restarts.value += 1
-    }
 }

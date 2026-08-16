@@ -84,6 +84,21 @@ fun LayoutSettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item("preview") {
+                Column {
+                    Text(
+                        text = stringResource(R.string.layout_preview),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
+                    )
+                    LayoutPreview(
+                        settings = settings,
+                        modifier = Modifier.padding(horizontal = 48.dp),
+                    )
+                }
+            }
+
             item("minimap") {
                 SettingsSection(stringResource(R.string.layout_minimap)) {
                     Text(

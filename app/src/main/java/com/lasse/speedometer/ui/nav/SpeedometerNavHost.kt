@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -17,10 +18,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -29,6 +32,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.ui.ImmersiveMode
 import com.lasse.speedometer.ui.history.HistoryScreen
 import com.lasse.speedometer.ui.history.TourDetailScreen
 import com.lasse.speedometer.ui.history.TripDetailScreen
@@ -45,8 +49,9 @@ fun SpeedometerNavHost(settings: AppSettings) {
     val currentRoute = backStackEntry?.destination?.route
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val immersive by ImmersiveMode.enabled.collectAsState()
     val topLevelRoutes = remember { TopLevelDestination.entries.map { it.route }.toSet() }
-    val showBottomBar = currentRoute in topLevelRoutes
+    val showBottomBar = currentRoute in topLevelRoutes && !immersive
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -91,7 +96,9 @@ fun SpeedometerNavHost(settings: AppSettings) {
         Box(
             Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                // Immersive screens draw edge to edge; everything else keeps
+                // clear of the bars the scaffold reports.
+                .padding(if (immersive) PaddingValues(0.dp) else innerPadding)
         ) {
             NavHost(
                 navController = navController,

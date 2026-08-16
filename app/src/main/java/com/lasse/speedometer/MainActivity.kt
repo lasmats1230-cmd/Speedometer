@@ -9,11 +9,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.tracking.TrackingController
+import com.lasse.speedometer.ui.ImmersiveMode
 import com.lasse.speedometer.ui.nav.SpeedometerNavHost
-import com.lasse.speedometer.ui.settings.RestartSignal
 import com.lasse.speedometer.ui.theme.SpeedometerTheme
 import com.lasse.speedometer.util.AppLocale
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,11 +42,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by settingsState.collectAsState()
             val tracking by TrackingController.state.collectAsState()
-            val restarts by RestartSignal.restarts.collectAsState()
+            val immersive by ImmersiveMode.enabled.collectAsState()
 
-            // A language change only takes effect on a fresh configuration.
-            LaunchedEffect(restarts) {
-                if (restarts > 0) recreate()
+            // The battery-saving readout wants the whole panel: no status bar,
+            // no gesture bar. A swipe brings them back temporarily.
+            LaunchedEffect(immersive) {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                if (immersive) {
+                    controller.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    controller.hide(WindowInsetsCompat.Type.systemBars())
+                } else {
+                    controller.show(WindowInsetsCompat.Type.systemBars())
+                }
             }
 
             // Only hold the screen awake while something is actually recording.

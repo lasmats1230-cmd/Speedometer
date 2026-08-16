@@ -25,8 +25,6 @@
     <string name="discard">Discard</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
-    <string name="finish_trip_title">Finish trip?</string>
-    <string name="finish_trip_message">Save this recording to your history or discard it.</string>
 
     <!-- History -->
     <string name="history">History</string>
@@ -217,4 +215,13 @@
         <item quantity="one">Dim after %1$d second</item>
         <item quantity="other">Dim after %1$d seconds</item>
     </plurals>
+
+    <!-- Finish a trip -->
+    <string name="save_trip">Save trip</string>
+    <string name="discard_trip">Discard trip</string>
+    <string name="save_trip_title">Save this trip?</string>
+    <string name="save_trip_message">Recording stops and the trip is added to your history.</string>
+    <string name="discard_trip_title">Discard this trip?</string>
+    <string name="discard_trip_message">Recording stops and everything from this trip is thrown away. This cannot be undone.</string>
+    <string name="layout_preview">Preview</string>
 </resources>

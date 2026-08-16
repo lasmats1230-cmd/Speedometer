@@ -38,14 +38,20 @@ object AppLocale {
         _language.value = read(context)
     }
 
-    fun set(context: Context, language: AppLanguage) {
+    /**
+     * Stores the choice and returns true when the caller has to restart the
+     * activity itself. From Android 13 the platform owns per-app language and
+     * recreates the activity for us; doing it as well would be a second,
+     * redundant restart.
+     */
+    fun set(context: Context, language: AppLanguage): Boolean {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LANGUAGE, language.name)
-            .apply()
+            .commit()
         _language.value = language
-        applyToSystem(context, language)
+        return !applyToSystem(context, language)
     }
 
     fun read(context: Context): AppLanguage {
@@ -75,11 +81,13 @@ object AppLocale {
      * Mirrors the choice into Android's own per-app language setting, so the
      * system Settings screen agrees with what the app is showing.
      */
-    private fun applyToSystem(context: Context, language: AppLanguage) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val manager = context.getSystemService(android.app.LocaleManager::class.java) ?: return
+    private fun applyToSystem(context: Context, language: AppLanguage): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        val manager = context.getSystemService(android.app.LocaleManager::class.java)
+            ?: return false
         manager.applicationLocales = language.tag
             ?.let { LocaleList.forLanguageTags(it) }
             ?: LocaleList.getEmptyLocaleList()
+        return true
     }
 }
