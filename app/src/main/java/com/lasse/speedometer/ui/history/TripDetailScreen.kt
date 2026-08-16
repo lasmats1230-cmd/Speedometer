@@ -364,18 +364,97 @@ private fun TripDetailContent(
             }
         }
 
-        item("moving-time") {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile(
-                    label = stringResource(R.string.moving_time),
-                    value = Formatters.durationLong(trip.movingTimeMs),
-                    modifier = Modifier.weight(1f),
-                )
-                StatTile(
-                    label = stringResource(R.string.stat_time),
-                    value = Formatters.durationLong(trip.durationMs),
-                    modifier = Modifier.weight(1f),
-                )
+        item("details") {
+            DetailTable(trip = trip, points = points, settings = settings)
+        }
+    }
+}
+
+/**
+ * The long tail of numbers behind a trip.
+ *
+ * Kept as a list of label/value rows rather than more tiles: these are figures
+ * you read once out of curiosity, not ones you scan at a glance.
+ */
+@Composable
+private fun DetailTable(
+    trip: TripEntity,
+    points: List<TrackPointEntity>,
+    settings: AppSettings,
+) {
+    val units = settings.units
+    val stoppedMs = (trip.durationMs - trip.movingTimeMs).coerceAtLeast(0L)
+    val movingSeconds = trip.movingTimeMs / 1000.0
+    val avgMovingSpeed = if (movingSeconds > 0) trip.distanceM / movingSeconds else 0.0
+    val avgAccuracy = points.takeIf { it.isNotEmpty() }?.map { it.accuracyM }?.average()
+    val elevationRange = trip.maxAltitudeM?.let { high ->
+        trip.minAltitudeM?.let { low -> high - low }
+    }
+
+    val rows = buildList {
+        add(stringResource(R.string.detail_started) to formatTripTime(trip.startedAt))
+        add(stringResource(R.string.detail_ended) to formatTripTime(trip.endedAt))
+        add(stringResource(R.string.stat_time) to Formatters.durationLong(trip.durationMs))
+        add(stringResource(R.string.moving_time) to Formatters.durationLong(trip.movingTimeMs))
+        add(stringResource(R.string.detail_stopped_time) to Formatters.durationLong(stoppedMs))
+        add(stringResource(R.string.stat_distance) to Formatters.distance(trip.distanceM, units))
+        add(stringResource(R.string.stat_avg) to Formatters.speed(trip.avgSpeedMps, units))
+        add(stringResource(R.string.detail_avg_moving) to Formatters.speed(avgMovingSpeed, units))
+        add(stringResource(R.string.stat_max) to Formatters.speed(trip.maxSpeedMps, units))
+        add(stringResource(R.string.detail_avg_pace) to Formatters.pace(avgMovingSpeed, units))
+        add(stringResource(R.string.detail_best_pace) to Formatters.pace(trip.maxSpeedMps, units))
+        add(stringResource(R.string.ascent) to Formatters.elevation(trip.ascentM, units))
+        add(stringResource(R.string.descent) to Formatters.elevation(trip.descentM, units))
+        trip.maxAltitudeM?.let {
+            add(stringResource(R.string.detail_max_altitude) to Formatters.elevation(it, units))
+        }
+        trip.minAltitudeM?.let {
+            add(stringResource(R.string.detail_min_altitude) to Formatters.elevation(it, units))
+        }
+        elevationRange?.let {
+            add(stringResource(R.string.detail_elevation_range) to Formatters.elevation(it, units))
+        }
+        add(stringResource(R.string.detail_points) to points.size.toString())
+        avgAccuracy?.let {
+            add(
+                stringResource(R.string.detail_avg_accuracy) to
+                    Formatters.elevation(it, units)
+            )
+        }
+        add(
+            stringResource(R.string.detail_health_synced) to stringResource(
+                if (trip.syncedToHealth) R.string.yes else R.string.no
+            )
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.detail_all_statistics),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            rows.forEach { (label, value) ->
+                Row(Modifier.fillMaxWidth()) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
             }
         }
     }

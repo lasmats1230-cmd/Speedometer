@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -387,7 +388,11 @@ private fun TourRow(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(
-                    text = stringResource(R.string.trips_count, summary.tripCount),
+                    text = pluralStringResource(
+                        R.plurals.trips_count,
+                        summary.tripCount,
+                        summary.tripCount,
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -477,5 +482,8 @@ private fun AddToTourDialog(
 }
 
 private val tripDateFormat = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
+private val tripTimeFormat = SimpleDateFormat("d MMM yyyy, HH:mm:ss", Locale.getDefault())
 
 internal fun formatTripDate(millis: Long): String = tripDateFormat.format(Date(millis))
+
+internal fun formatTripTime(millis: Long): String = tripTimeFormat.format(Date(millis))

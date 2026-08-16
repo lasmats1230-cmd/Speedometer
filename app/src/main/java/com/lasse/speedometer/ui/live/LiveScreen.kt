@@ -27,8 +27,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationDisabled
 import androidx.compose.material.icons.filled.Pause
@@ -46,6 +47,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -61,16 +63,19 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.data.prefs.BatterySaverMode
+import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.components.LatLng
-import com.lasse.speedometer.ui.components.StatTileRow
+import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.TrackMap
 import com.lasse.speedometer.ui.theme.SpeedDisplayStyle
 import com.lasse.speedometer.ui.theme.SpeedUnitStyle
 import com.lasse.speedometer.ui.theme.TimerStyle
 import com.lasse.speedometer.ui.theme.TrackColors
 import com.lasse.speedometer.util.Formatters
+import kotlinx.coroutines.delay
 
 @Composable
 fun LiveScreen(
@@ -82,34 +87,27 @@ fun LiveScreen(
     val state by TrackingController.state.collectAsState()
     val savedTripId by TrackingController.savedTripId.collectAsState()
     val followedRoute by viewModel.followedRoute.collectAsState()
+    val waypoints by viewModel.waypoints.collectAsState()
+    val editingWaypoint by viewModel.editingWaypoint.collectAsState()
 
-    var hasLocationPermission by remember {
-        mutableStateOf(context.hasLocationPermission())
-    }
+    var hasLocationPermission by remember { mutableStateOf(context.hasLocationPermission()) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var pendingStart by remember { mutableStateOf(false) }
+    var newWaypointAt by remember { mutableStateOf<LatLng?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
         hasLocationPermission = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (hasLocationPermission && pendingStart) {
-            TrackingController.start(context)
-        }
+        if (hasLocationPermission && pendingStart) TrackingController.start(context)
         pendingStart = false
     }
 
-    // Warm the map up with a position as soon as we're allowed to have one,
-    // and hand the GPS back when this screen goes away.
     val idle = state.status == TrackingStatus.IDLE
     DisposableEffect(hasLocationPermission, idle) {
-        if (hasLocationPermission && idle) {
-            TrackingController.observeIdleLocation(context)
-        }
-        onDispose {
-            if (idle) TrackingController.stopIdleLocation(context)
-        }
+        if (hasLocationPermission && idle) TrackingController.observeIdleLocation(context)
+        onDispose { if (idle) TrackingController.stopIdleLocation(context) }
     }
 
     val savedMessage = stringResource(R.string.saved)
@@ -120,9 +118,44 @@ fun LiveScreen(
         }
     }
 
+    // Battery saving: extreme dims as soon as recording starts, cycling waits
+    // out the configured delay and comes back at a tap.
+    var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var dimmed by remember { mutableStateOf(false) }
+    val recording = state.status == TrackingStatus.RECORDING ||
+        state.status == TrackingStatus.ACQUIRING
+
+    LaunchedEffect(settings.batterySaver, recording, lastInteraction, settings.dimDelaySeconds) {
+        dimmed = when {
+            !recording -> false
+            settings.batterySaver == BatterySaverMode.EXTREME -> true
+            settings.batterySaver == BatterySaverMode.CYCLING -> {
+                delay(settings.dimDelaySeconds * 1000L)
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    if (dimmed) {
+        DimDisplay(
+            state = state,
+            settings = settings,
+            lowBrightness = settings.batterySaver == BatterySaverMode.EXTREME,
+            onWake = {
+                dimmed = false
+                lastInteraction = System.currentTimeMillis()
+            },
+        )
+        return
+    }
+
     val track = remember(state.pointCount) {
         state.track.map { LatLng(it.latitude, it.longitude) }
     }
+    val now = System.currentTimeMillis()
+    val layout = settings.layout
 
     Column(
         modifier = Modifier
@@ -130,91 +163,133 @@ fun LiveScreen(
             .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(12.dp))
+        // With the map hidden there is nothing to stretch, so the column
+        // scrolls instead of leaving the controls floating in dead space.
+        val scrollable = layout.minimapSize == MinimapSize.HIDDEN
 
-        StatusChip(
-            status = state.status,
-            accuracyM = state.accuracyM,
-            hasPermission = hasLocationPermission,
-            settings = settings,
-            onRequestPermission = {
-                pendingStart = false
-                permissionLauncher.launch(locationPermissions())
-            },
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Text(
-            text = Formatters.bigSpeed(state.speedMps, settings.units),
-            style = SpeedDisplayStyle,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = Formatters.speedUnit(settings.units),
-            style = SpeedUnitStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(Modifier.height(20.dp))
-
-        StatTileRow(
-            tiles = listOf(
-                stringResource(R.string.stat_max) to
-                    Formatters.speed(state.maxSpeedMps, settings.units),
-                stringResource(R.string.stat_avg) to
-                    Formatters.speed(state.avgSpeedMps, settings.units),
-                stringResource(R.string.stat_distance) to
-                    Formatters.distance(state.distanceM, settings.units),
-            )
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        Text(
-            text = Formatters.duration(state.elapsedMs),
-            style = TimerStyle,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        Spacer(Modifier.height(14.dp))
-
-        TransportControls(
-            status = state.status,
-            onStart = {
-                if (hasLocationPermission) {
-                    TrackingController.start(context)
-                } else {
-                    pendingStart = true
-                    permissionLauncher.launch(locationPermissions())
-                }
-            },
-            onPause = { TrackingController.pause(context) },
-            onResume = { TrackingController.resume(context) },
-            onStop = { showFinishDialog = true },
-        )
-
-        Spacer(Modifier.height(18.dp))
-
-        Surface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .padding(bottom = 12.dp),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
+                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            TrackMap(
-                modifier = Modifier.fillMaxSize(),
-                track = track,
-                route = followedRoute,
-                currentPosition = state.latitude?.let { latitude ->
-                    state.longitude?.let { longitude -> LatLng(latitude, longitude) }
-                },
-                bearingDeg = state.bearingDeg,
-                followPosition = true,
+            Spacer(Modifier.height(12.dp))
+
+            if (layout.showStatusChip) {
+                StatusChip(
+                    status = state.status,
+                    accuracyM = state.accuracyM,
+                    hasPermission = hasLocationPermission,
+                    settings = settings,
+                    onRequestPermission = {
+                        pendingStart = false
+                        permissionLauncher.launch(locationPermissions())
+                    },
+                )
+                Spacer(Modifier.height(16.dp))
+            }
+
+            Text(
+                text = Formatters.bigSpeed(state.speedMps, settings.units),
+                style = SpeedDisplayStyle,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            Text(
+                text = Formatters.speedUnit(settings.units),
+                style = SpeedUnitStyle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (layout.stats.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                StatGrid(
+                    settings = settings,
+                    state = state,
+                    now = now,
+                )
+            }
+
+            if (layout.showTimer) {
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    text = Formatters.duration(state.elapsedMs),
+                    style = TimerStyle,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            TransportControls(
+                status = state.status,
+                onStart = {
+                    lastInteraction = System.currentTimeMillis()
+                    if (hasLocationPermission) {
+                        TrackingController.start(context)
+                    } else {
+                        pendingStart = true
+                        permissionLauncher.launch(locationPermissions())
+                    }
+                },
+                onPause = { TrackingController.pause(context) },
+                onResume = { TrackingController.resume(context) },
+                onStop = { showFinishDialog = true },
+            )
+
+            Spacer(Modifier.height(18.dp))
         }
+
+        if (layout.minimapSize != MinimapSize.HIDDEN) {
+            val mapModifier = when (layout.minimapSize) {
+                MinimapSize.SMALL -> Modifier.height(150.dp)
+                MinimapSize.MEDIUM -> Modifier.height(260.dp)
+                else -> Modifier.weight(1f)
+            }
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(mapModifier)
+                    .padding(bottom = 12.dp),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                TrackMap(
+                    modifier = Modifier.fillMaxSize(),
+                    track = track,
+                    route = followedRoute,
+                    waypoints = waypoints,
+                    currentPosition = state.latitude?.let { latitude ->
+                        state.longitude?.let { longitude -> LatLng(latitude, longitude) }
+                    },
+                    bearingDeg = state.bearingDeg,
+                    followPosition = true,
+                    onMapLongPress = { newWaypointAt = it },
+                    onWaypointClick = viewModel::openWaypoint,
+                )
+            }
+        }
+    }
+
+    newWaypointAt?.let { position ->
+        WaypointEditorDialog(
+            existing = null,
+            onDismiss = { newWaypointAt = null },
+            onSave = { label, note, color ->
+                viewModel.addWaypoint(position.latitude, position.longitude, label, note, color)
+                newWaypointAt = null
+            },
+        )
+    }
+
+    editingWaypoint?.let { waypoint ->
+        WaypointEditorDialog(
+            existing = waypoint,
+            onDismiss = viewModel::closeWaypoint,
+            onSave = { label, note, color ->
+                viewModel.updateWaypoint(waypoint, label, note, color)
+            },
+            onDelete = { viewModel.deleteWaypoint(waypoint.id) },
+        )
     }
 
     if (showFinishDialog) {
@@ -235,6 +310,39 @@ fun LiveScreen(
                 }) { Text(stringResource(R.string.discard)) }
             },
         )
+    }
+}
+
+/** The user's chosen tiles, wrapped into rows of [LayoutSettings.statColumns]. */
+@Composable
+private fun StatGrid(
+    settings: AppSettings,
+    state: com.lasse.speedometer.tracking.TrackingState,
+    now: Long,
+) {
+    val columns = settings.layout.statColumns.coerceIn(1, 4)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        settings.layout.stats.chunked(columns).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                row.forEach { stat ->
+                    StatTile(
+                        label = stringResource(stat.labelRes),
+                        value = LiveStats.value(stat, state, settings, now),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                // Keeps a short last row aligned with the rows above it.
+                repeat(columns - row.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 
@@ -265,7 +373,6 @@ private fun StatusChip(
         else -> Color.Transparent
     }
 
-    // The dot breathes while recording so a glance tells you it's still live.
     val transition = rememberInfiniteTransition(label = "recording-pulse")
     val alpha by transition.animateFloat(
         initialValue = 1f,

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Navigation -->
+    <string name="nav_live">Live</string>
+    <string name="nav_history">Verlauf</string>
+    <string name="nav_tools">Werkzeuge</string>
+    <string name="nav_settings">Einstellungen</string>
+
+    <!-- Live -->
+    <string name="status_ready">Bereit</string>
+    <string name="status_waiting">Warte auf GPS…</string>
+    <string name="status_paused">Pausiert</string>
+    <string name="status_tracking">GPS-Aufzeichnung (±%1$s)</string>
+    <string name="status_no_permission">Standortberechtigung nötig</string>
+    <string name="stat_max">Max</string>
+    <string name="stat_avg">Ø</string>
+    <string name="stat_distance">Strecke</string>
+    <string name="stat_time">Zeit</string>
+    <string name="start">Start</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Fortsetzen</string>
+    <string name="stop">Stopp</string>
+    <string name="discard">Verwerfen</string>
+    <string name="save">Speichern</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="finish_trip_title">Fahrt beenden?</string>
+    <string name="finish_trip_message">Diese Aufzeichnung im Verlauf speichern oder verwerfen.</string>
+
+    <!-- History -->
+    <string name="history">Verlauf</string>
+    <string name="tab_trips">Fahrten</string>
+    <string name="tab_tours">Touren</string>
+    <string name="no_trips_title">Noch keine Fahrten.</string>
+    <string name="no_trips_body">Starte eine Aufzeichnung in der Live-Ansicht, dann erscheint sie hier.</string>
+    <string name="no_tours_title">Noch keine Touren.</string>
+    <string name="no_tours_body">Fasse mehrere Aufzeichnungen über das Menü einer Fahrt zu einer Tour zusammen.</string>
+    <string name="download_gpx">GPX herunterladen</string>
+    <string name="share_gpx">GPX teilen</string>
+    <string name="sync_health_connect">Mit Health Connect synchronisieren</string>
+    <string name="add_to_tour">Zu Tour hinzufügen</string>
+    <string name="delete">Löschen</string>
+    <string name="delete_all">Alle löschen</string>
+    <string name="delete_trip_title">Fahrt löschen?</string>
+    <string name="delete_trip_message">Diese Aufzeichnung wird dauerhaft entfernt.</string>
+    <string name="delete_all_title">Alle Fahrten löschen?</string>
+    <string name="delete_all_message">Alle Aufzeichnungen werden dauerhaft entfernt.</string>
+    <string name="new_tour">Neue Tour…</string>
+    <string name="tour_name">Tourname</string>
+    <string name="create">Erstellen</string>
+
+    <!-- Detail -->
+    <string name="elevation">Höhe</string>
+    <string name="ascent">Aufstieg</string>
+    <string name="descent">Abstieg</string>
+    <string name="altitude">Höhe</string>
+    <string name="elevation_profile">Höhenprofil</string>
+    <string name="speed_profile">Geschwindigkeitsprofil</string>
+    <string name="lowest">Tiefster %1$s</string>
+    <string name="highest">Höchster %1$s</string>
+    <string name="moving_time">Bewegungszeit</string>
+    <string name="back">Zurück</string>
+    <string name="more">Mehr</string>
+
+    <!-- Tools -->
+    <string name="tools">Werkzeuge</string>
+    <string name="tab_compass">Kompass</string>
+    <string name="tab_map">Karte</string>
+    <string name="tab_routes">Routen</string>
+    <string name="import_route">GPX oder TCX importieren</string>
+    <string name="no_routes_title">Noch keine Routen importiert.</string>
+    <string name="no_routes_body">Importiere eine GPX- oder TCX-Datei, um ihr in der Live-Ansicht zu folgen.</string>
+    <string name="follow_route">In Live-Ansicht folgen</string>
+    <string name="stop_following">Nicht mehr folgen</string>
+    <string name="following">Wird verfolgt</string>
+    <string name="calibrate_compass">Bewege das Handy in einer Acht, um zu kalibrieren.</string>
+    <string name="no_compass">Dieses Gerät hat keinen Kompasssensor.</string>
+    <string name="heading">Richtung</string>
+    <string name="recenter">Zentrieren</string>
+
+    <!-- Settings -->
+    <string name="settings">Einstellungen</string>
+    <string name="settings_units">Einheiten</string>
+    <string name="settings_unit_system">Einheitensystem</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_dynamic_color">Material-You-Farben</string>
+    <string name="settings_dynamic_color_summary">Farben vom Hintergrundbild übernehmen</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_keep_screen_on">Bildschirm beim Aufzeichnen anlassen</string>
+    <string name="settings_recording">Aufzeichnung</string>
+    <string name="settings_auto_pause">Automatische Pause</string>
+    <string name="settings_auto_pause_summary">Timer anhalten, wenn du stehen bleibst</string>
+    <string name="settings_min_accuracy">Punkte verwerfen, ungenauer als</string>
+    <string name="settings_speed_source">Geschwindigkeitsquelle</string>
+    <string name="settings_health">Health Connect</string>
+    <string name="settings_health_connect">Health Connect verbinden</string>
+    <string name="settings_health_auto">Neue Fahrten automatisch synchronisieren</string>
+    <string name="settings_about">Über</string>
+    <string name="settings_version">Version</string>
+
+    <!-- Notification -->
+    <string name="notif_channel_name">Fahrtaufzeichnung</string>
+    <string name="notif_channel_desc">Zeigt Geschwindigkeit und Strecke während einer Aufzeichnung.</string>
+    <string name="notif_title">Fahrt wird aufgezeichnet</string>
+
+    <!-- Misc -->
+    <string name="saved">Fahrt gespeichert</string>
+    <string name="synced">Mit Health Connect synchronisiert</string>
+    <string name="health_unavailable">Health Connect ist auf diesem Gerät nicht verfügbar</string>
+    <string name="import_failed">Datei konnte nicht gelesen werden</string>
+    <string name="export_failed">Fahrt konnte nicht exportiert werden</string>
+    <string name="imported_route">„%1$s“ importiert</string>
+
+    <!-- Layout -->
+    <string name="settings_layout">Layout</string>
+    <string name="settings_layout_row">Layout der Live-Ansicht</string>
+    <string name="settings_layout_summary">Kartengröße, angezeigte Werte und ihre Reihenfolge</string>
+    <string name="layout_minimap">Minikarte</string>
+    <string name="layout_minimap_summary">Wie viel Platz die Karte in der Live-Ansicht bekommt.</string>
+    <string name="layout_columns">Kacheln pro Zeile</string>
+    <string name="layout_columns_summary">Weniger Kacheln pro Zeile bedeutet größere Zahlen.</string>
+    <string name="layout_elements">Elemente</string>
+    <string name="layout_show_status">Statusanzeige einblenden</string>
+    <string name="layout_show_timer">Fahrtzeit einblenden</string>
+    <string name="layout_shown_stats">Angezeigte Werte</string>
+    <string name="layout_available_stats">Verfügbare Werte</string>
+    <string name="minimap_hidden">Aus</string>
+    <string name="minimap_small">Klein</string>
+    <string name="minimap_medium">Mittel</string>
+    <string name="minimap_large">Groß</string>
+    <string name="move_up">Nach oben</string>
+    <string name="move_down">Nach unten</string>
+    <string name="reset">Zurücksetzen</string>
+    <string name="stat_pace">Tempo</string>
+    <string name="stat_accuracy">Genauigkeit</string>
+    <string name="stat_clock">Uhrzeit</string>
+
+    <!-- Battery -->
+    <string name="settings_battery">Energiesparen</string>
+    <string name="battery_off">Aus</string>
+    <string name="battery_off_summary">Vollständige Anzeige, Karte immer sichtbar.</string>
+    <string name="battery_cycling">Fahrradmodus</string>
+    <string name="battery_cycling_summary">Zeigt nach einigen Sekunden nur noch Geschwindigkeit und Strecke auf Schwarz und stellt das Zeichnen der Karte ein. Zum Zurückholen tippen.</string>
+    <string name="battery_extreme">Extrem</string>
+    <string name="battery_extreme_summary">Minimale Anzeige ab dem Start der Aufzeichnung, mit stark reduzierter Helligkeit. Die Genauigkeit der Aufzeichnung bleibt unverändert.</string>
+    <string name="tap_to_wake">Tippen für die vollständige Anzeige</string>
+
+    <!-- Appearance -->
+    <string name="settings_accent">Akzentfarbe</string>
+    <string name="settings_accent_summary">Wird verwendet, wenn Material You ausgeschaltet ist.</string>
+    <string name="settings_accent_summary_legacy">Material You benötigt Android 12 oder neuer.</string>
+    <string name="settings_pure_black">Reinschwarzer Hintergrund</string>
+    <string name="settings_pure_black_summary">Echtes Schwarz im dunklen Design — unbeleuchtete OLED-Pixel kosten keinen Strom.</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
+    <string name="accent_green">Grün</string>
+    <string name="accent_blue">Blau</string>
+    <string name="accent_teal">Türkis</string>
+    <string name="accent_purple">Violett</string>
+    <string name="accent_pink">Pink</string>
+    <string name="accent_red">Rot</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_yellow">Gelb</string>
+
+    <!-- Language -->
+    <string name="settings_language">Sprache</string>
+    <string name="language_system">Systemsprache</string>
+    <string name="language_english">English</string>
+    <string name="language_german">Deutsch</string>
+
+    <!-- Waypoints -->
+    <string name="waypoint_new">Neuer Wegpunkt</string>
+    <string name="waypoint_edit">Wegpunkt bearbeiten</string>
+    <string name="waypoint_label">Bezeichnung</string>
+    <string name="waypoint_note">Notiz (optional)</string>
+    <string name="waypoint_color">Farbe</string>
+    <string name="waypoint_hint">Lange auf die Karte drücken, um einen Wegpunkt zu setzen.</string>
+
+    <!-- Trip detail -->
+    <string name="detail_all_statistics">Alle Werte</string>
+    <string name="detail_started">Beginn</string>
+    <string name="detail_ended">Ende</string>
+    <string name="detail_stopped_time">Standzeit</string>
+    <string name="detail_avg_moving">Ø in Bewegung</string>
+    <string name="detail_avg_pace">Ø Tempo</string>
+    <string name="detail_best_pace">Bestes Tempo</string>
+    <string name="detail_max_altitude">Höchster Punkt</string>
+    <string name="detail_min_altitude">Tiefster Punkt</string>
+    <string name="detail_elevation_range">Höhenunterschied</string>
+    <string name="detail_points">Aufgezeichnete Punkte</string>
+    <string name="detail_avg_accuracy">Ø GPS-Genauigkeit</string>
+    <string name="detail_health_synced">Mit Health Connect synchronisiert</string>
+    <string name="yes">Ja</string>
+    <string name="no">Nein</string>
+
+    <!-- About -->
+    <string name="settings_licenses_title">Recht &amp; Lizenzen</string>
+    <string name="settings_licenses_summary">Open-Source-Lizenzen und Kartendaten-Nennung</string>
+    <string name="settings_osm_attribution">Kartendaten © OpenStreetMap-Mitwirkende, lizenziert unter ODbL.</string>
+    <string name="licenses_intro">Speedometer baut auf den folgenden Open-Source-Projekten auf. Tippe auf einen Eintrag, um die vollständige Lizenz zu lesen.</string>
+    <string name="licenses_privacy_title">Deine Daten</string>
+    <string name="licenses_privacy_body">Fahrten, Wegpunkte und Routen werden ausschließlich auf diesem Gerät gespeichert. Nichts wird hochgeladen, es gibt weder Analyse noch Werbung. Kartenkacheln werden beim Verschieben der Karte von OpenFreeMap geladen — der Kachelserver sieht also, welche Gebiete du dir ansiehst. An Health Connect wird eine Fahrt nur übertragen, wenn du es verlangst.</string>
+    <string name="connected">Verbunden</string>
+    <string name="not_connected">Nicht verbunden</string>
+    <string name="close">Schließen</string>
+    <string name="speed_source_gps">GPS</string>
+    <string name="speed_source_computed">Berechnet</string>
+
+    <plurals name="trips_count">
+        <item quantity="one">%1$d Fahrt</item>
+        <item quantity="other">%1$d Fahrten</item>
+    </plurals>
+    <plurals name="settings_dim_delay">
+        <item quantity="one">Nach %1$d Sekunde abdunkeln</item>
+        <item quantity="other">Nach %1$d Sekunden abdunkeln</item>
+    </plurals>
+</resources>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Speedometer</string>
+    <string name="app_name" translatable="false">Speedometer</string>
 
     <!-- Navigation -->
     <string name="nav_live">Live</string>
@@ -22,14 +22,11 @@
     <string name="pause">Pause</string>
     <string name="resume">Resume</string>
     <string name="stop">Stop</string>
-    <string name="stop_and_save">Stop and save</string>
     <string name="discard">Discard</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="finish_trip_title">Finish trip?</string>
     <string name="finish_trip_message">Save this recording to your history or discard it.</string>
-    <string name="grant_location">Grant location access</string>
-    <string name="location_rationale">Speedometer needs location access to measure your speed and record your route.</string>
 
     <!-- History -->
     <string name="history">History</string>
@@ -44,7 +41,6 @@
     <string name="sync_health_connect">Sync to Health Connect</string>
     <string name="add_to_tour">Add to tour</string>
     <string name="delete">Delete</string>
-    <string name="rename">Rename</string>
     <string name="delete_all">Delete all</string>
     <string name="delete_trip_title">Delete trip?</string>
     <string name="delete_trip_message">This recording will be removed permanently.</string>
@@ -53,7 +49,6 @@
     <string name="new_tour">New tour…</string>
     <string name="tour_name">Tour name</string>
     <string name="create">Create</string>
-    <string name="trips_count">%1$d trips</string>
 
     <!-- Detail -->
     <string name="elevation">Elevation</string>
@@ -103,7 +98,6 @@
     <string name="settings_health_auto">Sync new trips automatically</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
-    <string name="settings_licenses">Map data © OpenStreetMap contributors</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Trip recording</string>
@@ -117,4 +111,110 @@
     <string name="import_failed">Could not read that file</string>
     <string name="export_failed">Could not export the trip</string>
     <string name="imported_route">Imported “%1$s”</string>
+
+    <!-- Layout -->
+    <string name="settings_layout">Layout</string>
+    <string name="settings_layout_row">Live view layout</string>
+    <string name="settings_layout_summary">Map size, which figures show, and their order</string>
+    <string name="layout_minimap">Minimap</string>
+    <string name="layout_minimap_summary">How much of the live view the map takes.</string>
+    <string name="layout_columns">Tiles per row</string>
+    <string name="layout_columns_summary">Fewer tiles per row means larger numbers.</string>
+    <string name="layout_elements">Elements</string>
+    <string name="layout_show_status">Show status chip</string>
+    <string name="layout_show_timer">Show trip timer</string>
+    <string name="layout_shown_stats">Shown statistics</string>
+    <string name="layout_available_stats">Available statistics</string>
+    <string name="minimap_hidden">Off</string>
+    <string name="minimap_small">Small</string>
+    <string name="minimap_medium">Medium</string>
+    <string name="minimap_large">Large</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="reset">Reset</string>
+    <string name="stat_pace">Pace</string>
+    <string name="stat_accuracy">Accuracy</string>
+    <string name="stat_clock">Clock</string>
+
+    <!-- Battery -->
+    <string name="settings_battery">Battery saving</string>
+    <string name="battery_off">Off</string>
+    <string name="battery_off_summary">Full display, map always drawn.</string>
+    <string name="battery_cycling">Cycling mode</string>
+    <string name="battery_cycling_summary">After a few seconds, drops to speed and distance on black and stops drawing the map. Tap to bring it back.</string>
+    <string name="battery_extreme">Extreme</string>
+    <string name="battery_extreme_summary">Minimal display from the moment recording starts, with the backlight turned right down. Recording accuracy is unaffected.</string>
+    <string name="tap_to_wake">Tap to show the full display</string>
+
+    <!-- Appearance -->
+    <string name="settings_accent">Accent colour</string>
+    <string name="settings_accent_summary">Used when Material You is switched off.</string>
+    <string name="settings_accent_summary_legacy">Material You needs Android 12 or newer.</string>
+    <string name="settings_pure_black">Pure black background</string>
+    <string name="settings_pure_black_summary">True black in dark mode, which unlit OLED pixels cost nothing to show.</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_purple">Purple</string>
+    <string name="accent_pink">Pink</string>
+    <string name="accent_red">Red</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_yellow">Yellow</string>
+
+    <!-- Language -->
+    <string name="settings_language">Language</string>
+    <string name="language_system">System default</string>
+    <string name="language_english">English</string>
+    <string name="language_german">Deutsch</string>
+
+    <!-- Waypoints -->
+    <string name="waypoint_new">New waypoint</string>
+    <string name="waypoint_edit">Edit waypoint</string>
+    <string name="waypoint_label">Label</string>
+    <string name="waypoint_note">Note (optional)</string>
+    <string name="waypoint_color">Colour</string>
+    <string name="waypoint_hint">Long-press the map to drop a waypoint.</string>
+
+    <!-- Trip detail -->
+    <string name="detail_all_statistics">All statistics</string>
+    <string name="detail_started">Started</string>
+    <string name="detail_ended">Ended</string>
+    <string name="detail_stopped_time">Stopped time</string>
+    <string name="detail_avg_moving">Avg moving speed</string>
+    <string name="detail_avg_pace">Avg pace</string>
+    <string name="detail_best_pace">Best pace</string>
+    <string name="detail_max_altitude">Highest point</string>
+    <string name="detail_min_altitude">Lowest point</string>
+    <string name="detail_elevation_range">Elevation range</string>
+    <string name="detail_points">Recorded points</string>
+    <string name="detail_avg_accuracy">Avg GPS accuracy</string>
+    <string name="detail_health_synced">Synced to Health Connect</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+
+    <!-- About -->
+    <string name="made_by" translatable="false">Made by lasmats</string>
+    <string name="settings_licenses_title">Legal &amp; licensing</string>
+    <string name="settings_licenses_summary">Open-source licences and map data attribution</string>
+    <string name="settings_osm_attribution">Map data © OpenStreetMap contributors, licensed under ODbL.</string>
+    <string name="licenses_intro">Speedometer is built on the open-source projects below. Tap an entry to read its licence in full.</string>
+    <string name="licenses_privacy_title">Your data</string>
+    <string name="licenses_privacy_body">Trips, waypoints and routes are stored only on this device. Nothing is uploaded, and there is no analytics or advertising. Map tiles are fetched from OpenFreeMap as you pan, which means the tile server sees the areas you look at. Health Connect receives a trip only when you ask it to.</string>
+    <string name="connected">Connected</string>
+    <string name="not_connected">Not connected</string>
+    <string name="close">Close</string>
+    <string name="speed_source_gps">GPS</string>
+    <string name="speed_source_computed">Computed</string>
+
+    <plurals name="trips_count">
+        <item quantity="one">%1$d trip</item>
+        <item quantity="other">%1$d trips</item>
+    </plurals>
+    <plurals name="settings_dim_delay">
+        <item quantity="one">Dim after %1$d second</item>
+        <item quantity="other">Dim after %1$d seconds</item>
+    </plurals>
 </resources>

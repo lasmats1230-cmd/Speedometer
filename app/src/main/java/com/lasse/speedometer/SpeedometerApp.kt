@@ -7,6 +7,7 @@ import com.lasse.speedometer.data.io.TripExporter
 import com.lasse.speedometer.data.prefs.SettingsRepository
 import com.lasse.speedometer.data.repo.TripRepository
 import com.lasse.speedometer.health.HealthConnectManager
+import com.lasse.speedometer.util.AppLocale
 import org.maplibre.android.MapLibre
 
 /**
@@ -20,7 +21,12 @@ class SpeedometerApp : Application() {
     val settingsRepository by lazy { SettingsRepository(this) }
 
     val tripRepository by lazy {
-        TripRepository(database.tripDao(), database.tourDao(), database.routeDao())
+        TripRepository(
+            database.tripDao(),
+            database.tourDao(),
+            database.routeDao(),
+            database.waypointDao(),
+        )
     }
 
     val tripExporter by lazy { TripExporter(this) }
@@ -29,6 +35,7 @@ class SpeedometerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppLocale.initialise(this)
         // Must run before any MapView is constructed. The tiles need no API
         // key, so there is no token to pass here.
         MapLibre.getInstance(this)

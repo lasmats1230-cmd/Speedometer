@@ -68,6 +68,26 @@ object Formatters {
             elevationUnit(units),
         )
 
+    /**
+     * "4:12 /km" — time to cover one kilometre or mile at the current speed.
+     * Standing still has no meaningful pace, so it reads as a dash.
+     */
+    fun pace(mps: Double, units: UnitSystem): String {
+        if (mps < 0.28) return "—"
+        val perUnit = when (units) {
+            UnitSystem.METRIC -> 1000.0 / mps
+            UnitSystem.IMPERIAL -> 1609.344 / mps
+        }
+        if (perUnit > 3600) return "—"
+        // Round the total, not each part: rounding seconds on their own turns
+        // 359.99 s into "5:60" instead of "6:00".
+        val totalSeconds = perUnit.roundToInt()
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        val suffix = if (units == UnitSystem.METRIC) "/km" else "/mi"
+        return String.format(Locale.getDefault(), "%d:%02d %s", minutes, seconds, suffix)
+    }
+
     /** "±69 m" — accuracy is always metric-ish; feet for imperial. */
     fun accuracy(metres: Float, units: UnitSystem): String =
         "±" + elevation(metres.toDouble(), units)

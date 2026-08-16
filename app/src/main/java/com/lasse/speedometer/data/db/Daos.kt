@@ -124,3 +124,25 @@ interface RouteDao {
     @Query("DELETE FROM routes WHERE id = :id")
     suspend fun deleteRoute(id: Long)
 }
+
+@Dao
+interface WaypointDao {
+
+    @Query("SELECT * FROM waypoints ORDER BY createdAt DESC")
+    fun observeWaypoints(): Flow<List<WaypointEntity>>
+
+    @Query("SELECT * FROM waypoints WHERE id = :id")
+    suspend fun getWaypoint(id: Long): WaypointEntity?
+
+    @Insert
+    suspend fun insertWaypoint(waypoint: WaypointEntity): Long
+
+    @Update
+    suspend fun updateWaypoint(waypoint: WaypointEntity)
+
+    @Query("DELETE FROM waypoints WHERE id = :id")
+    suspend fun deleteWaypoint(id: Long)
+
+    @Query("DELETE FROM waypoints")
+    suspend fun deleteAllWaypoints()
+}

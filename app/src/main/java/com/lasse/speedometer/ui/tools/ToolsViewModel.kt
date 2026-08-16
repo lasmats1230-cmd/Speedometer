@@ -2,6 +2,7 @@ package com.lasse.speedometer.ui.tools
 
 import android.app.Application
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
@@ -48,10 +49,10 @@ class ToolsViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun displayName(uri: Uri): String? {
         val context = getApplication<Application>()
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (index >= 0 && cursor.moveToFirst()) return cursor.getString(index)
-        }
-        return uri.lastPathSegment
+        val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+        val name = context.contentResolver
+            .query(uri, projection, null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+        return name ?: uri.lastPathSegment
     }
 }

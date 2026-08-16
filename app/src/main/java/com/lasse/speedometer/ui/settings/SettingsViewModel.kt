@@ -6,9 +6,15 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
+import com.lasse.speedometer.data.prefs.BatterySaverMode
+import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.data.prefs.SpeedSource
+import com.lasse.speedometer.data.prefs.StatType
 import com.lasse.speedometer.data.prefs.ThemeMode
 import com.lasse.speedometer.data.prefs.UnitSystem
+import com.lasse.speedometer.ui.theme.AccentColor
+import com.lasse.speedometer.util.AppLanguage
+import com.lasse.speedometer.util.AppLocale
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +33,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages = _messages.asSharedFlow()
 
+    val language: StateFlow<AppLanguage> = AppLocale.language
+
     val healthAvailable: Boolean get() = health.isAvailable
 
     val healthPermissions: Set<String> get() = health.permissions
@@ -42,35 +50,55 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _healthPermissionsGranted.value = health.isAvailable && health.hasPermissions()
     }
 
-    fun setUnits(value: UnitSystem) = viewModelScope.launch {
-        settingsRepository.setUnits(value)
+    /**
+     * Changing language has to restart the activity: resources are resolved
+     * against the configuration attached when it was created.
+     */
+    fun setLanguage(value: AppLanguage) {
+        val context = getApplication<Application>()
+        AppLocale.set(context, value)
+        RestartSignal.request()
     }
 
-    fun setThemeMode(value: ThemeMode) = viewModelScope.launch {
-        settingsRepository.setThemeMode(value)
-    }
+    fun setUnits(value: UnitSystem) = update { settingsRepository.setUnits(value) }
+    fun setThemeMode(value: ThemeMode) = update { settingsRepository.setThemeMode(value) }
+    fun setDynamicColor(value: Boolean) = update { settingsRepository.setDynamicColor(value) }
+    fun setAccentColor(value: AccentColor) = update { settingsRepository.setAccentColor(value) }
+    fun setPureBlack(value: Boolean) = update { settingsRepository.setPureBlack(value) }
+    fun setKeepScreenOn(value: Boolean) = update { settingsRepository.setKeepScreenOn(value) }
+    fun setAutoPause(value: Boolean) = update { settingsRepository.setAutoPause(value) }
+    fun setMinAccuracy(value: Float) = update { settingsRepository.setMinAccuracy(value) }
+    fun setSpeedSource(value: SpeedSource) = update { settingsRepository.setSpeedSource(value) }
+    fun setAutoSyncHealth(value: Boolean) = update { settingsRepository.setAutoSyncHealth(value) }
+    fun setBatterySaver(value: BatterySaverMode) =
+        update { settingsRepository.setBatterySaver(value) }
 
-    fun setDynamicColor(value: Boolean) = viewModelScope.launch {
-        settingsRepository.setDynamicColor(value)
-    }
+    fun setDimDelaySeconds(value: Int) = update { settingsRepository.setDimDelaySeconds(value) }
 
-    fun setKeepScreenOn(value: Boolean) = viewModelScope.launch {
-        settingsRepository.setKeepScreenOn(value)
-    }
+    fun setMinimapSize(value: MinimapSize) = update { settingsRepository.setMinimapSize(value) }
+    fun setShowTimer(value: Boolean) = update { settingsRepository.setShowTimer(value) }
+    fun setShowStatusChip(value: Boolean) = update { settingsRepository.setShowStatusChip(value) }
+    fun setStatColumns(value: Int) = update { settingsRepository.setStatColumns(value) }
+    fun resetLayout() = update { settingsRepository.resetLayout() }
 
-    fun setAutoPause(value: Boolean) = viewModelScope.launch {
-        settingsRepository.setAutoPause(value)
-    }
+    fun toggleStat(stat: StatType, current: List<StatType>) =
+        update { settingsRepository.toggleStat(stat, current) }
 
-    fun setMinAccuracy(value: Float) = viewModelScope.launch {
-        settingsRepository.setMinAccuracy(value)
-    }
+    fun moveStat(stat: StatType, offset: Int, current: List<StatType>) =
+        update { settingsRepository.moveStat(stat, offset, current) }
 
-    fun setSpeedSource(value: SpeedSource) = viewModelScope.launch {
-        settingsRepository.setSpeedSource(value)
-    }
+    private fun update(block: suspend () -> Unit) = viewModelScope.launch { block() }
+}
 
-    fun setAutoSyncHealth(value: Boolean) = viewModelScope.launch {
-        settingsRepository.setAutoSyncHealth(value)
+/**
+ * Lets a setting ask the activity to recreate itself, which changing the
+ * language requires and nothing else does.
+ */
+object RestartSignal {
+    private val _restarts = MutableStateFlow(0)
+    val restarts: StateFlow<Int> = _restarts.asStateFlow()
+
+    fun request() {
+        _restarts.value += 1
     }
 }

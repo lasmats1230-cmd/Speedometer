@@ -41,6 +41,7 @@
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Speedometer"
+        android:localeConfig="@xml/locales_config"
         tools:targetApi="35">
 
         <activity

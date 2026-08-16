@@ -3,78 +3,24 @@ package com.lasse.speedometer.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.lasse.speedometer.data.prefs.ThemeMode
 
-private val LightScheme = lightColorScheme(
-    primary = Palette.PrimaryLight,
-    onPrimary = Palette.OnPrimaryLight,
-    primaryContainer = Palette.PrimaryContainerLight,
-    onPrimaryContainer = Palette.OnPrimaryContainerLight,
-    secondary = Palette.SecondaryLight,
-    onSecondary = Palette.OnSecondaryLight,
-    secondaryContainer = Palette.SecondaryContainerLight,
-    onSecondaryContainer = Palette.OnSecondaryContainerLight,
-    tertiary = Palette.TertiaryLight,
-    onTertiary = Palette.OnTertiaryLight,
-    tertiaryContainer = Palette.TertiaryContainerLight,
-    onTertiaryContainer = Palette.OnTertiaryContainerLight,
-    error = Palette.ErrorLight,
-    onError = Palette.OnErrorLight,
-    errorContainer = Palette.ErrorContainerLight,
-    onErrorContainer = Palette.OnErrorContainerLight,
-    background = Palette.BackgroundLight,
-    onBackground = Palette.OnBackgroundLight,
-    surface = Palette.SurfaceLight,
-    onSurface = Palette.OnSurfaceLight,
-    surfaceVariant = Palette.SurfaceVariantLight,
-    onSurfaceVariant = Palette.OnSurfaceVariantLight,
-    outline = Palette.OutlineLight,
-    surfaceContainer = Palette.SurfaceContainerLight,
-    surfaceContainerHigh = Palette.SurfaceContainerHighLight,
-)
-
-private val DarkScheme = darkColorScheme(
-    primary = Palette.PrimaryDark,
-    onPrimary = Palette.OnPrimaryDark,
-    primaryContainer = Palette.PrimaryContainerDark,
-    onPrimaryContainer = Palette.OnPrimaryContainerDark,
-    secondary = Palette.SecondaryDark,
-    onSecondary = Palette.OnSecondaryDark,
-    secondaryContainer = Palette.SecondaryContainerDark,
-    onSecondaryContainer = Palette.OnSecondaryContainerDark,
-    tertiary = Palette.TertiaryDark,
-    onTertiary = Palette.OnTertiaryDark,
-    tertiaryContainer = Palette.TertiaryContainerDark,
-    onTertiaryContainer = Palette.OnTertiaryContainerDark,
-    error = Palette.ErrorDark,
-    onError = Palette.OnErrorDark,
-    errorContainer = Palette.ErrorContainerDark,
-    onErrorContainer = Palette.OnErrorContainerDark,
-    background = Palette.BackgroundDark,
-    onBackground = Palette.OnBackgroundDark,
-    surface = Palette.SurfaceDark,
-    onSurface = Palette.OnSurfaceDark,
-    surfaceVariant = Palette.SurfaceVariantDark,
-    onSurfaceVariant = Palette.OnSurfaceVariantDark,
-    outline = Palette.OutlineDark,
-    surfaceContainer = Palette.SurfaceContainerDark,
-    surfaceContainerHigh = Palette.SurfaceContainerHighDark,
-)
-
 @Composable
 fun SpeedometerTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
+    accent: AccentColor = AccentColor.GREEN,
+    pureBlack: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val darkTheme = when (themeMode) {
@@ -85,12 +31,16 @@ fun SpeedometerTheme(
     val context = LocalContext.current
     val supportsDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    val colorScheme = when {
+    val baseScheme = when {
         dynamicColor && supportsDynamic && darkTheme -> dynamicDarkColorScheme(context)
         dynamicColor && supportsDynamic -> dynamicLightColorScheme(context)
-        darkTheme -> DarkScheme
-        else -> LightScheme
+        darkTheme -> AccentSchemes.dark(accent)
+        else -> AccentSchemes.light(accent)
     }
+
+    // True black only makes sense in dark mode; on an OLED panel the unlit
+    // pixels are the whole point of the setting.
+    val colorScheme = if (pureBlack && darkTheme) baseScheme.toPureBlack() else baseScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -110,3 +60,17 @@ fun SpeedometerTheme(
         content = content,
     )
 }
+
+/**
+ * Drops the background to real black and lifts the container tones just enough
+ * that cards stay distinguishable from the void behind them.
+ */
+private fun ColorScheme.toPureBlack(): ColorScheme = copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF0A0A0A),
+    surfaceContainer = Color(0xFF121212),
+    surfaceContainerHigh = Color(0xFF1B1B1B),
+    surfaceContainerHighest = Color(0xFF242424),
+)

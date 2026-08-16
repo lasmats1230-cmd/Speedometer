@@ -40,6 +40,15 @@ import org.maplibre.android.geometry.LatLng as MapLibreLatLng
 /** A latitude/longitude pair, kept free of map-library types above this layer. */
 data class LatLng(val latitude: Double, val longitude: Double)
 
+/** A saved place, as the map needs to draw it. */
+data class MapWaypoint(
+    val id: Long,
+    val label: String,
+    val latitude: Double,
+    val longitude: Double,
+    val colorArgb: Int,
+)
+
 /**
  * The map, drawn by MapLibre from OpenStreetMap vector tiles, with the
  * recorded track, an optional route to follow, and the current position on top.
@@ -55,11 +64,14 @@ fun TrackMap(
     route: List<LatLng> = emptyList(),
     currentPosition: LatLng? = null,
     bearingDeg: Float? = null,
+    waypoints: List<MapWaypoint> = emptyList(),
     followPosition: Boolean = true,
     fitTrack: Boolean = false,
     /** Bump this to snap the map back onto [currentPosition] once. */
     recenterSignal: Int = 0,
     zoom: Double = 16.5,
+    onMapLongPress: ((LatLng) -> Unit)? = null,
+    onWaypointClick: ((Long) -> Unit)? = null,
 ) {
     val darkTheme = isSystemInDarkTheme()
     val density = LocalDensity.current.density
@@ -67,8 +79,16 @@ fun TrackMap(
     val routeColor = Color(0xFF4FA3FF).toArgb()
     val ringColor = if (darkTheme) 0xFF0B0F0D.toInt() else 0xFFFFFFFF.toInt()
 
+    val labelColor = if (darkTheme) 0xFFE6E9E7.toInt() else 0xFF16191A.toInt()
+    val labelHalo = if (darkTheme) 0xFF0B0F0D.toInt() else 0xFFFFFFFF.toInt()
+
     val mapView = rememberMapView()
     val state = remember { TrackMapState() }
+
+    // Held in the state object so the map's listeners, registered once, always
+    // reach the callbacks from the newest composition.
+    state.onMapLongPress = onMapLongPress
+    state.onWaypointClick = onWaypointClick
 
     AndroidView(
         modifier = modifier,
@@ -79,6 +99,9 @@ fun TrackMap(
                 route = route,
                 position = currentPosition,
                 bearingDeg = bearingDeg,
+                waypoints = waypoints,
+                labelColor = labelColor,
+                labelHalo = labelHalo,
                 followPosition = followPosition,
                 fitTrack = fitTrack,
                 recenterSignal = recenterSignal,
@@ -100,6 +123,9 @@ private data class TrackMapData(
     val route: List<LatLng>,
     val position: LatLng?,
     val bearingDeg: Float?,
+    val waypoints: List<MapWaypoint>,
+    val labelColor: Int,
+    val labelHalo: Int,
     val followPosition: Boolean,
     val fitTrack: Boolean,
     val recenterSignal: Int,
@@ -118,7 +144,10 @@ private data class TrackMapData(
 private class TrackMapState {
 
     var pending: TrackMapData? = null
+    var onMapLongPress: ((LatLng) -> Unit)? = null
+    var onWaypointClick: ((Long) -> Unit)? = null
 
+    private var gesturesRegistered = false
     private var map: MapLibreMap? = null
     private var style: Style? = null
     private var loadedStyleUri: String? = null
@@ -135,11 +164,46 @@ private class TrackMapState {
                 map = ready
                 ready.uiSettings.isRotateGesturesEnabled = false
                 ready.uiSettings.isTiltGesturesEnabled = false
+                registerGestures(ready)
                 apply(mapView)
             }
             return
         }
         applyStyle(currentMap, data)
+    }
+
+    /**
+     * Registered once against the map, not per recomposition, so repeated
+     * updates cannot stack duplicate listeners.
+     */
+    private fun registerGestures(map: MapLibreMap) {
+        if (gesturesRegistered) return
+        gesturesRegistered = true
+
+        map.addOnMapLongClickListener { point ->
+            val callback = onMapLongPress
+            callback?.invoke(LatLng(point.latitude, point.longitude))
+            callback != null
+        }
+
+        map.addOnMapClickListener { point ->
+            val callback = onWaypointClick ?: return@addOnMapClickListener false
+            val screenPoint = map.projection.toScreenLocation(point)
+            // A finger is wider than a marker, so search a box around the tap.
+            val touchSlop = TOUCH_SLOP_PX
+            val box = android.graphics.RectF(
+                screenPoint.x - touchSlop,
+                screenPoint.y - touchSlop,
+                screenPoint.x + touchSlop,
+                screenPoint.y + touchSlop,
+            )
+            val hit = map.queryRenderedFeatures(box, LAYER_WAYPOINT_DOT)
+                .firstOrNull { it.hasProperty(PROPERTY_WAYPOINT_ID) }
+                ?.getNumberProperty(PROPERTY_WAYPOINT_ID)
+                ?.toLong()
+            if (hit != null) callback(hit)
+            hit != null
+        }
     }
 
     private fun applyStyle(map: MapLibreMap, data: TrackMapData) {
@@ -164,6 +228,7 @@ private class TrackMapState {
     private fun installLayers(style: Style, data: TrackMapData) {
         style.addSource(GeoJsonSource(SOURCE_ROUTE))
         style.addSource(GeoJsonSource(SOURCE_TRACK))
+        style.addSource(GeoJsonSource(SOURCE_WAYPOINTS))
         style.addSource(GeoJsonSource(SOURCE_POSITION))
         style.addImage(ICON_HEADING, headingBitmap(data.density, data.trackColor))
 
@@ -182,6 +247,29 @@ private class TrackMapState {
                 PropertyFactory.lineWidth(5.5f),
                 PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                 PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+            )
+        )
+        // Waypoints sit above the track but below the position marker, so the
+        // dot showing where you are is never hidden behind a saved place.
+        style.addLayer(
+            CircleLayer(LAYER_WAYPOINT_DOT, SOURCE_WAYPOINTS).withProperties(
+                PropertyFactory.circleRadius(7f),
+                PropertyFactory.circleColor(Expression.toColor(Expression.get(PROPERTY_COLOR))),
+                PropertyFactory.circleStrokeWidth(2f),
+                PropertyFactory.circleStrokeColor(data.labelHalo),
+            )
+        )
+        style.addLayer(
+            SymbolLayer(LAYER_WAYPOINT_LABEL, SOURCE_WAYPOINTS).withProperties(
+                PropertyFactory.textField(Expression.get(PROPERTY_LABEL)),
+                PropertyFactory.textFont(arrayOf(LABEL_FONT)),
+                PropertyFactory.textSize(12f),
+                PropertyFactory.textColor(data.labelColor),
+                PropertyFactory.textHaloColor(data.labelHalo),
+                PropertyFactory.textHaloWidth(1.4f),
+                PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
+                PropertyFactory.textOffset(arrayOf(0f, 0.9f)),
+                PropertyFactory.textOptional(true),
             )
         )
         style.addLayer(
@@ -215,9 +303,15 @@ private class TrackMapState {
         style.getSourceAs<GeoJsonSource>(SOURCE_ROUTE)?.setGeoJson(lineFeatures(data.route))
         style.getSourceAs<GeoJsonSource>(SOURCE_POSITION)
             ?.setGeoJson(positionFeatures(data.position, data.bearingDeg))
+        style.getSourceAs<GeoJsonSource>(SOURCE_WAYPOINTS)
+            ?.setGeoJson(waypointFeatures(data.waypoints))
 
         (style.getLayer(LAYER_POSITION_DOT) as? CircleLayer)
             ?.setProperties(PropertyFactory.circleStrokeColor(data.ringColor))
+        (style.getLayer(LAYER_WAYPOINT_LABEL) as? SymbolLayer)?.setProperties(
+            PropertyFactory.textColor(data.labelColor),
+            PropertyFactory.textHaloColor(data.labelHalo),
+        )
 
         moveCamera(map, data)
     }
@@ -263,6 +357,25 @@ private class TrackMapState {
         return FeatureCollection.fromFeature(Feature.fromGeometry(line))
     }
 
+    private fun waypointFeatures(waypoints: List<MapWaypoint>): FeatureCollection {
+        if (waypoints.isEmpty()) return FeatureCollection.fromFeatures(emptyList())
+        return FeatureCollection.fromFeatures(
+            waypoints.map { waypoint ->
+                Feature.fromGeometry(
+                    Point.fromLngLat(waypoint.longitude, waypoint.latitude)
+                ).apply {
+                    addNumberProperty(PROPERTY_WAYPOINT_ID, waypoint.id)
+                    addStringProperty(PROPERTY_LABEL, waypoint.label)
+                    // MapLibre expressions read colours as CSS strings.
+                    addStringProperty(
+                        PROPERTY_COLOR,
+                        String.format("#%06X", 0xFFFFFF and waypoint.colorArgb),
+                    )
+                }
+            }
+        )
+    }
+
     private fun positionFeatures(position: LatLng?, bearingDeg: Float?): FeatureCollection {
         if (position == null) return FeatureCollection.fromFeatures(emptyList())
         val feature = Feature.fromGeometry(
@@ -299,6 +412,16 @@ private class TrackMapState {
         const val SOURCE_TRACK = "speedometer-track-source"
         const val SOURCE_ROUTE = "speedometer-route-source"
         const val SOURCE_POSITION = "speedometer-position-source"
+        const val SOURCE_WAYPOINTS = "speedometer-waypoint-source"
+        const val LAYER_WAYPOINT_DOT = "speedometer-waypoint-dot"
+        const val LAYER_WAYPOINT_LABEL = "speedometer-waypoint-label"
+        const val PROPERTY_WAYPOINT_ID = "waypointId"
+        const val PROPERTY_LABEL = "label"
+        const val PROPERTY_COLOR = "color"
+
+        /** The one font stack the basemap styles ship glyphs for. */
+        const val LABEL_FONT = "Noto Sans Regular"
+        const val TOUCH_SLOP_PX = 28f
         const val LAYER_TRACK = "speedometer-track-layer"
         const val LAYER_ROUTE = "speedometer-route-layer"
         const val LAYER_POSITION_HALO = "speedometer-position-halo"

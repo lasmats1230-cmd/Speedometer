@@ -33,6 +33,8 @@ import com.lasse.speedometer.ui.history.HistoryScreen
 import com.lasse.speedometer.ui.history.TourDetailScreen
 import com.lasse.speedometer.ui.history.TripDetailScreen
 import com.lasse.speedometer.ui.live.LiveScreen
+import com.lasse.speedometer.ui.settings.LayoutSettingsScreen
+import com.lasse.speedometer.ui.settings.LicensesScreen
 import com.lasse.speedometer.ui.settings.SettingsScreen
 import com.lasse.speedometer.ui.tools.ToolsScreen
 
@@ -114,7 +116,37 @@ fun SpeedometerNavHost(settings: AppSettings) {
                     ToolsScreen(settings = settings, snackbarHostState = snackbarHostState)
                 }
                 composable(Routes.SETTINGS) {
-                    SettingsScreen(settings = settings, snackbarHostState = snackbarHostState)
+                    SettingsScreen(
+                        settings = settings,
+                        snackbarHostState = snackbarHostState,
+                        onOpenLayout = { navController.navigate(Routes.LAYOUT_SETTINGS) },
+                        onOpenLicenses = { navController.navigate(Routes.LICENSES) },
+                    )
+                }
+                composable(
+                    route = Routes.LAYOUT_SETTINGS,
+                    enterTransition = {
+                        slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(260))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(260))
+                    },
+                ) {
+                    LayoutSettingsScreen(
+                        settings = settings,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(
+                    route = Routes.LICENSES,
+                    enterTransition = {
+                        slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(260))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(260))
+                    },
+                ) {
+                    LicensesScreen(onBack = { navController.popBackStack() })
                 }
                 composable(
                     route = Routes.TRIP_DETAIL,

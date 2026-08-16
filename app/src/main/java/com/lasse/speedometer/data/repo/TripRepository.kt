@@ -8,6 +8,8 @@ import com.lasse.speedometer.data.db.TourWithTrips
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripDao
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.db.WaypointDao
+import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.tracking.TrackPoint
 import com.lasse.speedometer.tracking.TripSummary
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +28,10 @@ class TripRepository(
     private val tripDao: TripDao,
     private val tourDao: TourDao,
     private val routeDao: RouteDao,
+    private val waypointDao: WaypointDao,
 ) {
+
+    val waypoints: Flow<List<WaypointEntity>> = waypointDao.observeWaypoints()
 
     val trips: Flow<List<TripEntity>> = tripDao.observeTrips()
 
@@ -118,6 +123,37 @@ class TripRepository(
         withContext(Dispatchers.IO) { routeDao.insertRoute(route) }
 
     suspend fun deleteRoute(id: Long) = withContext(Dispatchers.IO) { routeDao.deleteRoute(id) }
+
+    suspend fun addWaypoint(
+        label: String,
+        latitude: Double,
+        longitude: Double,
+        colorArgb: Int,
+        note: String? = null,
+    ): Long = withContext(Dispatchers.IO) {
+        waypointDao.insertWaypoint(
+            WaypointEntity(
+                label = label.ifBlank { "Waypoint" },
+                latitude = latitude,
+                longitude = longitude,
+                colorArgb = colorArgb,
+                createdAt = System.currentTimeMillis(),
+                note = note?.ifBlank { null },
+            )
+        )
+    }
+
+    suspend fun updateWaypoint(waypoint: WaypointEntity) =
+        withContext(Dispatchers.IO) { waypointDao.updateWaypoint(waypoint) }
+
+    suspend fun getWaypoint(id: Long): WaypointEntity? =
+        withContext(Dispatchers.IO) { waypointDao.getWaypoint(id) }
+
+    suspend fun deleteWaypoint(id: Long) =
+        withContext(Dispatchers.IO) { waypointDao.deleteWaypoint(id) }
+
+    suspend fun deleteAllWaypoints() =
+        withContext(Dispatchers.IO) { waypointDao.deleteAllWaypoints() }
 
     /** Tours list, cheap enough to derive without another query. */
     val tourList: Flow<List<TourEntity>> = tourDao.observeTours()

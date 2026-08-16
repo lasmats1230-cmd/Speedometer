@@ -55,6 +55,8 @@ import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.SegmentedTabs
 import com.lasse.speedometer.ui.components.TrackMap
 import com.lasse.speedometer.ui.live.ActiveRoute
+import com.lasse.speedometer.ui.live.LiveViewModel
+import com.lasse.speedometer.ui.live.WaypointEditorDialog
 import com.lasse.speedometer.util.Formatters
 
 @Composable
@@ -103,10 +105,16 @@ fun ToolsScreen(
 }
 
 @Composable
-private fun MapPane(modifier: Modifier = Modifier) {
+private fun MapPane(
+    modifier: Modifier = Modifier,
+    liveViewModel: LiveViewModel = viewModel(),
+) {
     val context = LocalContext.current
     val state by TrackingController.state.collectAsState()
+    val waypoints by liveViewModel.waypoints.collectAsState()
+    val editingWaypoint by liveViewModel.editingWaypoint.collectAsState()
     var recenterKey by remember { mutableIntStateOf(0) }
+    var newWaypointAt by remember { mutableStateOf<LatLng?>(null) }
 
     DisposableEffect(Unit) {
         TrackingController.observeIdleLocation(context)
@@ -115,40 +123,80 @@ private fun MapPane(modifier: Modifier = Modifier) {
         }
     }
 
-    Box(
+    Column(
         modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-        ) {
-            TrackMap(
+        Box(Modifier.weight(1f)) {
+            Surface(
                 modifier = Modifier.fillMaxSize(),
-                track = state.track.map { LatLng(it.latitude, it.longitude) },
-                currentPosition = state.latitude?.let { latitude ->
-                    state.longitude?.let { longitude -> LatLng(latitude, longitude) }
-                },
-                bearingDeg = state.bearingDeg,
-                // Left free to pan; the button below snaps it back.
-                followPosition = false,
-                recenterSignal = recenterKey,
-            )
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                TrackMap(
+                    modifier = Modifier.fillMaxSize(),
+                    track = state.track.map { LatLng(it.latitude, it.longitude) },
+                    currentPosition = state.latitude?.let { latitude ->
+                        state.longitude?.let { longitude -> LatLng(latitude, longitude) }
+                    },
+                    bearingDeg = state.bearingDeg,
+                    waypoints = waypoints,
+                    // Left free to pan; the button below snaps it back.
+                    followPosition = false,
+                    recenterSignal = recenterKey,
+                    onMapLongPress = { newWaypointAt = it },
+                    onWaypointClick = liveViewModel::openWaypoint,
+                )
+            }
+
+            FilledIconButton(
+                onClick = { recenterKey++ },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MyLocation,
+                    contentDescription = stringResource(R.string.recenter),
+                )
+            }
         }
 
-        FilledIconButton(
-            onClick = { recenterKey++ },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.MyLocation,
-                contentDescription = stringResource(R.string.recenter),
-            )
-        }
+        Text(
+            text = stringResource(R.string.waypoint_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+        )
+    }
+
+    newWaypointAt?.let { position ->
+        WaypointEditorDialog(
+            existing = null,
+            onDismiss = { newWaypointAt = null },
+            onSave = { label, note, color ->
+                liveViewModel.addWaypoint(
+                    position.latitude,
+                    position.longitude,
+                    label,
+                    note,
+                    color,
+                )
+                newWaypointAt = null
+            },
+        )
+    }
+
+    editingWaypoint?.let { waypoint ->
+        WaypointEditorDialog(
+            existing = waypoint,
+            onDismiss = liveViewModel::closeWaypoint,
+            onSave = { label, note, color ->
+                liveViewModel.updateWaypoint(waypoint, label, note, color)
+            },
+            onDelete = { liveViewModel.deleteWaypoint(waypoint.id) },
+        )
     }
 }
 

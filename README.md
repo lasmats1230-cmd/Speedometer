@@ -18,15 +18,32 @@ profile. Trips export as GPX, sync to Health Connect, and group into tours.
 **Tools** — a magnetometer compass, a free-panning map, and GPX/TCX route
 import. An imported route can be followed on the live map.
 
-**Settings** — metric or imperial units, light/dark/system theme, Material You
-colours, auto pause, a GPS accuracy threshold, and a choice between the GNSS
-chip's Doppler speed or one computed from successive fixes.
+**Settings** — units, language (English or German, independent of the system
+setting), theme, Material You or a chosen accent colour, pure-black backgrounds,
+battery saving, auto pause, a GPS accuracy threshold, and a choice between the
+GNSS chip's Doppler speed or one computed from successive fixes.
+
+**Layout** — a dedicated settings page rearranges the live view: minimap size
+(off, small, medium, large), which of twelve figures appear as tiles, their
+order, how many per row, and whether the status chip and timer show at all.
+
+**Battery saving** — cycling mode drops to speed and distance on black after a
+few seconds and stops drawing the map; extreme mode does so immediately and
+turns the backlight right down. Both trade pixels, not accuracy: the recording
+is identical either way.
+
+**Waypoints** — long-press the map to drop a labelled, coloured marker. Tap one
+to rename, recolour, annotate or delete it. Waypoints are not tied to a trip, so
+a water tap noted today is still there next ride.
 
 ## Design
 
-The palette comes from the wallpaper via Material You on Android 12 and later,
-with a hand-tuned green scheme as the fallback. Recorded tracks keep a fixed
-green so a route reads the same regardless of the accent colour in play.
+The palette comes from the wallpaper via Material You on Android 12 and later.
+With that off — or on older releases — a chosen accent seeds a Material 3 scheme
+built in `ui/theme/`: tonal ramps are derived in HSL rather than HCT, which
+keeps every contrast pairing where the spec puts it without pulling in a colour
+library. Recorded tracks keep a fixed green so a route reads the same whatever
+the accent.
 
 ## Building
 
@@ -56,6 +73,7 @@ singletons live on `SpeedometerApp` and screens reach them through
 | Import/export | `data/io/` | GPX writer, GPX/TCX parser |
 | Health Connect | `health/` | Writes exercise sessions, distance, speed and elevation |
 | UI | `ui/` | One package per tab, plus shared components and theme |
+| Localisation | `util/AppLocale.kt` | In-app language, stored where `attachBaseContext` can read it synchronously |
 
 `TripRecorder` takes a plain `Fix` rather than an `android.location.Location`,
 so the filtering rules — accuracy thresholds, jitter rejection, implausible
@@ -76,4 +94,12 @@ Location (fine and background) for tracking, notifications for the recording
 notification, and the Health Connect write permissions, which are only
 requested if you choose to connect it.
 
-Map data © OpenStreetMap contributors.
+## Licensing
+
+Settings → About → Legal & licensing lists every dependency with its licence,
+and shows the Apache 2.0, BSD 2-Clause and ODbL texts in full from
+`res/raw/`. That screen is a compliance obligation, not a courtesy: Apache 2.0
+requires the notice to ship with the binary and OpenStreetMap's ODbL requires
+visible attribution.
+
+Map data © OpenStreetMap contributors, licensed under ODbL.

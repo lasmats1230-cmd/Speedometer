@@ -85,3 +85,21 @@ data class RouteEntity(
     /** Encoded as "lat,lon,ele" triples joined by ';'. */
     val encodedPoints: String,
 )
+
+/**
+ * A place worth remembering, dropped by long-pressing the map.
+ *
+ * Waypoints are not tied to a trip: a water tap or a locked gate is just as
+ * useful on the next ride as on the one it was noted during.
+ */
+@Entity(tableName = "waypoints")
+data class WaypointEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val label: String,
+    val latitude: Double,
+    val longitude: Double,
+    /** Packed ARGB, so the colour survives a theme change unchanged. */
+    val colorArgb: Int,
+    val createdAt: Long,
+    val note: String? = null,
+)

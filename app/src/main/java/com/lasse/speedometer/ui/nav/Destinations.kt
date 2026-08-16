@@ -20,6 +20,8 @@ object Routes {
     const val SETTINGS = "settings"
     const val TRIP_DETAIL = "trip/{tripId}"
     const val TOUR_DETAIL = "tour/{tourId}"
+    const val LAYOUT_SETTINGS = "settings/layout"
+    const val LICENSES = "settings/licenses"
 
     fun tripDetail(id: Long) = "trip/$id"
     fun tourDetail(id: Long) = "tour/$id"
