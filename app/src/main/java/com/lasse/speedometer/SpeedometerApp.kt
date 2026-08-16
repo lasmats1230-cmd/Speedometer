@@ -7,7 +7,7 @@ import com.lasse.speedometer.data.io.TripExporter
 import com.lasse.speedometer.data.prefs.SettingsRepository
 import com.lasse.speedometer.data.repo.TripRepository
 import com.lasse.speedometer.health.HealthConnectManager
-import org.osmdroid.config.Configuration
+import org.maplibre.android.MapLibre
 
 /**
  * Holds the singletons. Small enough a dependency-injection framework would
@@ -29,26 +29,9 @@ class SpeedometerApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        configureOsmdroid()
-    }
-
-    /**
-     * osmdroid needs a writable tile cache and a User-Agent that isn't the
-     * default, or the OSM tile servers refuse the requests.
-     */
-    private fun configureOsmdroid() {
-        Configuration.getInstance().load(
-            this,
-            getSharedPreferences("osmdroid", MODE_PRIVATE),
-        )
-        Configuration.getInstance().apply {
-            userAgentValue = "$packageName/${BuildConfig.VERSION_NAME}"
-            osmdroidBasePath = cacheDir.resolve("osmdroid").apply { mkdirs() }
-            osmdroidTileCache = osmdroidBasePath.resolve("tiles").apply { mkdirs() }
-            // A day's worth of trips shouldn't fill the phone up.
-            tileFileSystemCacheMaxBytes = 200L * 1024 * 1024
-            tileFileSystemCacheTrimBytes = 150L * 1024 * 1024
-        }
+        // Must run before any MapView is constructed. The tiles need no API
+        // key, so there is no token to pass here.
+        MapLibre.getInstance(this)
     }
 }
 

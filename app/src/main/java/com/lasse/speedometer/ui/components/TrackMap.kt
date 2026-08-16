@@ -1,7 +1,9 @@
 package com.lasse.speedometer.ui.components
 
-import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -10,26 +12,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.lasse.speedometer.ui.theme.TrackColors
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.CustomZoomButtonsController
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Polyline
-import org.osmdroid.views.overlay.TilesOverlay
+import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
+import org.maplibre.android.geometry.LatLng as MapLibreLatLng
 
-/** A latitude/longitude pair, kept free of osmdroid types above this layer. */
+/** A latitude/longitude pair, kept free of map-library types above this layer. */
 data class LatLng(val latitude: Double, val longitude: Double)
 
 /**
- * OpenStreetMap tiles with the recorded track drawn on top.
+ * The map, drawn by MapLibre from OpenStreetMap vector tiles, with the
+ * recorded track, an optional route to follow, and the current position on top.
  *
- * In dark mode the tiles are colour-inverted, which turns the standard OSM
- * raster into the muted night map the rest of the UI is built around.
+ * The track and position live in style sources this composable owns, rather
+ * than in an annotation plugin, so a moving recording only pushes new GeoJSON
+ * instead of rebuilding overlay objects every second.
  */
 @Composable
 fun TrackMap(
@@ -44,154 +61,287 @@ fun TrackMap(
     recenterSignal: Int = 0,
     zoom: Double = 16.5,
 ) {
-    val context = LocalContext.current
     val darkTheme = isSystemInDarkTheme()
-    val trackColor = TrackColors.Track
-    val routeColor = Color(0xFF4FA3FF)
+    val density = LocalDensity.current.density
+    val trackColor = TrackColors.Track.toArgb()
+    val routeColor = Color(0xFF4FA3FF).toArgb()
+    val ringColor = if (darkTheme) 0xFF0B0F0D.toInt() else 0xFFFFFFFF.toInt()
 
-    val mapView = remember { createMapView(context) }
-    val trackPolyline = remember { Polyline().apply { outlinePaint.strokeCap = Paint.Cap.ROUND } }
-    val routePolyline = remember { Polyline().apply { outlinePaint.strokeCap = Paint.Cap.ROUND } }
-    val positionMarker = remember { PositionOverlay() }
-    val lastRecenter = remember { intArrayOf(recenterSignal) }
-    val hasCentered = remember { booleanArrayOf(false) }
-
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            mapView.onDetach()
-        }
-    }
+    val mapView = rememberMapView()
+    val state = remember { TrackMapState() }
 
     AndroidView(
         modifier = modifier,
-        factory = {
-            mapView.overlays.add(routePolyline)
-            mapView.overlays.add(trackPolyline)
-            mapView.overlays.add(positionMarker)
-            mapView
-        },
-        update = { map ->
-            map.overlayManager.tilesOverlay.setColorFilter(
-                if (darkTheme) TilesOverlay.INVERT_COLORS else null
+        factory = { mapView },
+        update = {
+            state.pending = TrackMapData(
+                track = track,
+                route = route,
+                position = currentPosition,
+                bearingDeg = bearingDeg,
+                followPosition = followPosition,
+                fitTrack = fitTrack,
+                recenterSignal = recenterSignal,
+                zoom = zoom,
+                styleUri = MapStyles.forTheme(darkTheme),
+                trackColor = trackColor,
+                routeColor = routeColor,
+                ringColor = ringColor,
+                density = density,
             )
-
-            routePolyline.outlinePaint.apply {
-                color = routeColor.toArgb()
-                strokeWidth = 10f
-            }
-            routePolyline.setPoints(route.map { GeoPoint(it.latitude, it.longitude) })
-
-            trackPolyline.outlinePaint.apply {
-                color = trackColor.toArgb()
-                strokeWidth = 14f
-            }
-            trackPolyline.setPoints(track.map { GeoPoint(it.latitude, it.longitude) })
-
-            positionMarker.update(currentPosition, bearingDeg, darkTheme)
-
-            val recenterRequested = recenterSignal != lastRecenter[0]
-            if (recenterRequested) lastRecenter[0] = recenterSignal
-
-            when {
-                fitTrack && track.size >= 2 -> {
-                    val box = trackPolyline.bounds
-                    map.post { runCatching { map.zoomToBoundingBox(box, false, 96) } }
-                }
-
-                // Centre once on the first fix even when not following, so a
-                // free-panning map still opens somewhere useful.
-                currentPosition != null &&
-                    (followPosition || recenterRequested || !hasCentered[0]) -> {
-                    val firstFix = !hasCentered[0]
-                    hasCentered[0] = true
-                    val target = GeoPoint(currentPosition.latitude, currentPosition.longitude)
-                    if (firstFix || recenterRequested || map.zoomLevelDouble < 4.0) {
-                        map.controller.setZoom(zoom)
-                    }
-                    map.controller.animateTo(target)
-                }
-            }
-            map.invalidate()
+            state.apply(mapView)
         },
     )
 }
 
-private fun createMapView(context: Context) = MapView(context).apply {
-    setTileSource(TileSourceFactory.MAPNIK)
-    setMultiTouchControls(true)
-    isTilesScaledToDpi = true
-    zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-    setUseDataConnection(true)
-    minZoomLevel = 3.0
-    maxZoomLevel = 19.0
-    controller.setZoom(16.5)
-    isHorizontalMapRepetitionEnabled = false
-    isVerticalMapRepetitionEnabled = false
+/** The snapshot of everything the map should be showing right now. */
+private data class TrackMapData(
+    val track: List<LatLng>,
+    val route: List<LatLng>,
+    val position: LatLng?,
+    val bearingDeg: Float?,
+    val followPosition: Boolean,
+    val fitTrack: Boolean,
+    val recenterSignal: Int,
+    val zoom: Double,
+    val styleUri: String,
+    val trackColor: Int,
+    val routeColor: Int,
+    val ringColor: Int,
+    val density: Float,
+)
+
+/**
+ * Bridges Compose's synchronous updates to MapLibre's asynchronous map and
+ * style callbacks: the latest data is held here and replayed once each is ready.
+ */
+private class TrackMapState {
+
+    var pending: TrackMapData? = null
+
+    private var map: MapLibreMap? = null
+    private var style: Style? = null
+    private var loadedStyleUri: String? = null
+    private var styleLoading = false
+
+    private var hasCentered = false
+    private var lastRecenterSignal: Int? = null
+
+    fun apply(mapView: MapView) {
+        val data = pending ?: return
+        val currentMap = map
+        if (currentMap == null) {
+            mapView.getMapAsync { ready ->
+                map = ready
+                ready.uiSettings.isRotateGesturesEnabled = false
+                ready.uiSettings.isTiltGesturesEnabled = false
+                apply(mapView)
+            }
+            return
+        }
+        applyStyle(currentMap, data)
+    }
+
+    private fun applyStyle(map: MapLibreMap, data: TrackMapData) {
+        if (loadedStyleUri != data.styleUri) {
+            if (styleLoading) return
+            styleLoading = true
+            style = null
+            map.setStyle(Style.Builder().fromUri(data.styleUri)) { loaded ->
+                styleLoading = false
+                loadedStyleUri = data.styleUri
+                style = loaded
+                // The style replaced every layer, so the app's own go back on.
+                installLayers(loaded, pending ?: data)
+                pending?.let { applyData(map, loaded, it) }
+            }
+            return
+        }
+        val loaded = style ?: return
+        applyData(map, loaded, data)
+    }
+
+    private fun installLayers(style: Style, data: TrackMapData) {
+        style.addSource(GeoJsonSource(SOURCE_ROUTE))
+        style.addSource(GeoJsonSource(SOURCE_TRACK))
+        style.addSource(GeoJsonSource(SOURCE_POSITION))
+        style.addImage(ICON_HEADING, headingBitmap(data.density, data.trackColor))
+
+        style.addLayer(
+            LineLayer(LAYER_ROUTE, SOURCE_ROUTE).withProperties(
+                PropertyFactory.lineColor(data.routeColor),
+                PropertyFactory.lineWidth(4f),
+                PropertyFactory.lineOpacity(0.9f),
+                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+            )
+        )
+        style.addLayer(
+            LineLayer(LAYER_TRACK, SOURCE_TRACK).withProperties(
+                PropertyFactory.lineColor(data.trackColor),
+                PropertyFactory.lineWidth(5.5f),
+                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+            )
+        )
+        style.addLayer(
+            CircleLayer(LAYER_POSITION_HALO, SOURCE_POSITION).withProperties(
+                PropertyFactory.circleRadius(22f),
+                PropertyFactory.circleColor(POSITION_COLOR),
+                PropertyFactory.circleOpacity(0.18f),
+            )
+        )
+        style.addLayer(
+            SymbolLayer(LAYER_POSITION_HEADING, SOURCE_POSITION).withProperties(
+                PropertyFactory.iconImage(ICON_HEADING),
+                PropertyFactory.iconRotate(Expression.get(PROPERTY_BEARING)),
+                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+                PropertyFactory.iconAllowOverlap(true),
+                PropertyFactory.iconIgnorePlacement(true),
+            ).also { it.setFilter(Expression.has(PROPERTY_BEARING)) }
+        )
+        style.addLayer(
+            CircleLayer(LAYER_POSITION_DOT, SOURCE_POSITION).withProperties(
+                PropertyFactory.circleRadius(6.5f),
+                PropertyFactory.circleColor(POSITION_COLOR),
+                PropertyFactory.circleStrokeWidth(2.5f),
+                PropertyFactory.circleStrokeColor(data.ringColor),
+            )
+        )
+    }
+
+    private fun applyData(map: MapLibreMap, style: Style, data: TrackMapData) {
+        style.getSourceAs<GeoJsonSource>(SOURCE_TRACK)?.setGeoJson(lineFeatures(data.track))
+        style.getSourceAs<GeoJsonSource>(SOURCE_ROUTE)?.setGeoJson(lineFeatures(data.route))
+        style.getSourceAs<GeoJsonSource>(SOURCE_POSITION)
+            ?.setGeoJson(positionFeatures(data.position, data.bearingDeg))
+
+        (style.getLayer(LAYER_POSITION_DOT) as? CircleLayer)
+            ?.setProperties(PropertyFactory.circleStrokeColor(data.ringColor))
+
+        moveCamera(map, data)
+    }
+
+    private fun moveCamera(map: MapLibreMap, data: TrackMapData) {
+        val recenterRequested = lastRecenterSignal != null &&
+            data.recenterSignal != lastRecenterSignal
+        lastRecenterSignal = data.recenterSignal
+
+        if (data.fitTrack && data.track.size >= 2) {
+            val bounds = runCatching {
+                LatLngBounds.Builder()
+                    .includes(data.track.map { MapLibreLatLng(it.latitude, it.longitude) })
+                    .build()
+            }.getOrNull() ?: return
+            runCatching {
+                map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, TRACK_PADDING_PX))
+            }
+            return
+        }
+
+        val position = data.position ?: return
+        val target = MapLibreLatLng(position.latitude, position.longitude)
+        val firstFix = !hasCentered
+
+        if (!data.followPosition && !recenterRequested && !firstFix) return
+        hasCentered = true
+
+        val update = if (firstFix || recenterRequested) {
+            CameraUpdateFactory.newLatLngZoom(target, data.zoom)
+        } else {
+            // Following: keep whatever zoom the rider has chosen.
+            CameraUpdateFactory.newLatLng(target)
+        }
+        map.animateCamera(update, CAMERA_ANIMATION_MS)
+    }
+
+    private fun lineFeatures(points: List<LatLng>): FeatureCollection {
+        if (points.size < 2) return FeatureCollection.fromFeatures(emptyList())
+        val line = LineString.fromLngLats(
+            points.map { Point.fromLngLat(it.longitude, it.latitude) }
+        )
+        return FeatureCollection.fromFeature(Feature.fromGeometry(line))
+    }
+
+    private fun positionFeatures(position: LatLng?, bearingDeg: Float?): FeatureCollection {
+        if (position == null) return FeatureCollection.fromFeatures(emptyList())
+        val feature = Feature.fromGeometry(
+            Point.fromLngLat(position.longitude, position.latitude)
+        )
+        bearingDeg?.let { feature.addNumberProperty(PROPERTY_BEARING, it) }
+        return FeatureCollection.fromFeature(feature)
+    }
+
+    /**
+     * The heading arrow, drawn onto a square canvas with the position at its
+     * centre so rotating the icon swings the arrow around the dot — no offset
+     * juggling needed.
+     */
+    private fun headingBitmap(density: Float, color: Int): Bitmap {
+        val size = (44f * density).toInt().coerceAtLeast(16)
+        val bitmap = createBitmap(size, size)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+            style = Paint.Style.FILL
+        }
+        val path = Path().apply {
+            moveTo(size / 2f, size * 0.06f)
+            lineTo(size * 0.36f, size * 0.30f)
+            lineTo(size * 0.64f, size * 0.30f)
+            close()
+        }
+        canvas.drawPath(path, paint)
+        return bitmap
+    }
+
+    private companion object {
+        const val SOURCE_TRACK = "speedometer-track-source"
+        const val SOURCE_ROUTE = "speedometer-route-source"
+        const val SOURCE_POSITION = "speedometer-position-source"
+        const val LAYER_TRACK = "speedometer-track-layer"
+        const val LAYER_ROUTE = "speedometer-route-layer"
+        const val LAYER_POSITION_HALO = "speedometer-position-halo"
+        const val LAYER_POSITION_HEADING = "speedometer-position-heading"
+        const val LAYER_POSITION_DOT = "speedometer-position-dot"
+        const val ICON_HEADING = "speedometer-heading-icon"
+        const val PROPERTY_BEARING = "bearing"
+
+        const val POSITION_COLOR = 0xFF2F7BFF.toInt()
+        const val TRACK_PADDING_PX = 96
+        const val CAMERA_ANIMATION_MS = 700
+    }
 }
 
 /**
- * The blue "you are here" dot.
+ * A [MapView] wired to the composition's lifecycle.
  *
- * Drawn directly rather than via osmdroid's location overlay so it doesn't
- * open a second subscription to the GPS on top of the tracking service.
+ * MapLibre holds native resources, so every lifecycle callback has to be
+ * forwarded or the renderer leaks the surface when the screen goes away.
  */
-private class PositionOverlay : org.osmdroid.views.overlay.Overlay() {
+@Composable
+private fun rememberMapView(): MapView {
+    val context = LocalContext.current
+    val mapView = remember { MapView(context).apply { onCreate(null) } }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    private var position: GeoPoint? = null
-    private var bearing: Float? = null
-    private var dark = true
-
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val heading = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val headingPath = android.graphics.Path()
-
-    fun update(latLng: LatLng?, bearingDeg: Float?, darkTheme: Boolean) {
-        position = latLng?.let { GeoPoint(it.latitude, it.longitude) }
-        bearing = bearingDeg
-        dark = darkTheme
-    }
-
-    override fun draw(canvas: android.graphics.Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow) return
-        val point = position ?: return
-        val screen = mapView.projection.toPixels(point, null)
-        val density = mapView.resources.displayMetrics.density
-        val x = screen.x.toFloat()
-        val y = screen.y.toFloat()
-
-        halo.color = 0x332F7BFF
-        ring.color = if (dark) 0xFF0B0F0D.toInt() else 0xFFFFFFFF.toInt()
-        fill.color = 0xFF2F7BFF.toInt()
-        heading.color = TrackColors.Track.toArgb()
-
-        canvas.drawCircle(x, y, 22f * density, halo)
-
-        // A wedge pointing the way you're travelling, drawn outside the dot.
-        bearing?.let { degrees ->
-            val saved = canvas.save()
-            canvas.rotate(degrees, x, y)
-            headingPath.reset()
-            headingPath.moveTo(x, y - 19f * density)
-            headingPath.lineTo(x - 6f * density, y - 10f * density)
-            headingPath.lineTo(x + 6f * density, y - 10f * density)
-            headingPath.close()
-            canvas.drawPath(headingPath, heading)
-            canvas.restoreToCount(saved)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> mapView.onStart()
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_STOP -> mapView.onStop()
+                else -> Unit
+            }
         }
-
-        canvas.drawCircle(x, y, 9f * density, ring)
-        canvas.drawCircle(x, y, 6.5f * density, fill)
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    DisposableEffect(Unit) {
+        onDispose { mapView.onDestroy() }
+    }
+
+    return mapView
 }

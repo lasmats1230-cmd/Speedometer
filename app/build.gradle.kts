@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 android {
     namespace = "com.lasse.speedometer"
     compileSdk = 35
@@ -34,13 +40,24 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    /**
+     * MapLibre's renderer is native code, so a universal APK carries the same
+     * ~13 MB library four times over. Per-ABI APKs keep an install to the one
+     * architecture the phone can actually run; the universal APK stays around
+     * for when it isn't obvious which that is.
+     */
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
     }
 
     packaging {
@@ -81,7 +98,7 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.health.connect)
-    implementation(libs.osmdroid.android)
+    implementation(libs.maplibre.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

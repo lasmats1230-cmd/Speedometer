@@ -27,7 +27,7 @@ object Routes {
 
 enum class TopLevelDestination(
     val route: String,
-    @StringRes val labelRes: Int,
+    @param:StringRes val labelRes: Int,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
 ) {

@@ -31,12 +31,16 @@ green so a route reads the same regardless of the accent colour in play.
 ## Building
 
 ```bash
-./gradlew assembleDebug        # APK at app/build/outputs/apk/debug/
+./gradlew assembleDebug        # APKs at app/build/outputs/apk/debug/
 ./gradlew testDebugUnitTest    # unit tests
 ./gradlew lintDebug            # lint
 ```
 
 Requires JDK 17 or later and the Android SDK (compileSdk 35, minSdk 26).
+
+MapLibre's renderer is native, so the build splits by ABI. Install
+`app-arm64-v8a-debug.apk` on any recent phone, or `app-universal-debug.apk`
+if you would rather not check.
 
 ## Architecture
 
@@ -57,8 +61,14 @@ singletons live on `SpeedometerApp` and screens reach them through
 so the filtering rules — accuracy thresholds, jitter rejection, implausible
 jumps, elevation smoothing, auto pause — are covered by ordinary JVM tests.
 
-Maps are OpenStreetMap raster tiles via osmdroid, colour-inverted in dark mode.
-No API key needed.
+Maps are rendered by MapLibre Native from OpenStreetMap vector tiles served by
+OpenFreeMap, which needs no API key and no sign-up. The dark and light basemap
+styles are named in `ui/components/MapStyles.kt` — point those at another
+provider, or at a style bundled in the APK, to change tile source.
+
+The track, the followed route and the position marker are style sources this
+app owns rather than annotation-plugin objects, so a live recording pushes new
+GeoJSON each second instead of rebuilding overlays.
 
 ## Permissions
 
