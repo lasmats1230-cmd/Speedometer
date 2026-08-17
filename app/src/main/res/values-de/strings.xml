@@ -222,4 +222,6 @@
     <string name="discard_trip_message">Die Aufzeichnung endet und alles aus dieser Fahrt wird verworfen. Das lässt sich nicht rückgängig machen.</string>
     <string name="layout_preview">Vorschau</string>
     <string name="battery_extreme_map_off">Karte aus — extremes Energiesparen</string>
+    <string name="axis_distance_altitude">Strecke · Höhe — zum Ablesen ziehen</string>
+    <string name="axis_time_speed">Zeit · Geschwindigkeit — zum Ablesen ziehen</string>
 </resources>

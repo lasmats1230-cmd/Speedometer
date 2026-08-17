@@ -51,6 +51,7 @@ import com.lasse.speedometer.app
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.ui.components.ChartSample
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.ProfileChart
 import com.lasse.speedometer.ui.components.StatTile
@@ -249,8 +250,23 @@ private fun TripDetailContent(
     contentPadding: PaddingValues,
 ) {
     val track = remember(points) { points.map { LatLng(it.latitude, it.longitude) } }
-    val elevations = remember(points) { points.mapNotNull { it.altitudeM?.toFloat() } }
-    val speeds = remember(points) { points.map { it.speedMps } }
+
+    // Elevation reads against distance travelled, the way a route profile is
+    // normally drawn; speed reads against elapsed time.
+    val elevationSamples = remember(points) {
+        points.mapNotNull { point ->
+            point.altitudeM?.let {
+                ChartSample(x = point.cumulativeDistanceM.toFloat(), y = it.toFloat())
+            }
+        }
+    }
+    val startedAt = remember(points) { points.firstOrNull()?.timestamp ?: trip.startedAt }
+    val speedSamples = remember(points) {
+        points.map { point ->
+            ChartSample(x = (point.timestamp - startedAt).toFloat(), y = point.speedMps)
+        }
+    }
+    val elevations = remember(elevationSamples) { elevationSamples.map { it.y } }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -351,30 +367,38 @@ private fun TripDetailContent(
             }
 
             item("elevation-profile") {
-                ChartCard(title = stringResource(R.string.elevation_profile)) {
+                ChartCard(
+                    title = stringResource(R.string.elevation_profile),
+                    subtitle = stringResource(R.string.axis_distance_altitude),
+                ) {
+                    val lowest = stringResource(R.string.lowest, "%s")
+                    val highest = stringResource(R.string.highest, "%s")
                     ProfileChart(
-                        values = elevations,
-                        startLabel = stringResource(
-                            R.string.lowest,
-                            Formatters.elevation(elevations.min().toDouble(), settings.units),
-                        ),
-                        endLabel = stringResource(
-                            R.string.highest,
-                            Formatters.elevation(elevations.max().toDouble(), settings.units),
-                        ),
+                        samples = elevationSamples,
+                        formatX = { Formatters.distance(it.toDouble(), settings.units) },
+                        formatY = { Formatters.elevation(it.toDouble(), settings.units) },
+                        describeLow = {
+                            lowest.format(Formatters.elevation(it.toDouble(), settings.units))
+                        },
+                        describeHigh = {
+                            highest.format(Formatters.elevation(it.toDouble(), settings.units))
+                        },
                     )
                 }
             }
         }
 
-        if (speeds.size >= 2) {
+        if (speedSamples.size >= 2) {
             item("speed-profile") {
-                ChartCard(title = stringResource(R.string.speed_profile)) {
+                ChartCard(
+                    title = stringResource(R.string.speed_profile),
+                    subtitle = stringResource(R.string.axis_time_speed),
+                ) {
                     ProfileChart(
-                        values = speeds,
+                        samples = speedSamples,
                         zeroBased = true,
-                        startLabel = Formatters.speed(0.0, settings.units),
-                        endLabel = Formatters.speed(trip.maxSpeedMps, settings.units),
+                        formatX = { Formatters.duration(it.toLong()) },
+                        formatY = { Formatters.speed(it.toDouble(), settings.units) },
                     )
                 }
             }
@@ -477,14 +501,25 @@ private fun DetailTable(
 }
 
 @Composable
-private fun ChartCard(title: String, content: @Composable () -> Unit) {
+private fun ChartCard(
+    title: String,
+    subtitle: String,
+    content: @Composable () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Column {
+                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             content()
         }
     }

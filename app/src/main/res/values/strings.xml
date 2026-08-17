@@ -225,4 +225,6 @@
     <string name="discard_trip_message">Recording stops and everything from this trip is thrown away. This cannot be undone.</string>
     <string name="layout_preview">Preview</string>
     <string name="battery_extreme_map_off">Map off — extreme battery saving</string>
+    <string name="axis_distance_altitude">Distance · altitude — drag to read a point</string>
+    <string name="axis_time_speed">Time · speed — drag to read a point</string>
 </resources>
