@@ -4,7 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -21,14 +24,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-/** The rounded stat tile used across the live view and trip detail. */
+/**
+ * The rounded stat tile used across the live view and trip detail.
+ *
+ * Both lines are held to one line and shrunk to fit rather than wrapped, so a
+ * long value like "0,0 km/h" cannot make its tile taller than the one beside
+ * it. Use [StatTileRow], or `Modifier.height(IntrinsicSize.Min)` on your own
+ * row, to keep neighbours matched.
+ */
 @Composable
 fun StatTile(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 14.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 14.dp),
 ) {
     Surface(
         modifier = modifier,
@@ -42,33 +53,44 @@ fun StatTile(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
+            AutoSizeText(
                 text = label.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                minFontSize = 8.sp,
+                modifier = Modifier.fillMaxWidth(),
             )
-            Text(
+            AutoSizeText(
                 text = value,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
+                minFontSize = 10.sp,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
 }
 
+/** A row of tiles that all share the height of the tallest. */
 @Composable
 fun StatTileRow(
     tiles: List<Pair<String, String>>,
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         tiles.forEach { (label, value) ->
-            StatTile(label = label, value = value, modifier = Modifier.weight(1f))
+            StatTile(
+                label = label,
+                value = value,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            )
         }
     }
 }

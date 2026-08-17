@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -124,30 +127,44 @@ fun TourDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item("totals") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     StatTile(
                         label = stringResource(R.string.stat_distance),
                         value = Formatters.distance(totalDistance, settings.units),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     )
                     StatTile(
                         label = stringResource(R.string.stat_time),
                         value = Formatters.durationLong(totalDuration),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     )
                 }
             }
             item("totals2") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     StatTile(
                         label = stringResource(R.string.ascent),
                         value = Formatters.elevation(totalAscent, settings.units),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     )
                     StatTile(
                         label = stringResource(R.string.stat_max),
                         value = Formatters.speed(maxSpeed, settings.units),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     )
                 }
             }

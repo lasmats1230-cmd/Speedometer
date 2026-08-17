@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -278,26 +280,37 @@ private fun TripDetailContent(
         }
 
         item("summary") {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 StatTile(
                     label = stringResource(R.string.stat_avg),
                     value = Formatters.speed(trip.avgSpeedMps, settings.units),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                 )
                 StatTile(
                     label = stringResource(R.string.stat_max),
                     value = Formatters.speed(trip.maxSpeedMps, settings.units),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                 )
                 StatTile(
                     label = stringResource(R.string.stat_distance),
                     value = Formatters.distance(trip.distanceM, settings.units),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                 )
                 StatTile(
                     label = stringResource(R.string.stat_time),
                     value = Formatters.durationLong(trip.durationMs),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                 )
             }
         }
@@ -312,7 +325,10 @@ private fun TripDetailContent(
             }
 
             item("elevation-stats") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                     StatTile(
                         label = stringResource(R.string.ascent),
                         value = Formatters.elevation(trip.ascentM, settings.units),

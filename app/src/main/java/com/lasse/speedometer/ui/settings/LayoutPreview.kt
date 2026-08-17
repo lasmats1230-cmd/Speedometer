@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -162,12 +164,16 @@ private fun PreviewStatGrid(settings: AppSettings) {
     ) {
         layout.stats.chunked(columns).forEach { row ->
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 row.forEach { stat ->
                     Surface(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         shape = RoundedCornerShape(7.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {

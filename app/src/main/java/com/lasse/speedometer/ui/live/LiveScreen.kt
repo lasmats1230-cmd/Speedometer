@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -372,14 +374,18 @@ private fun StatGrid(
     ) {
         settings.layout.stats.chunked(columns).forEach { row ->
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 row.forEach { stat ->
                     StatTile(
                         label = stringResource(stat.labelRes),
                         value = LiveStats.value(stat, state, settings, now),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     )
                 }
                 // Keeps a short last row aligned with the rows above it.
