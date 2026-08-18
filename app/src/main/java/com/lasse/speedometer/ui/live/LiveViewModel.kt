@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
+import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.io.RouteParser
 import com.lasse.speedometer.ui.components.LatLng
@@ -40,6 +41,15 @@ object ActiveRoute {
 class LiveViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = application.app.tripRepository
+    private val settingsRepository = application.app.settingsRepository
+
+    /**
+     * The activity the next recording is filed as. Kept in settings rather
+     * than in this view model so the tracking service can read it when the
+     * trip is saved, with the screen long gone.
+     */
+    fun setActivity(activity: ActivityType) =
+        viewModelScope.launch { settingsRepository.setActivity(activity) }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val followedRoute: StateFlow<List<LatLng>> = ActiveRoute.routeId

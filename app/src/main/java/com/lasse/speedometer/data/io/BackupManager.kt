@@ -1,0 +1,191 @@
+package com.lasse.speedometer.data.io
+
+import android.content.ContentValues
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import com.lasse.speedometer.data.db.SpeedometerDatabase
+import com.lasse.speedometer.data.db.TourEntity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.Writer
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/** What a restore put back, for the message that follows it. */
+data class RestoreResult(
+    val trips: Int,
+    val tours: Int,
+    val routes: Int,
+    val waypoints: Int,
+    /** Trips already in the database, left alone. */
+    val skipped: Int,
+)
+
+/**
+ * Everything this app knows, in one file you can copy off the phone.
+ *
+ * Trips are stored only on the device and uploaded nowhere, which is the
+ * privacy promise — and also means a lost phone is a lost history unless there
+ * is a way to get the data out. That is what this is: a plain JSON file,
+ * written in full, that restores into a fresh install.
+ *
+ * Restoring merges rather than replaces. A trip whose start time is already
+ * present is skipped, so importing the same backup twice does not double every
+ * ride.
+ */
+class BackupManager(
+    private val context: Context,
+    private val database: SpeedometerDatabase,
+) {
+
+    private val fileStamp = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.US)
+
+    /** Writes a backup into the public Downloads folder, returning its name. */
+    suspend fun export(): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val name = "Speedometer_backup_${fileStamp.format(Date())}.json"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, name)
+                    put(MediaStore.Downloads.MIME_TYPE, MIME_JSON)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: error("Downloads folder unavailable")
+                resolver.openOutputStream(uri)?.bufferedWriter()?.use { write(it) }
+                    ?: error("Could not open $uri")
+                values.clear()
+                values.put(MediaStore.Downloads.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+            } else {
+                @Suppress("DEPRECATION")
+                val directory = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS
+                )
+                directory.mkdirs()
+                File(directory, name).bufferedWriter().use { write(it) }
+            }
+            name
+        }
+    }
+
+    /** Reads a backup the user picked and merges it into the database. */
+    suspend fun restore(uri: Uri): Result<RestoreResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val text = context.contentResolver.openInputStream(uri)?.use { stream ->
+                stream.reader().readText()
+            } ?: error("Could not open $uri")
+            merge(BackupFormat.parse(text))
+        }
+    }
+
+    /**
+     * Streams the whole database out a trip at a time, so the file is never
+     * held in memory all at once.
+     */
+    private suspend fun write(writer: Writer) {
+        val tripDao = database.tripDao()
+        BackupFormat.writeHeader(writer, System.currentTimeMillis())
+
+        writer.append(",\"tours\":[")
+        database.tourDao().getAllTours().forEachIndexed { index, tour ->
+            if (index > 0) writer.append(',')
+            BackupFormat.writeTour(writer, tour)
+        }
+        writer.append(']')
+
+        writer.append(",\"trips\":[")
+        tripDao.getAllTrips().forEachIndexed { index, trip ->
+            if (index > 0) writer.append(',')
+            BackupFormat.writeTrip(writer, trip, tripDao.getPoints(trip.id))
+        }
+        writer.append(']')
+
+        writer.append(",\"routes\":[")
+        database.routeDao().getAllRoutes().forEachIndexed { index, route ->
+            if (index > 0) writer.append(',')
+            BackupFormat.writeRoute(writer, route)
+        }
+        writer.append(']')
+
+        writer.append(",\"waypoints\":[")
+        database.waypointDao().getAllWaypoints().forEachIndexed { index, waypoint ->
+            if (index > 0) writer.append(',')
+            BackupFormat.writeWaypoint(writer, waypoint)
+        }
+        writer.append(']')
+
+        writer.append('}')
+        writer.flush()
+    }
+
+    private suspend fun merge(contents: BackupContents): RestoreResult {
+        val tripDao = database.tripDao()
+        val tourDao = database.tourDao()
+        val routeDao = database.routeDao()
+        val waypointDao = database.waypointDao()
+
+        // Ids belong to the database that issued them, so every tour gets a
+        // new one and its trips are rewired rather than pointing at whatever
+        // happens to hold the old id here.
+        val tourIds = mutableMapOf<Long, Long>()
+        contents.tours.forEach { tour ->
+            val newId = tourDao.insertTour(
+                TourEntity(
+                    name = tour.name,
+                    createdAt = tour.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+                )
+            )
+            tourIds[tour.id] = newId
+        }
+
+        val existingStarts = tripDao.getAllTrips().map { it.startedAt }.toHashSet()
+        var restored = 0
+        var skipped = 0
+        contents.trips.forEach { entry ->
+            if (!existingStarts.add(entry.trip.startedAt)) {
+                skipped++
+                return@forEach
+            }
+            val tripId = tripDao.insertTrip(
+                entry.trip.copy(id = 0, tourId = entry.trip.tourId?.let { tourIds[it] })
+            )
+            entry.points
+                .map { it.copy(id = 0, tripId = tripId) }
+                .chunked(POINT_CHUNK)
+                .forEach { tripDao.insertPoints(it) }
+            restored++
+        }
+
+        contents.routes.forEach { routeDao.insertRoute(it.copy(id = 0)) }
+
+        val existingWaypoints = waypointDao.getAllWaypoints()
+            .map { it.latitude to it.longitude }
+            .toHashSet()
+        var waypoints = 0
+        contents.waypoints.forEach { waypoint ->
+            if (!existingWaypoints.add(waypoint.latitude to waypoint.longitude)) return@forEach
+            waypointDao.insertWaypoint(waypoint.copy(id = 0))
+            waypoints++
+        }
+
+        return RestoreResult(
+            trips = restored,
+            tours = contents.tours.size,
+            routes = contents.routes.size,
+            waypoints = waypoints,
+            skipped = skipped,
+        )
+    }
+
+    private companion object {
+        const val MIME_JSON = "application/json"
+        const val POINT_CHUNK = 500
+    }
+}

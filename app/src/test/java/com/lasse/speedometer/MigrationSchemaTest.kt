@@ -32,8 +32,29 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun `the columns added at version three match the schema Room generated`() {
+        val schema = File(schemaDir, "3.json")
+        assertTrue(
+            "Missing exported schema at ${schema.absolutePath}; run a build first.",
+            schema.isFile,
+        )
+
+        val createSql = createSqlFor(schema.readText(), "trips")
+        SpeedometerDatabase.ADD_TRIP_COLUMNS.forEach { statement ->
+            // "ALTER TABLE `trips` ADD COLUMN `activity` TEXT NOT NULL DEFAULT 'RIDE'"
+            // has to name the column exactly as the table declares it, defaults
+            // included, or Room refuses to open the migrated database.
+            val definition = statement.substringAfter("ADD COLUMN ")
+            assertTrue(
+                "Version 3 of trips does not declare: $definition",
+                createSql.contains(definition),
+            )
+        }
+    }
+
+    @Test
     fun `every table in the schema is reachable from version one`() {
-        val schema = File(schemaDir, "2.json").readText()
+        val schema = File(schemaDir, "3.json").readText()
         // The tables that already existed at version 1 plus the one the
         // migration adds should account for the whole version 2 schema.
         val tables = Regex("\"tableName\"\\s*:\\s*\"([^\"]+)\"")

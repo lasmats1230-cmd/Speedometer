@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RouteEntity::class,
         WaypointEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class SpeedometerDatabase : RoomDatabase() {
@@ -54,13 +54,36 @@ abstract class SpeedometerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the activity a trip was recorded as, and a free-text note.
+         *
+         * Existing trips become rides: this app was written for a bike, and a
+         * wrong guess is one tap to correct where a null would need handling
+         * in every screen that reads the column.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                ADD_TRIP_COLUMNS.forEach(db::execSQL)
+            }
+        }
+
+        /**
+         * The column definitions have to read exactly as Room writes them in
+         * `schemas/…/3.json`, down to the default value, or Room rejects the
+         * migrated database. `MigrationSchemaTest` compares the two.
+         */
+        val ADD_TRIP_COLUMNS = listOf(
+            "ALTER TABLE `trips` ADD COLUMN `activity` TEXT NOT NULL DEFAULT 'RIDE'",
+            "ALTER TABLE `trips` ADD COLUMN `note` TEXT",
+        )
+
         fun get(context: Context): SpeedometerDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     SpeedometerDatabase::class.java,
                     "speedometer.db",
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { instance = it }
             }

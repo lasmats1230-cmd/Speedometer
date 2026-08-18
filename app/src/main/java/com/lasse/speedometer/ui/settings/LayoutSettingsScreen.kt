@@ -36,6 +36,8 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.data.prefs.StatType
+import com.lasse.speedometer.ui.components.DetailScaffold
+import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.SegmentedTabs
 
 /**
@@ -50,37 +52,22 @@ fun LayoutSettingsScreen(
 ) {
     val layout = settings.layout
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                title = { Text(stringResource(R.string.settings_layout)) },
-                actions = {
-                    TextButton(onClick = viewModel::resetLayout) {
-                        Text(stringResource(R.string.reset))
-                    }
-                },
-            )
+    DetailScaffold(
+        title = stringResource(R.string.settings_layout),
+        onBack = onBack,
+        actions = {
+            TextButton(onClick = viewModel::resetLayout) {
+                Text(stringResource(R.string.reset))
+            }
         },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
+                start = Dimens.Screen,
+                end = Dimens.Screen,
                 top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding() + 24.dp,
+                bottom = padding.calculateBottomPadding() + Dimens.BottomGap,
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

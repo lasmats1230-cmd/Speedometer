@@ -39,7 +39,16 @@ data class TripEntity(
     val title: String? = null,
     val tourId: Long? = null,
     @ColumnInfo(defaultValue = "0") val syncedToHealth: Boolean = false,
-)
+    /**
+     * Stored as the enum's name rather than the enum itself: a column written
+     * by a build that knew about an activity this one does not must not stop
+     * the trip from loading.
+     */
+    @ColumnInfo(defaultValue = "RIDE") val activity: String = ActivityType.RIDE.name,
+    val note: String? = null,
+) {
+    val activityType: ActivityType get() = ActivityType.fromName(activity)
+}
 
 @Entity(
     tableName = "track_points",

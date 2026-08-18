@@ -10,6 +10,7 @@ import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.SpeedRecord
 import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.units.Velocity
+import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.repo.TripRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -82,7 +83,7 @@ class HealthConnectManager(
                         startZoneOffset = offset,
                         endTime = end,
                         endZoneOffset = offset,
-                        exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+                        exerciseType = exerciseTypeFor(trip.activityType),
                         title = trip.title,
                         exerciseRoute = if (route.size >= 2) ExerciseRoute(route) else null,
                     )
@@ -128,5 +129,19 @@ class HealthConnectManager(
             healthClient.insertRecords(records)
             repository.markSynced(tripId)
         }
+    }
+
+    /**
+     * A drive is not exercise, but Health Connect has no "not a workout"
+     * session; it lands as OTHER so the distance is still readable without
+     * claiming the user cycled to work.
+     */
+    private fun exerciseTypeFor(activity: ActivityType): Int = when (activity) {
+        ActivityType.RIDE -> ExerciseSessionRecord.EXERCISE_TYPE_BIKING
+        ActivityType.RUN -> ExerciseSessionRecord.EXERCISE_TYPE_RUNNING
+        ActivityType.WALK -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
+        ActivityType.HIKE -> ExerciseSessionRecord.EXERCISE_TYPE_HIKING
+        ActivityType.DRIVE, ActivityType.OTHER ->
+            ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT
     }
 }

@@ -120,8 +120,9 @@ class TrackingService : Service(), LocationListener {
         leaveForeground()
 
         if (save && points.size >= MIN_POINTS_TO_SAVE) {
+            val activity = settings.activity
             scope.launch {
-                val id = app().tripRepository.saveTrip(summary, points)
+                val id = app().tripRepository.saveTrip(summary, points, activity)
                 TrackingController.publishSavedTrip(id)
                 if (settings.autoSyncHealth) {
                     runCatching { app().healthConnectManager.writeTrip(id) }

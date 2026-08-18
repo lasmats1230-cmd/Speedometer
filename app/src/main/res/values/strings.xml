@@ -5,8 +5,40 @@
     <!-- Navigation -->
     <string name="nav_live">Live</string>
     <string name="nav_history">History</string>
+    <string name="nav_stats">Stats</string>
     <string name="nav_tools">Tools</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- Activities -->
+    <string name="activity">Activity</string>
+    <string name="activity_ride">Ride</string>
+    <string name="activity_run">Run</string>
+    <string name="activity_walk">Walk</string>
+    <string name="activity_hike">Hike</string>
+    <string name="activity_drive">Drive</string>
+    <string name="activity_other">Other</string>
+
+    <!-- Statistics -->
+    <string name="stats">Statistics</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="period_year">Year</string>
+    <string name="period_all">All time</string>
+    <string name="stats_trend">Distance over time</string>
+    <string name="stats_total">Total</string>
+    <string name="stats_by_activity">By activity</string>
+    <string name="stats_records">Records</string>
+    <string name="stats_lifetime">Lifetime</string>
+    <string name="stats_streak">Day streak</string>
+    <string name="stats_active_days">Active days</string>
+    <string name="stats_recording_for">Recording for</string>
+    <string name="stats_period_empty">Nothing recorded in this period yet.</string>
+    <string name="record_longest">Longest trip</string>
+    <string name="record_longest_time">Longest time</string>
+    <string name="record_fastest">Top speed</string>
+    <string name="record_climb">Biggest climb</string>
+    <string name="no_stats_title">Nothing to add up yet.</string>
+    <string name="no_stats_body">Record a trip and your totals, records and trends appear here.</string>
 
     <!-- Live -->
     <string name="status_ready">Ready</string>
@@ -14,6 +46,7 @@
     <string name="status_paused">Paused</string>
     <string name="status_tracking">GPS tracking (%1$s)</string>
     <string name="status_no_permission">Location permission needed</string>
+    <string name="speed_over_limit">over %1$s</string>
     <string name="stat_max">Max</string>
     <string name="stat_avg">Avg</string>
     <string name="stat_distance">Distance</string>
@@ -44,9 +77,29 @@
     <string name="delete_trip_message">This recording will be removed permanently.</string>
     <string name="delete_all_title">Delete all trips?</string>
     <string name="delete_all_message">Every recording will be removed permanently.</string>
+    <string name="delete_tour_title">Delete tour?</string>
+    <string name="delete_tour_message">The tour is removed. The trips in it are kept.</string>
+    <string name="remove_from_tour">Remove from tour</string>
     <string name="new_tour">New tour…</string>
     <string name="tour_name">Tour name</string>
+    <string name="trip_name">Trip name</string>
     <string name="create">Create</string>
+    <string name="rename_trip">Rename trip</string>
+    <string name="rename_tour">Rename tour</string>
+    <string name="change_activity">Change activity</string>
+    <string name="share_summary">Share summary</string>
+    <string name="share_footer" translatable="false">Recorded with Speedometer</string>
+    <string name="search_trips">Search trips</string>
+    <string name="clear">Clear</string>
+    <string name="filter_all">All</string>
+    <string name="sort_by">Sort</string>
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_distance">Longest distance</string>
+    <string name="sort_duration">Longest time</string>
+    <string name="sort_speed">Highest top speed</string>
+    <string name="no_matches_title">Nothing matches.</string>
+    <string name="no_matches_body">Try a different search, or clear the activity filter.</string>
 
     <!-- Detail -->
     <string name="elevation">Elevation</string>
@@ -60,6 +113,10 @@
     <string name="moving_time">Moving time</string>
     <string name="back">Back</string>
     <string name="more">More</string>
+    <string name="splits">Splits</string>
+    <string name="splits_subtitle">One line per %1$s — the bar is speed against the fastest one</string>
+    <string name="edit_note">Edit note</string>
+    <string name="note">Note</string>
 
     <!-- Tools -->
     <string name="tools">Tools</string>
@@ -96,6 +153,23 @@
     <string name="settings_health_auto">Sync new trips automatically</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
+
+    <!-- Alerts -->
+    <string name="settings_alerts">Alerts</string>
+    <string name="settings_speed_alert">Speed alert</string>
+    <string name="settings_speed_alert_summary">Turn the readout red above a set speed</string>
+    <string name="settings_speed_alert_at">Alert above %1$s</string>
+    <string name="settings_speed_alert_vibrate">Vibrate when exceeded</string>
+
+    <!-- Backup -->
+    <string name="settings_data">Data</string>
+    <string name="settings_backup_summary">Trips live only on this device. A backup writes everything — trips, tours, routes and waypoints — into your Downloads folder as one file.</string>
+    <string name="settings_backup_export">Back up</string>
+    <string name="settings_backup_restore">Restore</string>
+    <string name="settings_backup_saved">Backup saved as %1$s</string>
+    <string name="settings_backup_failed">Could not write the backup</string>
+    <string name="settings_backup_restored">Restored %1$d trips, skipped %2$d already here</string>
+    <string name="settings_restore_failed">That file is not a Speedometer backup</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Trip recording</string>
@@ -210,6 +284,14 @@
     <plurals name="trips_count">
         <item quantity="one">%1$d trip</item>
         <item quantity="other">%1$d trips</item>
+    </plurals>
+    <plurals name="days_count">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="active_days_count">
+        <item quantity="one">%1$d active day</item>
+        <item quantity="other">%1$d active days</item>
     </plurals>
     <plurals name="settings_dim_delay">
         <item quantity="one">Dim after %1$d second</item>

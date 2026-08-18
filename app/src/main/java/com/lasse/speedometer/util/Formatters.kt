@@ -59,6 +59,10 @@ object Formatters {
     fun distance(metres: Double, units: UnitSystem): String =
         String.format(Locale.getDefault(), "%.2f %s", distanceIn(metres, units), distanceUnit(units))
 
+    /** "14,16" — the bare number, for tables that carry the unit in a header. */
+    fun distanceValue(metres: Double, units: UnitSystem): String =
+        String.format(Locale.getDefault(), "%.2f", distanceIn(metres, units))
+
     /** "586 m" */
     fun elevation(metres: Double, units: UnitSystem): String =
         String.format(

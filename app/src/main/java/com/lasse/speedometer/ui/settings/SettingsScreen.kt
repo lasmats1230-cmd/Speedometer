@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,7 +29,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
@@ -61,6 +64,9 @@ import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.SpeedSource
 import com.lasse.speedometer.data.prefs.ThemeMode
 import com.lasse.speedometer.data.prefs.UnitSystem
+import com.lasse.speedometer.ui.components.Dimens
+import com.lasse.speedometer.ui.components.ScreenTitle
+import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.SegmentedTabs
 import com.lasse.speedometer.ui.theme.AccentColor
 import com.lasse.speedometer.util.AppLanguage
@@ -77,11 +83,25 @@ fun SettingsScreen(
 ) {
     val healthGranted by viewModel.healthPermissionsGranted.collectAsState()
     val language by viewModel.language.collectAsState()
+    val busy by viewModel.busy.collectAsState()
     var showLanguagePicker by remember { mutableStateOf(false) }
     val activity = LocalContext.current.findActivity()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
+
+    val backupSaved = stringResource(R.string.settings_backup_saved)
+    val backupFailed = stringResource(R.string.settings_backup_failed)
+    val backupRestored = stringResource(R.string.settings_backup_restored)
+    val restoreFailed = stringResource(R.string.settings_restore_failed)
+
+    // Backups are JSON, but file pickers disagree about what that means often
+    // enough that anything is accepted and the parser decides.
+    val backupPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) viewModel.restoreBackup(uri, backupRestored, restoreFailed)
     }
 
     val healthLauncher = rememberLauncherForActivityResult(
@@ -92,19 +112,17 @@ fun SettingsScreen(
     val dynamicSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val showAccentPicker = !settings.dynamicColor || !dynamicSupported
 
+    Column(Modifier.fillMaxSize()) {
+    ScreenTitle(title = stringResource(R.string.settings))
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        contentPadding = PaddingValues(
+            start = Dimens.Screen,
+            end = Dimens.Screen,
+            bottom = Dimens.BottomGap,
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item("title") {
-            Text(
-                text = stringResource(R.string.settings),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 12.dp),
-            )
-        }
-
         item("layout") {
             SettingsSection(stringResource(R.string.settings_layout)) {
                 NavigationRow(
@@ -294,6 +312,84 @@ fun SettingsScreen(
             }
         }
 
+        item("alerts") {
+            SettingsSection(stringResource(R.string.settings_alerts)) {
+                val alertOn = settings.speedAlertMps > 0f
+                SwitchRow(
+                    title = stringResource(R.string.settings_speed_alert),
+                    subtitle = stringResource(R.string.settings_speed_alert_summary),
+                    checked = alertOn,
+                    onCheckedChange = { enabled ->
+                        viewModel.setSpeedAlert(if (enabled) DEFAULT_ALERT_MPS else 0f)
+                    },
+                )
+
+                if (alertOn) {
+                    Spacer(Modifier.height(8.dp))
+                    // The slider works in whatever the user reads speeds in;
+                    // what is stored stays metres per second either way.
+                    val displayed = Formatters.speedIn(
+                        settings.speedAlertMps.toDouble(),
+                        settings.units,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.settings_speed_alert_at,
+                            Formatters.speed(settings.speedAlertMps.toDouble(), settings.units),
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    var limit by remember(settings.speedAlertMps) {
+                        mutableFloatStateOf(displayed.toFloat())
+                    }
+                    val range = if (settings.units == UnitSystem.METRIC) 10f..200f else 5f..125f
+                    Slider(
+                        value = limit.coerceIn(range),
+                        onValueChange = { limit = it },
+                        onValueChangeFinished = {
+                            val rounded = limit.roundToInt().toDouble()
+                            val mps = when (settings.units) {
+                                UnitSystem.METRIC -> rounded / 3.6
+                                UnitSystem.IMPERIAL -> rounded / 2.2369362920544
+                            }
+                            viewModel.setSpeedAlert(mps.toFloat())
+                        },
+                        valueRange = range,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.settings_speed_alert_vibrate),
+                        checked = settings.speedAlertVibrate,
+                        onCheckedChange = viewModel::setSpeedAlertVibrate,
+                    )
+                }
+            }
+        }
+
+        item("data") {
+            SettingsSection(stringResource(R.string.settings_data)) {
+                Text(
+                    text = stringResource(R.string.settings_backup_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            viewModel.exportBackup(backupSaved, backupFailed)
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.settings_backup_export)) }
+                    OutlinedButton(
+                        onClick = { backupPicker.launch(arrayOf("*/*")) },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.settings_backup_restore)) }
+                }
+            }
+        }
+
         item("health") {
             SettingsSection(stringResource(R.string.settings_health)) {
                 if (!viewModel.healthAvailable) {
@@ -353,7 +449,7 @@ fun SettingsScreen(
             }
         }
 
-        item("spacer") { Spacer(Modifier.height(24.dp)) }
+    }
     }
 
     if (showLanguagePicker) {
@@ -434,24 +530,17 @@ private fun AccentPicker(selected: AccentColor, onSelect: (AccentColor) -> Unit)
     }
 }
 
+/**
+ * A titled settings group. Thin wrapper over the app-wide [SectionCard] so
+ * settings, statistics and trip details all use the same card.
+ */
 @Composable
 internal fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-        ) {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), content = content)
-        }
-    }
+    SectionCard(title = title, content = content)
 }
+
+/** 50 km/h — the usual urban limit, and a sane place for the slider to start. */
+private const val DEFAULT_ALERT_MPS = 13.9f
 
 @Composable
 internal fun SwitchRow(

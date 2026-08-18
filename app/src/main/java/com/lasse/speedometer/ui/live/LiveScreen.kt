@@ -71,6 +71,7 @@ import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.ImmersiveMode
+import com.lasse.speedometer.ui.components.ActivityPicker
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.TrackMap
@@ -148,10 +149,16 @@ fun LiveScreen(
         onDispose { ImmersiveMode.set(false) }
     }
 
+    // Over the limit the readout turns red and the phone buzzes once. It is
+    // computed before the dim branch so the pared-back display warns too —
+    // that is the screen you are actually looking at while moving.
+    val overLimit = rememberSpeedAlert(state.speedMps, settings)
+
     if (dimmed) {
         DimDisplay(
             state = state,
             settings = settings,
+            overLimit = overLimit,
             onWake = {
                 dimmed = false
                 lastInteraction = System.currentTimeMillis()
@@ -195,18 +202,48 @@ fun LiveScreen(
                         permissionLauncher.launch(locationPermissions())
                     },
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
+            }
+
+            // Which activity this is only matters before the recording starts;
+            // once it is running the row would just be one more thing between
+            // the speed and the stop button. It stays changeable afterwards
+            // from the trip's own menu.
+            if (idle) {
+                ActivityPicker(
+                    selected = settings.activity,
+                    onSelect = viewModel::setActivity,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+            } else {
+                Spacer(Modifier.height(4.dp))
             }
 
             Text(
                 text = Formatters.bigSpeed(state.speedMps, settings.units),
                 style = SpeedDisplayStyle,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (overLimit) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
             )
             Text(
-                text = Formatters.speedUnit(settings.units),
+                text = if (overLimit) {
+                    stringResource(
+                        R.string.speed_over_limit,
+                        Formatters.speed(settings.speedAlertMps.toDouble(), settings.units),
+                    )
+                } else {
+                    Formatters.speedUnit(settings.units)
+                },
                 style = SpeedUnitStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (overLimit) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
 
             if (layout.stats.isNotEmpty()) {

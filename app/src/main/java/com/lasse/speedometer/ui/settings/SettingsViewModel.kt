@@ -1,6 +1,7 @@
 package com.lasse.speedometer.ui.settings
 
 import android.app.Application
+import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.AndroidViewModel
@@ -26,9 +27,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val settingsRepository = application.app.settingsRepository
     private val health = application.app.healthConnectManager
+    private val backups = application.app.backupManager
 
     private val _healthPermissionsGranted = MutableStateFlow(false)
     val healthPermissionsGranted: StateFlow<Boolean> = _healthPermissionsGranted.asStateFlow()
+
+    /** True while a backup is being written or read, to hold the buttons. */
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages = _messages.asSharedFlow()
@@ -72,6 +78,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         update { settingsRepository.setBatterySaver(value) }
 
     fun setDimDelaySeconds(value: Int) = update { settingsRepository.setDimDelaySeconds(value) }
+    fun setSpeedAlert(mps: Float) = update { settingsRepository.setSpeedAlert(mps) }
+    fun setSpeedAlertVibrate(value: Boolean) =
+        update { settingsRepository.setSpeedAlertVibrate(value) }
+
+    /** Writes every trip, tour, route and waypoint into Downloads. */
+    fun exportBackup(successTemplate: String, failure: String) = viewModelScope.launch {
+        _busy.value = true
+        backups.export()
+            .onSuccess { _messages.emit(successTemplate.format(it)) }
+            .onFailure { _messages.emit(failure) }
+        _busy.value = false
+    }
+
+    fun restoreBackup(uri: Uri, successTemplate: String, failure: String) = viewModelScope.launch {
+        _busy.value = true
+        backups.restore(uri)
+            .onSuccess { result ->
+                _messages.emit(successTemplate.format(result.trips, result.skipped))
+            }
+            .onFailure { _messages.emit(failure) }
+        _busy.value = false
+    }
 
     fun setMinimapSize(value: MinimapSize) = update { settingsRepository.setMinimapSize(value) }
     fun setShowTimer(value: Boolean) = update { settingsRepository.setShowTimer(value) }

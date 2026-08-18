@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lasse.speedometer.R
+import com.lasse.speedometer.ui.components.DetailScaffold
+import com.lasse.speedometer.ui.components.Dimens
 
 /**
  * One dependency the app ships, with the licence it is used under.
@@ -117,32 +119,17 @@ private val Entries = listOf(
 fun LicensesScreen(onBack: () -> Unit) {
     var showing by remember { mutableStateOf<LicenseEntry?>(null) }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                title = { Text(stringResource(R.string.settings_licenses_title)) },
-            )
-        },
+    DetailScaffold(
+        title = stringResource(R.string.settings_licenses_title),
+        onBack = onBack,
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
+                start = Dimens.Screen,
+                end = Dimens.Screen,
                 top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding() + 24.dp,
+                bottom = padding.calculateBottomPadding() + Dimens.BottomGap,
             ),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

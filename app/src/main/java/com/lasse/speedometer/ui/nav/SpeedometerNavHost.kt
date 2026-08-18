@@ -40,6 +40,7 @@ import com.lasse.speedometer.ui.live.LiveScreen
 import com.lasse.speedometer.ui.settings.LayoutSettingsScreen
 import com.lasse.speedometer.ui.settings.LicensesScreen
 import com.lasse.speedometer.ui.settings.SettingsScreen
+import com.lasse.speedometer.ui.stats.StatsScreen
 import com.lasse.speedometer.ui.tools.ToolsScreen
 
 @Composable
@@ -117,6 +118,12 @@ fun SpeedometerNavHost(settings: AppSettings) {
                         snackbarHostState = snackbarHostState,
                         onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
                         onOpenTour = { navController.navigate(Routes.tourDetail(it)) },
+                    )
+                }
+                composable(Routes.STATS) {
+                    StatsScreen(
+                        settings = settings,
+                        onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
                     )
                 }
                 composable(Routes.TOOLS) {

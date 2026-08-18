@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.lasse.speedometer.R
+import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.ui.theme.AccentColor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -82,6 +83,14 @@ data class LayoutSettings(
 
 data class AppSettings(
     val units: UnitSystem = UnitSystem.METRIC,
+    /** What the next recording will be filed as. */
+    val activity: ActivityType = ActivityType.RIDE,
+    /**
+     * Speed above which the readout turns red, in metres per second. Zero is
+     * off, which is also where it starts: an alert nobody asked for is noise.
+     */
+    val speedAlertMps: Float = 0f,
+    val speedAlertVibrate: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val accentColor: AccentColor = AccentColor.GREEN,
@@ -119,12 +128,18 @@ class SettingsRepository(private val context: Context) {
         val STAT_COLUMNS = intPreferencesKey("stat_columns")
         val BATTERY_SAVER = stringPreferencesKey("battery_saver")
         val DIM_DELAY = intPreferencesKey("dim_delay")
+        val ACTIVITY = stringPreferencesKey("activity")
+        val SPEED_ALERT = floatPreferencesKey("speed_alert_mps")
+        val SPEED_ALERT_VIBRATE = booleanPreferencesKey("speed_alert_vibrate")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         val defaults = LayoutSettings()
         AppSettings(
             units = prefs[Keys.UNITS].toEnum(UnitSystem.METRIC),
+            activity = prefs[Keys.ACTIVITY].toEnum(ActivityType.RIDE),
+            speedAlertMps = prefs[Keys.SPEED_ALERT] ?: 0f,
+            speedAlertVibrate = prefs[Keys.SPEED_ALERT_VIBRATE] ?: true,
             themeMode = prefs[Keys.THEME].toEnum(ThemeMode.SYSTEM),
             dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
             accentColor = prefs[Keys.ACCENT_COLOR].toEnum(AccentColor.GREEN),
@@ -147,6 +162,13 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setUnits(value: UnitSystem) = edit { it[Keys.UNITS] = value.name }
+    suspend fun setActivity(value: ActivityType) = edit { it[Keys.ACTIVITY] = value.name }
+    suspend fun setSpeedAlert(mps: Float) =
+        edit { it[Keys.SPEED_ALERT] = mps.coerceAtLeast(0f) }
+
+    suspend fun setSpeedAlertVibrate(value: Boolean) =
+        edit { it[Keys.SPEED_ALERT_VIBRATE] = value }
+
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME] = value.name }
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }
     suspend fun setAccentColor(value: AccentColor) = edit { it[Keys.ACCENT_COLOR] = value.name }

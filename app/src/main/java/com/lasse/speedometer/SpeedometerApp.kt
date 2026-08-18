@@ -3,6 +3,7 @@ package com.lasse.speedometer
 import android.app.Application
 import android.content.Context
 import com.lasse.speedometer.data.db.SpeedometerDatabase
+import com.lasse.speedometer.data.io.BackupManager
 import com.lasse.speedometer.data.io.TripExporter
 import com.lasse.speedometer.data.prefs.SettingsRepository
 import com.lasse.speedometer.data.repo.TripRepository
@@ -30,6 +31,8 @@ class SpeedometerApp : Application() {
     }
 
     val tripExporter by lazy { TripExporter(this) }
+
+    val backupManager by lazy { BackupManager(this, database) }
 
     val healthConnectManager by lazy { HealthConnectManager(this, tripRepository) }
 

@@ -1,5 +1,6 @@
 package com.lasse.speedometer.data.repo
 
+import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.RouteDao
 import com.lasse.speedometer.data.db.RouteEntity
 import com.lasse.speedometer.data.db.TourDao
@@ -62,10 +63,15 @@ class TripRepository(
 
     suspend fun getPoints(id: Long): List<TrackPointEntity> = tripDao.getPoints(id)
 
-    suspend fun saveTrip(summary: TripSummary, points: List<TrackPoint>): Long =
+    suspend fun saveTrip(
+        summary: TripSummary,
+        points: List<TrackPoint>,
+        activity: ActivityType = ActivityType.RIDE,
+    ): Long =
         withContext(Dispatchers.IO) {
             val tripId = tripDao.insertTrip(
                 TripEntity(
+                    activity = activity.name,
                     startedAt = summary.startedAt,
                     endedAt = summary.endedAt,
                     durationMs = summary.durationMs,
@@ -101,6 +107,12 @@ class TripRepository(
 
     suspend fun renameTrip(id: Long, title: String?) =
         withContext(Dispatchers.IO) { tripDao.setTripTitle(id, title?.ifBlank { null }) }
+
+    suspend fun setTripNote(id: Long, note: String?) =
+        withContext(Dispatchers.IO) { tripDao.setTripNote(id, note?.ifBlank { null }) }
+
+    suspend fun setTripActivity(id: Long, activity: ActivityType) =
+        withContext(Dispatchers.IO) { tripDao.setTripActivity(id, activity.name) }
 
     suspend fun markSynced(id: Long) = withContext(Dispatchers.IO) { tripDao.markSynced(id) }
 

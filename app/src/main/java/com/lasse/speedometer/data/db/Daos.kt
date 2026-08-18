@@ -38,6 +38,10 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE tourId = :tourId ORDER BY startedAt ASC")
     suspend fun getTripsForTour(tourId: Long): List<TripEntity>
 
+    /** Every trip in one read, for a backup. */
+    @Query("SELECT * FROM trips ORDER BY startedAt ASC")
+    suspend fun getAllTrips(): List<TripEntity>
+
     @Insert
     suspend fun insertTrip(trip: TripEntity): Long
 
@@ -49,6 +53,12 @@ interface TripDao {
 
     @Query("UPDATE trips SET title = :title WHERE id = :tripId")
     suspend fun setTripTitle(tripId: Long, title: String?)
+
+    @Query("UPDATE trips SET note = :note WHERE id = :tripId")
+    suspend fun setTripNote(tripId: Long, note: String?)
+
+    @Query("UPDATE trips SET activity = :activity WHERE id = :tripId")
+    suspend fun setTripActivity(tripId: Long, activity: String)
 
     @Query("UPDATE trips SET syncedToHealth = 1 WHERE id = :tripId")
     suspend fun markSynced(tripId: Long)
@@ -96,6 +106,9 @@ interface TourDao {
     @Query("SELECT * FROM tours WHERE id = :id")
     fun observeTourWithTrips(id: Long): Flow<TourWithTrips?>
 
+    @Query("SELECT * FROM tours ORDER BY createdAt ASC")
+    suspend fun getAllTours(): List<TourEntity>
+
     @Insert
     suspend fun insertTour(tour: TourEntity): Long
 
@@ -115,6 +128,9 @@ interface RouteDao {
     @Query("SELECT * FROM routes WHERE id = :id")
     suspend fun getRoute(id: Long): RouteEntity?
 
+    @Query("SELECT * FROM routes ORDER BY importedAt ASC")
+    suspend fun getAllRoutes(): List<RouteEntity>
+
     @Query("SELECT * FROM routes WHERE id = :id")
     fun observeRoute(id: Long): Flow<RouteEntity?>
 
@@ -133,6 +149,9 @@ interface WaypointDao {
 
     @Query("SELECT * FROM waypoints WHERE id = :id")
     suspend fun getWaypoint(id: Long): WaypointEntity?
+
+    @Query("SELECT * FROM waypoints ORDER BY createdAt ASC")
+    suspend fun getAllWaypoints(): List<WaypointEntity>
 
     @Insert
     suspend fun insertWaypoint(waypoint: WaypointEntity): Long

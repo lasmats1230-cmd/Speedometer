@@ -224,4 +224,93 @@
     <string name="battery_extreme_map_off">Karte aus — extremes Energiesparen</string>
     <string name="axis_distance_altitude">Strecke · Höhe — zum Ablesen ziehen</string>
     <string name="axis_time_speed">Zeit · Geschwindigkeit — zum Ablesen ziehen</string>
+    <!-- Navigation -->
+    <string name="nav_stats">Statistik</string>
+
+    <!-- Aktivitäten -->
+    <string name="activity">Aktivität</string>
+    <string name="activity_ride">Radfahrt</string>
+    <string name="activity_run">Lauf</string>
+    <string name="activity_walk">Spaziergang</string>
+    <string name="activity_hike">Wanderung</string>
+    <string name="activity_drive">Autofahrt</string>
+    <string name="activity_other">Sonstiges</string>
+
+    <!-- Statistik -->
+    <string name="stats">Statistik</string>
+    <string name="period_week">Woche</string>
+    <string name="period_month">Monat</string>
+    <string name="period_year">Jahr</string>
+    <string name="period_all">Gesamt</string>
+    <string name="stats_trend">Strecke im Zeitverlauf</string>
+    <string name="stats_total">Gesamt</string>
+    <string name="stats_by_activity">Nach Aktivität</string>
+    <string name="stats_records">Rekorde</string>
+    <string name="stats_lifetime">Insgesamt</string>
+    <string name="stats_streak">Serie</string>
+    <string name="stats_active_days">Aktive Tage</string>
+    <string name="stats_recording_for">Aufzeichnung seit</string>
+    <string name="stats_period_empty">In diesem Zeitraum ist noch nichts aufgezeichnet.</string>
+    <string name="record_longest">Längste Fahrt</string>
+    <string name="record_longest_time">Längste Dauer</string>
+    <string name="record_fastest">Höchstgeschwindigkeit</string>
+    <string name="record_climb">Meiste Höhenmeter</string>
+    <string name="no_stats_title">Noch nichts zu rechnen.</string>
+    <string name="no_stats_body">Zeichne eine Fahrt auf, dann erscheinen hier Summen, Rekorde und Verläufe.</string>
+
+    <!-- Live -->
+    <string name="speed_over_limit">über %1$s</string>
+
+    <!-- Verlauf -->
+    <string name="delete_tour_title">Tour löschen?</string>
+    <string name="delete_tour_message">Die Tour wird entfernt. Die Fahrten darin bleiben erhalten.</string>
+    <string name="remove_from_tour">Aus Tour entfernen</string>
+    <string name="trip_name">Name der Fahrt</string>
+    <string name="rename_trip">Fahrt umbenennen</string>
+    <string name="rename_tour">Tour umbenennen</string>
+    <string name="change_activity">Aktivität ändern</string>
+    <string name="share_summary">Zusammenfassung teilen</string>
+    <string name="search_trips">Fahrten durchsuchen</string>
+    <string name="clear">Löschen</string>
+    <string name="filter_all">Alle</string>
+    <string name="sort_by">Sortieren</string>
+    <string name="sort_newest">Neueste zuerst</string>
+    <string name="sort_oldest">Älteste zuerst</string>
+    <string name="sort_distance">Längste Strecke</string>
+    <string name="sort_duration">Längste Dauer</string>
+    <string name="sort_speed">Höchste Geschwindigkeit</string>
+    <string name="no_matches_title">Keine Treffer.</string>
+    <string name="no_matches_body">Versuche eine andere Suche oder hebe den Aktivitätsfilter auf.</string>
+
+    <!-- Detail -->
+    <string name="splits">Abschnitte</string>
+    <string name="splits_subtitle">Eine Zeile je %1$s — der Balken zeigt die Geschwindigkeit im Vergleich zum schnellsten Abschnitt</string>
+    <string name="edit_note">Notiz bearbeiten</string>
+    <string name="note">Notiz</string>
+
+    <!-- Warnungen -->
+    <string name="settings_alerts">Warnungen</string>
+    <string name="settings_speed_alert">Geschwindigkeitswarnung</string>
+    <string name="settings_speed_alert_summary">Die Anzeige wird oberhalb einer Grenze rot</string>
+    <string name="settings_speed_alert_at">Warnung über %1$s</string>
+    <string name="settings_speed_alert_vibrate">Bei Überschreitung vibrieren</string>
+
+    <!-- Sicherung -->
+    <string name="settings_data">Daten</string>
+    <string name="settings_backup_summary">Fahrten liegen nur auf diesem Gerät. Eine Sicherung schreibt alles — Fahrten, Touren, Routen und Wegpunkte — als eine Datei in den Downloads-Ordner.</string>
+    <string name="settings_backup_export">Sichern</string>
+    <string name="settings_backup_restore">Wiederherstellen</string>
+    <string name="settings_backup_saved">Sicherung gespeichert als %1$s</string>
+    <string name="settings_backup_failed">Sicherung konnte nicht geschrieben werden</string>
+    <string name="settings_backup_restored">%1$d Fahrten wiederhergestellt, %2$d bereits vorhandene übersprungen</string>
+    <string name="settings_restore_failed">Diese Datei ist keine Speedometer-Sicherung</string>
+
+    <plurals name="days_count">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <plurals name="active_days_count">
+        <item quantity="one">%1$d aktiver Tag</item>
+        <item quantity="other">%1$d aktive Tage</item>
+    </plurals>
 </resources>

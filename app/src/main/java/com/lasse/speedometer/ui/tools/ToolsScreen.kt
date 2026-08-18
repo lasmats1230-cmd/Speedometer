@@ -47,11 +47,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.R
-import com.lasse.speedometer.data.io.RouteParser
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.tracking.TrackingController
+import com.lasse.speedometer.ui.components.CenteredEmptyState
+import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.EmptyState
 import com.lasse.speedometer.ui.components.LatLng
+import com.lasse.speedometer.ui.components.ListCard
+import com.lasse.speedometer.ui.components.MenuAction
+import com.lasse.speedometer.ui.components.OverflowMenu
+import com.lasse.speedometer.ui.components.ScreenTitle
 import com.lasse.speedometer.ui.components.SegmentedTabs
 import com.lasse.speedometer.ui.components.TrackMap
 import com.lasse.speedometer.ui.live.ActiveRoute
@@ -72,11 +77,7 @@ fun ToolsScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        Text(
-            text = stringResource(R.string.tools),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 16.dp),
-        )
+        ScreenTitle(title = stringResource(R.string.tools))
 
         SegmentedTabs(
             options = listOf(
@@ -239,30 +240,25 @@ private fun RoutesPane(
         Spacer(Modifier.height(16.dp))
 
         if (routes.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                EmptyState(
-                    icon = Icons.Outlined.Route,
-                    title = stringResource(R.string.no_routes_title),
-                    body = stringResource(R.string.no_routes_body),
-                )
-            }
+            CenteredEmptyState(
+                icon = Icons.Outlined.Route,
+                title = stringResource(R.string.no_routes_title),
+                body = stringResource(R.string.no_routes_body),
+            )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(
+                    start = Dimens.Screen,
+                    end = Dimens.Screen,
+                    bottom = Dimens.BottomGap,
+                ),
+                verticalArrangement = Arrangement.spacedBy(Dimens.Item),
             ) {
                 items(routes, key = { it.id }) { route ->
-                    var menuOpen by remember { mutableStateOf(false) }
                     val following = activeRouteId == route.id
 
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.large,
-                        color = if (following) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainer
-                        },
+                    ListCard(
+                        selected = following,
                         onClick = { ActiveRoute.toggle(route.id) },
                     ) {
                         Row(
@@ -297,44 +293,29 @@ private fun RoutesPane(
                                     )
                                 }
                             }
-                            Box {
-                                IconButton(onClick = { menuOpen = true }) {
-                                    Icon(
-                                        imageVector = Icons.Filled.MoreVert,
-                                        contentDescription = stringResource(R.string.more),
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = menuOpen,
-                                    onDismissRequest = { menuOpen = false },
-                                ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(
-                                                    if (following) {
-                                                        R.string.stop_following
-                                                    } else {
-                                                        R.string.follow_route
-                                                    }
-                                                )
-                                            )
-                                        },
+                            OverflowMenu(
+                                actions = listOf(
+                                    MenuAction(
+                                        label = stringResource(
+                                            if (following) {
+                                                R.string.stop_following
+                                            } else {
+                                                R.string.follow_route
+                                            }
+                                        ),
+                                        onClick = { ActiveRoute.toggle(route.id) },
+                                    ),
+                                    MenuAction(
+                                        label = stringResource(R.string.delete),
+                                        destructive = true,
                                         onClick = {
-                                            menuOpen = false
-                                            ActiveRoute.toggle(route.id)
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.delete)) },
-                                        onClick = {
-                                            menuOpen = false
                                             if (following) ActiveRoute.clear()
                                             viewModel.deleteRoute(route.id)
                                         },
-                                    )
-                                }
-                            }
+                                    ),
+                                ),
+                                contentDescription = stringResource(R.string.more),
+                            )
                         }
                     }
                 }
