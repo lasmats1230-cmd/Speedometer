@@ -179,7 +179,13 @@ fun LiveScreen(
     // when nothing is recording now — mid-ride this is simply the trip being
     // written.
     val interrupted by viewModel.interruptedTrip.collectAsState()
-    interrupted?.takeIf { idle }?.let { trip ->
+    // Also required to be stale: a row is still open for a moment after a
+    // recording stops, and offering to recover the trip just saved would be a
+    // dialog flashing past for no reason. A recording writes every ten
+    // seconds, so anything untouched for a minute was interrupted.
+    interrupted
+        ?.takeIf { idle && System.currentTimeMillis() - it.endedAt > RECOVERY_STALE_MS }
+        ?.let { trip ->
         AlertDialog(
             onDismissRequest = { },
             title = { Text(stringResource(R.string.recover_title)) },
@@ -813,6 +819,9 @@ private fun ControlButton(
 
 /** Flips a composable horizontally, for reading a reflection. */
 internal fun Modifier.mirrored(): Modifier = graphicsLayer(scaleX = -1f)
+
+/** Long enough that a row still open is not simply one being written. */
+private const val RECOVERY_STALE_MS = 60_000L
 
 private val CONTROL_SIZE = 68.dp
 private val CONTROL_ICON_SIZE = 30.dp
