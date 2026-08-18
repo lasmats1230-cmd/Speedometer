@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget colours only. The app itself derives everything from Material You at
+  runtime, but RemoteViews are inflated by the launcher and have to name their
+  colours here, with a night variant alongside.
+-->
+<resources>
+    <color name="widget_surface">#FFF3F5F4</color>
+    <color name="widget_text">#FF16191A</color>
+    <color name="widget_muted">#FF5A625E</color>
+    <color name="widget_accent">#FF0E7F4E</color>
+</resources>

@@ -18,6 +18,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.ui.ImmersiveMode
+import com.lasse.speedometer.ui.components.LocalMapStyle
 import com.lasse.speedometer.ui.history.HistoryScreen
 import com.lasse.speedometer.ui.history.TourDetailScreen
 import com.lasse.speedometer.ui.history.TripDetailScreen
@@ -45,6 +47,13 @@ import com.lasse.speedometer.ui.tools.ToolsScreen
 
 @Composable
 fun SpeedometerNavHost(settings: AppSettings) {
+    CompositionLocalProvider(LocalMapStyle provides settings.mapStyle) {
+        NavigationScaffold(settings)
+    }
+}
+
+@Composable
+private fun NavigationScaffold(settings: AppSettings) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route

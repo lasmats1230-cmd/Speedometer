@@ -67,11 +67,13 @@ class TripRepository(
         summary: TripSummary,
         points: List<TrackPoint>,
         activity: ActivityType = ActivityType.RIDE,
+        title: String? = null,
     ): Long =
         withContext(Dispatchers.IO) {
             val tripId = tripDao.insertTrip(
                 TripEntity(
                     activity = activity.name,
+                    title = title,
                     startedAt = summary.startedAt,
                     endedAt = summary.endedAt,
                     durationMs = summary.durationMs,

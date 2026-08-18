@@ -274,6 +274,16 @@ object StatsCalculator {
         }
     }
 
+    /**
+     * How far into the week today is, 1 for the first day. Used to say whether
+     * a weekly goal is on track rather than only how much of it is left.
+     */
+    fun dayOfWeek(now: Long, zone: ZoneId): Int {
+        val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val start = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek()))
+        return (ChronoUnit.DAYS.between(start, today).toInt() + 1).coerceIn(1, 7)
+    }
+
     /** Days since the first recording, for the lifetime card. */
     fun daysSinceFirst(trips: List<TripEntity>, now: Long, zone: ZoneId): Long {
         val first = trips.minByOrNull { it.startedAt } ?: return 0

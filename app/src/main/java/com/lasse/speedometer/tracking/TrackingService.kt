@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -23,7 +24,10 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.SpeedometerApp
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
+import com.lasse.speedometer.widget.SpeedometerWidget
+import com.lasse.speedometer.util.AppLocale
 import com.lasse.speedometer.util.Formatters
+import com.lasse.speedometer.util.TripNaming
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -42,6 +46,16 @@ class TrackingService : Service(), LocationListener {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val recorder = TripRecorder()
+    private val voice by lazy { VoiceCoach(this) }
+
+    /**
+     * Resources here resolve in the app's own language, not the system's —
+     * the recording notification and the spoken updates are as much part of
+     * the app as any screen.
+     */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
 
     private lateinit var locationManager: LocationManager
     private var wakeLock: PowerManager.WakeLock? = null
@@ -86,6 +100,8 @@ class TrackingService : Service(), LocationListener {
             return
         }
         recorder.start(System.currentTimeMillis())
+        voice.reset()
+        if (settings.voiceIntervalM > 0) voice.sayStarted()
         publish()
         goForeground()
         acquireWakeLock()
@@ -96,6 +112,7 @@ class TrackingService : Service(), LocationListener {
     private fun pauseRecording() {
         if (recorder.state.status == TrackingStatus.IDLE) return
         recorder.pause(System.currentTimeMillis())
+        if (settings.voiceIntervalM > 0) voice.sayPaused()
         publish()
         updateNotification(force = true)
     }
@@ -103,6 +120,7 @@ class TrackingService : Service(), LocationListener {
     private fun resumeRecording() {
         if (recorder.state.status != TrackingStatus.PAUSED) return
         recorder.resume(System.currentTimeMillis())
+        if (settings.voiceIntervalM > 0) voice.sayResumed()
         publish()
         updateNotification(force = true)
     }
@@ -121,9 +139,15 @@ class TrackingService : Service(), LocationListener {
 
         if (save && points.size >= MIN_POINTS_TO_SAVE) {
             val activity = settings.activity
+            if (settings.voiceIntervalM > 0) voice.sayFinished()
+            // Named here rather than in the database layer: the name is a
+            // piece of interface text, and this is the last place that still
+            // knows which language the app is in.
+            val title = TripNaming.titleFor(this, summary.startedAt, activity)
             scope.launch {
-                val id = app().tripRepository.saveTrip(summary, points, activity)
+                val id = app().tripRepository.saveTrip(summary, points, activity, title)
                 TrackingController.publishSavedTrip(id)
+                SpeedometerWidget.refresh(this@TrackingService)
                 if (settings.autoSyncHealth) {
                     runCatching { app().healthConnectManager.writeTrip(id) }
                 }
@@ -241,6 +265,7 @@ class TrackingService : Service(), LocationListener {
             while (true) {
                 delay(TICK_MS)
                 recorder.tick(System.currentTimeMillis())
+                announceProgress()
                 publish()
                 updateNotification()
             }
@@ -248,6 +273,21 @@ class TrackingService : Service(), LocationListener {
     }
 
     private fun publish() = TrackingController.publish(recorder.state)
+
+    /** Hands the current figures to the voice coach, which decides if it speaks. */
+    private fun announceProgress() {
+        val interval = settings.voiceIntervalM
+        if (interval <= 0.0 || recorder.state.status != TrackingStatus.RECORDING) return
+        val state = recorder.state
+        voice.onProgress(
+            distanceM = state.distanceM,
+            elapsedMs = state.elapsedMs,
+            avgSpeedMps = state.avgSpeedMps,
+            intervalM = interval,
+            units = settings.units,
+            prefersPace = settings.activity.prefersPace,
+        )
+    }
 
     // region foreground
 
@@ -382,6 +422,7 @@ class TrackingService : Service(), LocationListener {
         tickerJob?.cancel()
         releaseWakeLock()
         stopUpdates()
+        voice.shutdown()
         scope.cancel()
         super.onDestroy()
     }

@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
 import com.lasse.speedometer.data.prefs.BatterySaverMode
+import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.data.prefs.SpeedSource
 import com.lasse.speedometer.data.prefs.StatType
@@ -79,6 +80,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setDimDelaySeconds(value: Int) = update { settingsRepository.setDimDelaySeconds(value) }
     fun setSpeedAlert(mps: Float) = update { settingsRepository.setSpeedAlert(mps) }
+    fun setMapStyle(value: MapStyle) = update { settingsRepository.setMapStyle(value) }
+    fun setVoiceInterval(metres: Double) = update { settingsRepository.setVoiceInterval(metres) }
+    fun setWeeklyGoal(metres: Double) = update { settingsRepository.setWeeklyGoal(metres) }
     fun setSpeedAlertVibrate(value: Boolean) =
         update { settingsRepository.setSpeedAlertVibrate(value) }
 

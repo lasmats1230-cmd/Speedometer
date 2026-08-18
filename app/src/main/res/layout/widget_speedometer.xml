@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kept to two figures and a line of text: a widget competes with the wallpaper
+  for attention, and a dense one loses.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/widget_week_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="@color/widget_muted"
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:text="@string/widget_this_week" />
+
+    <TextView
+        android:id="@+id/widget_week_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="28sp"
+        android:textColor="@color/widget_accent"
+        android:text="0.00 km" />
+
+    <TextView
+        android:id="@+id/widget_total_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="12sp"
+        android:textColor="@color/widget_muted"
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:text="@string/widget_lifetime" />
+
+    <TextView
+        android:id="@+id/widget_total_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="18sp"
+        android:textColor="@color/widget_text"
+        android:text="0.00 km" />
+
+    <TextView
+        android:id="@+id/widget_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="13sp"
+        android:textColor="@color/widget_accent"
+        android:text="@string/widget_open" />
+</LinearLayout>

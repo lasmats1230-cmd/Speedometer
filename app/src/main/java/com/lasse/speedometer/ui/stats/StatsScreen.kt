@@ -48,6 +48,7 @@ import com.lasse.speedometer.ui.components.BarChart
 import com.lasse.speedometer.ui.components.BarSample
 import com.lasse.speedometer.ui.components.CenteredEmptyState
 import com.lasse.speedometer.ui.components.Dimens
+import com.lasse.speedometer.ui.components.ProgressRing
 import com.lasse.speedometer.ui.components.ScreenTitle
 import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.SegmentedTabs
@@ -56,6 +57,7 @@ import com.lasse.speedometer.ui.components.icon
 import com.lasse.speedometer.ui.history.formatTripDate
 import com.lasse.speedometer.util.Formatters
 import java.time.ZoneId
+import kotlin.math.roundToInt
 
 /**
  * What the recordings add up to.
@@ -89,6 +91,11 @@ fun StatsScreen(
         StatsCalculator.trend(periodTrips, period, now, zone)
     }
     val lifetime = remember(trips) { StatsCalculator.totals(trips, zone) }
+    // The goal is always about this week, whichever period is on screen.
+    val weekTotals = remember(trips, now) {
+        StatsCalculator.totals(StatsCalculator.tripsIn(trips, StatsPeriod.WEEK, now, zone), zone)
+    }
+    val dayOfWeek = remember(now) { StatsCalculator.dayOfWeek(now, zone) }
     val streak = remember(trips, now) { StatsCalculator.currentStreak(trips, now, zone) }
     val sinceDays = remember(trips, now) { StatsCalculator.daysSinceFirst(trips, now, zone) }
 
@@ -136,6 +143,17 @@ fun StatsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Dimens.Item),
         ) {
+            if (settings.weeklyGoalM > 0) {
+                item("goal") {
+                    GoalCard(
+                        goalM = settings.weeklyGoalM,
+                        doneM = weekTotals.distanceM,
+                        dayOfWeek = dayOfWeek,
+                        settings = settings,
+                    )
+                }
+            }
+
             item("totals") {
                 SummaryCard(totals = totals, settings = settings, period = period)
             }
@@ -375,5 +393,75 @@ private fun RecordRow(record: TripRecord, onClick: () -> Unit) {
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * The week's goal as a closing ring.
+ *
+ * Also says whether the week is on track, which is the number that actually
+ * changes what someone does today: 40 of 100 km means nothing on its own, and
+ * a great deal on a Tuesday.
+ */
+@Composable
+private fun GoalCard(goalM: Double, doneM: Double, dayOfWeek: Int, settings: AppSettings) {
+    val units = settings.units
+    val fraction = (doneM / goalM).toFloat()
+    val expected = goalM * dayOfWeek / 7.0
+    val behind = expected - doneM
+
+    SectionCard(title = stringResource(R.string.goal_title)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ProgressRing(
+                progress = fraction,
+                label = "${(fraction * 100).roundToInt()}%",
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = stringResource(
+                        R.string.goal_progress,
+                        Formatters.distance(doneM, units),
+                        Formatters.distance(goalM, units),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = if (doneM >= goalM) {
+                        stringResource(
+                            R.string.goal_reached,
+                            Formatters.distance(doneM - goalM, units),
+                        )
+                    } else {
+                        stringResource(
+                            R.string.goal_remaining,
+                            Formatters.distance(goalM - doneM, units),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = if (behind <= 0) {
+                        stringResource(R.string.goal_pace_ahead)
+                    } else {
+                        stringResource(
+                            R.string.goal_pace_behind,
+                            Formatters.distance(behind, units),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (behind <= 0) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        }
     }
 }

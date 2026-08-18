@@ -63,6 +63,13 @@ object AppLocale {
     }
 
     /**
+     * The locale the app is running in, or null when it follows the system.
+     * Used where a locale has to be handed to something outside the resource
+     * system — the speech engine, for one.
+     */
+    fun currentLocale(): Locale? = _language.value.tag?.let(Locale::forLanguageTag)
+
+    /**
      * Wraps a context so resource lookups resolve in the chosen language.
      * Returns the context untouched when following the system.
      */

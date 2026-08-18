@@ -313,4 +313,60 @@
         <item quantity="one">%1$d aktiver Tag</item>
         <item quantity="other">%1$d aktive Tage</item>
     </plurals>
+    <!-- Karte -->
+    <string name="settings_map">Karte</string>
+    <string name="settings_map_style">Kartenstil</string>
+    <string name="map_style_auto">Wie das Design</string>
+    <string name="map_style_liberty">Standard</string>
+    <string name="map_style_bright">Hell</string>
+    <string name="map_style_positron">Gedämpft</string>
+    <string name="map_style_dark">Dunkel</string>
+
+    <!-- Sprachansagen -->
+    <string name="settings_voice">Sprachansagen</string>
+    <string name="settings_voice_summary">Sagt Strecke, Zeit und Tempo an, damit das Telefon in der Tasche bleiben kann.</string>
+    <string name="voice_off">Aus</string>
+    <string name="voice_started">Aufzeichnung gestartet</string>
+    <string name="voice_paused">Aufzeichnung pausiert</string>
+    <string name="voice_resumed">Aufzeichnung fortgesetzt</string>
+    <string name="voice_finished">Fahrt gespeichert</string>
+    <string name="voice_update">%1$s. Zeit %2$s. Durchschnitt %3$s.</string>
+    <string name="voice_test">Ansage testen</string>
+
+    <!-- Wochenziel -->
+    <string name="settings_goal">Wochenziel</string>
+    <string name="settings_goal_summary">Eine Strecke, die du dir pro Woche vornimmst — sie erscheint in der Statistik.</string>
+    <string name="goal_none">Kein Ziel</string>
+    <string name="goal_title">Ziel dieser Woche</string>
+    <string name="goal_progress">%1$s von %2$s</string>
+    <string name="goal_reached">Ziel erreicht — %1$s darüber</string>
+    <string name="goal_remaining">Noch %1$s</string>
+    <string name="goal_pace_ahead">Vor dem Plan</string>
+    <string name="goal_pace_behind">%1$s hinter dem Plan</string>
+
+    <!-- Automatische Fahrtnamen -->
+    <string name="trip_title_morning">%1$s am Morgen</string>
+    <string name="trip_title_midday">%1$s am Mittag</string>
+    <string name="trip_title_afternoon">%1$s am Nachmittag</string>
+    <string name="trip_title_evening">%1$s am Abend</string>
+    <string name="trip_title_night">%1$s in der Nacht</string>
+
+    <plurals name="hours_count">
+        <item quantity="one">%1$d Stunde</item>
+        <item quantity="other">%1$d Stunden</item>
+    </plurals>
+    <plurals name="minutes_count">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
+    <!-- Schnelleinstellungen, Verknüpfung und Widget -->
+    <string name="tile_start">Fahrt aufzeichnen</string>
+    <string name="tile_stop">Aufzeichnung beenden</string>
+    <string name="tile_subtitle_recording">Zeichnet auf</string>
+    <string name="shortcut_start_short">Aufzeichnen</string>
+    <string name="shortcut_start_long">Aufzeichnung einer Fahrt starten</string>
+    <string name="widget_this_week">Diese Woche</string>
+    <string name="widget_lifetime">Insgesamt</string>
+    <string name="widget_open">Speedometer öffnen</string>
+    <string name="widget_description">Strecke dieser Woche und insgesamt, mit einem Tipp zum Öffnen.</string>
 </resources>

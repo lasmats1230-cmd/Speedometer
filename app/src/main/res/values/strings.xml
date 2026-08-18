@@ -309,4 +309,60 @@
     <string name="battery_extreme_map_off">Map off — extreme battery saving</string>
     <string name="axis_distance_altitude">Distance · altitude — drag to read a point</string>
     <string name="axis_time_speed">Time · speed — drag to read a point</string>
+    <!-- Map -->
+    <string name="settings_map">Map</string>
+    <string name="settings_map_style">Basemap</string>
+    <string name="map_style_auto">Match theme</string>
+    <string name="map_style_liberty">Standard</string>
+    <string name="map_style_bright">Bright</string>
+    <string name="map_style_positron">Muted</string>
+    <string name="map_style_dark">Dark</string>
+
+    <!-- Spoken updates -->
+    <string name="settings_voice">Spoken updates</string>
+    <string name="settings_voice_summary">Announce distance, time and pace while you ride, so you can leave the phone in a pocket.</string>
+    <string name="voice_off">Off</string>
+    <string name="voice_started">Recording started</string>
+    <string name="voice_paused">Recording paused</string>
+    <string name="voice_resumed">Recording resumed</string>
+    <string name="voice_finished">Trip saved</string>
+    <string name="voice_update">%1$s. Time %2$s. Average %3$s.</string>
+    <string name="voice_test">Speak a test</string>
+
+    <!-- Weekly goal -->
+    <string name="settings_goal">Weekly goal</string>
+    <string name="settings_goal_summary">A distance to aim for each week, shown on the statistics screen.</string>
+    <string name="goal_none">No goal</string>
+    <string name="goal_title">This week\'s goal</string>
+    <string name="goal_progress">%1$s of %2$s</string>
+    <string name="goal_reached">Goal reached — %1$s over</string>
+    <string name="goal_remaining">%1$s to go</string>
+    <string name="goal_pace_ahead">Ahead of pace</string>
+    <string name="goal_pace_behind">%1$s behind pace</string>
+
+    <!-- Automatic trip names -->
+    <string name="trip_title_morning">Morning %1$s</string>
+    <string name="trip_title_midday">Midday %1$s</string>
+    <string name="trip_title_afternoon">Afternoon %1$s</string>
+    <string name="trip_title_evening">Evening %1$s</string>
+    <string name="trip_title_night">Night %1$s</string>
+
+    <plurals name="hours_count">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="minutes_count">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <!-- Quick settings, shortcut and widget -->
+    <string name="tile_start">Record a trip</string>
+    <string name="tile_stop">Stop recording</string>
+    <string name="tile_subtitle_recording">Recording</string>
+    <string name="shortcut_start_short">Record</string>
+    <string name="shortcut_start_long">Start recording a trip</string>
+    <string name="widget_this_week">This week</string>
+    <string name="widget_lifetime">Lifetime</string>
+    <string name="widget_open">Open Speedometer</string>
+    <string name="widget_description">This week and all-time distance, with a tap to open the app.</string>
 </resources>

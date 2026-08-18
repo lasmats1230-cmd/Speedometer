@@ -61,6 +61,7 @@ import com.lasse.speedometer.BuildConfig
 import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
+import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.data.prefs.SpeedSource
 import com.lasse.speedometer.data.prefs.ThemeMode
 import com.lasse.speedometer.data.prefs.UnitSystem
@@ -308,6 +309,87 @@ fun SettingsScreen(
                             if (it == 0) SpeedSource.GNSS else SpeedSource.COMPUTED
                         )
                     },
+                )
+            }
+        }
+
+        item("map") {
+            SettingsSection(stringResource(R.string.settings_map)) {
+                Text(
+                    text = stringResource(R.string.settings_map_style),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                MapStyle.entries.forEach { style ->
+                    RadioRow(
+                        title = stringResource(style.labelRes),
+                        selected = style == settings.mapStyle,
+                        onClick = { viewModel.setMapStyle(style) },
+                    )
+                }
+            }
+        }
+
+        item("voice") {
+            SettingsSection(stringResource(R.string.settings_voice)) {
+                Text(
+                    text = stringResource(R.string.settings_voice_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                // Whole units only: "every 1.6 km" is not a milestone anyone
+                // is waiting to hear.
+                val unitM = if (settings.units == UnitSystem.METRIC) 1000.0 else 1609.344
+                val choices = listOf(0.0, unitM, 2 * unitM, 5 * unitM)
+                val labels = listOf(stringResource(R.string.voice_off)) +
+                    listOf(1, 2, 5).map { multiple ->
+                        Formatters.distanceUnitCount(multiple, settings.units)
+                    }
+                SegmentedTabs(
+                    options = labels,
+                    selectedIndex = choices
+                        .indexOfFirst { kotlin.math.abs(it - settings.voiceIntervalM) < 1.0 }
+                        .coerceAtLeast(0),
+                    onSelect = { viewModel.setVoiceInterval(choices[it]) },
+                )
+            }
+        }
+
+        item("goal") {
+            SettingsSection(stringResource(R.string.settings_goal)) {
+                Text(
+                    text = stringResource(R.string.settings_goal_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                Text(
+                    text = if (settings.weeklyGoalM <= 0) {
+                        stringResource(R.string.goal_none)
+                    } else {
+                        Formatters.distance(settings.weeklyGoalM, settings.units)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                var goal by remember(settings.weeklyGoalM) {
+                    mutableFloatStateOf(
+                        Formatters.distanceIn(settings.weeklyGoalM, settings.units).toFloat()
+                    )
+                }
+                Slider(
+                    value = goal.coerceIn(0f, 500f),
+                    onValueChange = { goal = it },
+                    onValueChangeFinished = {
+                        // Rounded to fives: nobody aims for 63 kilometres.
+                        val rounded = (goal / 5f).roundToInt() * 5.0
+                        val metres = when (settings.units) {
+                            UnitSystem.METRIC -> rounded * 1000.0
+                            UnitSystem.IMPERIAL -> rounded * 1609.344
+                        }
+                        viewModel.setWeeklyGoal(metres)
+                    },
+                    valueRange = 0f..500f,
                 )
             }
         }

@@ -29,6 +29,21 @@ enum class SpeedSource {
     COMPUTED,
 }
 
+/**
+ * Which basemap the maps draw.
+ *
+ * The URLs live in `ui/components/MapStyles.kt`; this enum only names the
+ * choice, so the preference layer needs no opinion about tile providers.
+ */
+enum class MapStyle(@param:StringRes val labelRes: Int) {
+    /** Light or dark to match the app's own theme. */
+    AUTOMATIC(R.string.map_style_auto),
+    LIBERTY(R.string.map_style_liberty),
+    BRIGHT(R.string.map_style_bright),
+    POSITRON(R.string.map_style_positron),
+    DARK(R.string.map_style_dark),
+}
+
 /** How much of the live view the map is allowed to take. */
 enum class MinimapSize(@param:StringRes val labelRes: Int) {
     HIDDEN(R.string.minimap_hidden),
@@ -104,6 +119,11 @@ data class AppSettings(
     val batterySaver: BatterySaverMode = BatterySaverMode.OFF,
     /** Seconds of stillness before cycling mode dims down. */
     val dimDelaySeconds: Int = 10,
+    val mapStyle: MapStyle = MapStyle.AUTOMATIC,
+    /** Metres between spoken updates; zero keeps the app quiet. */
+    val voiceIntervalM: Double = 0.0,
+    /** Metres per week the user is aiming for; zero is no goal. */
+    val weeklyGoalM: Double = 0.0,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
@@ -131,6 +151,9 @@ class SettingsRepository(private val context: Context) {
         val ACTIVITY = stringPreferencesKey("activity")
         val SPEED_ALERT = floatPreferencesKey("speed_alert_mps")
         val SPEED_ALERT_VIBRATE = booleanPreferencesKey("speed_alert_vibrate")
+        val MAP_STYLE = stringPreferencesKey("map_style")
+        val VOICE_INTERVAL = floatPreferencesKey("voice_interval_m")
+        val WEEKLY_GOAL = floatPreferencesKey("weekly_goal_m")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -158,6 +181,9 @@ class SettingsRepository(private val context: Context) {
             ),
             batterySaver = prefs[Keys.BATTERY_SAVER].toEnum(BatterySaverMode.OFF),
             dimDelaySeconds = prefs[Keys.DIM_DELAY] ?: 10,
+            mapStyle = prefs[Keys.MAP_STYLE].toEnum(MapStyle.AUTOMATIC),
+            voiceIntervalM = (prefs[Keys.VOICE_INTERVAL] ?: 0f).toDouble(),
+            weeklyGoalM = (prefs[Keys.WEEKLY_GOAL] ?: 0f).toDouble(),
         )
     }
 
@@ -168,6 +194,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSpeedAlertVibrate(value: Boolean) =
         edit { it[Keys.SPEED_ALERT_VIBRATE] = value }
+
+    suspend fun setMapStyle(value: MapStyle) = edit { it[Keys.MAP_STYLE] = value.name }
+
+    suspend fun setVoiceInterval(metres: Double) =
+        edit { it[Keys.VOICE_INTERVAL] = metres.coerceAtLeast(0.0).toFloat() }
+
+    suspend fun setWeeklyGoal(metres: Double) =
+        edit { it[Keys.WEEKLY_GOAL] = metres.coerceAtLeast(0.0).toFloat() }
 
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME] = value.name }
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }

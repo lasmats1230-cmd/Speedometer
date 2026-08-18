@@ -4,12 +4,13 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -18,6 +19,7 @@ import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.ui.theme.TrackColors
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLngBounds
@@ -73,7 +75,11 @@ fun TrackMap(
     onMapLongPress: ((LatLng) -> Unit)? = null,
     onWaypointClick: ((Long) -> Unit)? = null,
 ) {
-    val darkTheme = isSystemInDarkTheme()
+    // Taken from the scheme actually in use rather than the system setting:
+    // with the app forced to light on a dark phone, a dark basemap under a
+    // light interface is the sort of mismatch that reads as unfinished.
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val style = LocalMapStyle.current
     val density = LocalDensity.current.density
     val trackColor = TrackColors.Track.toArgb()
     val routeColor = Color(0xFF4FA3FF).toArgb()
@@ -106,7 +112,7 @@ fun TrackMap(
                 fitTrack = fitTrack,
                 recenterSignal = recenterSignal,
                 zoom = zoom,
-                styleUri = MapStyles.forTheme(darkTheme),
+                styleUri = style.uri(darkTheme),
                 trackColor = trackColor,
                 routeColor = routeColor,
                 ringColor = ringColor,

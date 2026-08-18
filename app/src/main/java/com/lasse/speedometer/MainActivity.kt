@@ -1,6 +1,9 @@
 package com.lasse.speedometer
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -9,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -27,6 +31,27 @@ class MainActivity : ComponentActivity() {
 
     private val settingsState = MutableStateFlow(AppSettings())
 
+    /**
+     * The launcher shortcut lands here. Recording starts only when permission
+     * is already granted — a shortcut that opens straight into a permission
+     * dialog is worse than one that opens the app.
+     */
+    private fun handleShortcut(intent: Intent?) {
+        if (intent?.action != ACTION_SHORTCUT_START) return
+        val granted = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted && !TrackingController.state.value.isActive) {
+            TrackingController.start(this)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleShortcut(intent)
+    }
+
     /** Applies the in-app language before any resource is resolved. */
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLocale.wrap(newBase))
@@ -35,6 +60,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        handleShortcut(intent)
 
         lifecycleScope.launch {
             app.settingsRepository.settings.collect { settingsState.value = it }
@@ -81,5 +108,9 @@ class MainActivity : ComponentActivity() {
                 SpeedometerNavHost(settings = settings)
             }
         }
+    }
+
+    private companion object {
+        const val ACTION_SHORTCUT_START = "com.lasse.speedometer.SHORTCUT_START"
     }
 }
