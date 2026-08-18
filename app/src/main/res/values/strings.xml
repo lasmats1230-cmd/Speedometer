@@ -417,4 +417,7 @@
     <string name="trip_slower_than_usual">%1$d%% slower than your usual %2$s</string>
     <string name="trip_typical">About the same as your usual %1$s</string>
     <string name="map_unavailable">The map renderer is not available on this device.</string>
+    <string name="settings_export_csv">Export history as a spreadsheet</string>
+    <string name="settings_export_csv_summary">One CSV of every trip in Downloads, ready to open in a spreadsheet</string>
+    <string name="settings_exported_csv">Spreadsheet saved as %1$s</string>
 </resources>

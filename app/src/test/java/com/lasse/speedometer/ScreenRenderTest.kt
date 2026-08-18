@@ -128,6 +128,44 @@ class ScreenRenderTest {
     }
 
     @Test
+    fun `statistics can be narrowed to one activity`() {
+        runBlocking {
+            app.tripRepository.saveTrip(
+                summary = TripSummary(
+                    startedAt = startedAt + 1000,
+                    endedAt = startedAt + 1_801_000,
+                    durationMs = 1_800_000,
+                    movingTimeMs = 1_800_000,
+                    distanceM = 5_000.0,
+                    avgSpeedMps = 2.8,
+                    maxSpeedMps = 3.5,
+                    ascentM = 10.0,
+                    descentM = 10.0,
+                    minAltitudeM = null,
+                    maxAltitudeM = null,
+                ),
+                points = emptyList(),
+                activity = ActivityType.RUN,
+                title = "Evening run",
+            )
+        }
+
+        compose.setContent {
+            SpeedometerTheme {
+                StatsScreen(settings = settings, onOpenTrip = {}, onStartRecording = {})
+            }
+        }
+
+        // Both trips together: 21.34 km ridden plus 5 km run.
+        compose.awaitText("26.34 km")
+
+        compose.onNodeWithText("Run").performClick()
+
+        // The run on its own.
+        compose.awaitText("5.00 km")
+    }
+
+    @Test
     fun `settings draws every section and changes a unit`() {
         compose.setContent {
             SpeedometerTheme {

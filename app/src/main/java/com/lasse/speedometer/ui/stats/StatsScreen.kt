@@ -1,6 +1,8 @@
 package com.lasse.speedometer.ui.stats
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -74,6 +77,8 @@ fun StatsScreen(
     viewModel: StatsViewModel = viewModel(),
 ) {
     val trips by viewModel.trips.collectAsState()
+    val activityFilter by viewModel.activityFilter.collectAsState()
+    val presentActivities by viewModel.presentActivities.collectAsState()
     var period by remember { mutableStateOf(StatsPeriod.WEEK) }
 
     val zone = remember { ZoneId.systemDefault() }
@@ -130,6 +135,37 @@ fun StatsScreen(
             modifier = Modifier.padding(horizontal = 20.dp),
         )
 
+        // Only worth offering once there is more than one kind of trip:
+        // totals that mix a commute by car with a weekend ride answer nothing,
+        // but a row of chips over a single activity is just clutter.
+        if (presentActivities.size > 1) {
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = activityFilter == null,
+                    onClick = { viewModel.setActivityFilter(null) },
+                    label = { Text(stringResource(R.string.filter_all)) },
+                )
+                presentActivities.forEach { activity ->
+                    FilterChip(
+                        selected = activityFilter == activity,
+                        onClick = {
+                            viewModel.setActivityFilter(
+                                if (activityFilter == activity) null else activity
+                            )
+                        },
+                        label = { Text(stringResource(activity.labelRes)) },
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(12.dp))
 
         if (trips.isEmpty()) {
@@ -182,7 +218,7 @@ fun StatsScreen(
                 }
             }
 
-            if (breakdown.size > 1) {
+            if (breakdown.size > 1 && activityFilter == null) {
                 item("activities") {
                     SectionCard(title = stringResource(R.string.stats_by_activity)) {
                         breakdown.forEachIndexed { index, entry ->

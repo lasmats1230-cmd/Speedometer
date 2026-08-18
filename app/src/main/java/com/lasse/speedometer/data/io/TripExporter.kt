@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.prefs.UnitSystem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -65,6 +66,51 @@ class TripExporter(private val context: Context) {
                 }
             }
             name
+        }
+    }
+
+    /** Writes the whole history into Downloads as one spreadsheet. */
+    suspend fun saveCsvToDownloads(
+        trips: List<TripEntity>,
+        units: UnitSystem,
+        headings: CsvHeadings,
+        activityName: (TripEntity) -> String,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val name = "Speedometer_trips_${fileStamp.format(Date())}.csv"
+            writeToDownloads(name, MIME_CSV) { writer ->
+                CsvWriter.write(writer, trips, units, headings, activityName)
+            }
+            name
+        }
+    }
+
+    /**
+     * The Downloads dance, once: a MediaStore entry on Android 10 and later,
+     * a plain file below that.
+     */
+    private fun writeToDownloads(name: String, mime: String, body: (java.io.Writer) -> Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, name)
+                put(MediaStore.Downloads.MIME_TYPE, mime)
+                put(MediaStore.Downloads.IS_PENDING, 1)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("Downloads folder unavailable")
+            resolver.openOutputStream(uri)?.bufferedWriter()?.use(body)
+                ?: error("Could not open $uri")
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+        } else {
+            @Suppress("DEPRECATION")
+            val directory = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOWNLOADS
+            )
+            directory.mkdirs()
+            File(directory, name).bufferedWriter().use(body)
         }
     }
 
@@ -127,6 +173,7 @@ class TripExporter(private val context: Context) {
 
     private companion object {
         const val MIME_GPX = "application/gpx+xml"
+        const val MIME_CSV = "text/csv"
         const val MIME_PNG = "image/png"
     }
 }

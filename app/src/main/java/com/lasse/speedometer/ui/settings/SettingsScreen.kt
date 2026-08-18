@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.BuildConfig
 import com.lasse.speedometer.R
+import com.lasse.speedometer.data.db.ActivityType
+import com.lasse.speedometer.data.io.CsvHeadings
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MapStyle
@@ -113,6 +115,25 @@ fun SettingsScreen(
     val backupSaved = stringResource(R.string.settings_backup_saved)
     val backupFailed = stringResource(R.string.settings_backup_failed)
     val exportedAll = stringResource(R.string.settings_exported_all)
+    val exportedCsv = stringResource(R.string.settings_exported_csv)
+
+    // The spreadsheet's headings and activity names are interface text, so
+    // they are resolved here and handed down rather than looked up in a
+    // writer that has no business knowing about resources.
+    val csvHeadings = CsvHeadings(
+        date = stringResource(R.string.detail_started),
+        title = stringResource(R.string.trip_name),
+        activity = stringResource(R.string.activity),
+        distance = stringResource(R.string.stat_distance),
+        duration = stringResource(R.string.stat_time),
+        movingTime = stringResource(R.string.moving_time),
+        avgSpeed = stringResource(R.string.stat_avg),
+        maxSpeed = stringResource(R.string.stat_max),
+        ascent = stringResource(R.string.ascent),
+        descent = stringResource(R.string.descent),
+        note = stringResource(R.string.note),
+    )
+    val activityNames = ActivityType.entries.associateWith { stringResource(it.labelRes) }
 
     val restoreFailed = stringResource(R.string.settings_restore_failed)
 
@@ -551,6 +572,18 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_export_all_gpx),
                     subtitle = stringResource(R.string.settings_export_all_gpx_summary),
                     onClick = { viewModel.exportAllGpx(exportedAll, backupFailed) },
+                )
+                NavigationRow(
+                    title = stringResource(R.string.settings_export_csv),
+                    subtitle = stringResource(R.string.settings_export_csv_summary),
+                    onClick = {
+                        viewModel.exportCsv(
+                            headings = csvHeadings,
+                            activityName = { activityNames[it.activityType] ?: it.activity },
+                            successTemplate = exportedCsv,
+                            failure = backupFailed,
+                        )
+                    },
                 )
             }
         }

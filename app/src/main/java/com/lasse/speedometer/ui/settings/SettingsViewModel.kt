@@ -7,6 +7,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
+import com.lasse.speedometer.data.io.CsvHeadings
 import com.lasse.speedometer.data.io.RestoreResult
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MapStyle
@@ -109,6 +110,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
         }.onFailure { _messages.emit(failure) }
         if (written > 0) _messages.emit(successTemplate.format(written))
+        _busy.value = false
+    }
+
+    /** Writes the history into Downloads as one spreadsheet. */
+    fun exportCsv(
+        headings: CsvHeadings,
+        activityName: (com.lasse.speedometer.data.db.TripEntity) -> String,
+        successTemplate: String,
+        failure: String,
+    ) = viewModelScope.launch {
+        _busy.value = true
+        val application = getApplication<Application>()
+        val trips = application.app.tripRepository.trips.first()
+        application.app.tripExporter
+            .saveCsvToDownloads(trips, settingsRepository.settings.first().units, headings) {
+                activityName(it)
+            }
+            .onSuccess { _messages.emit(successTemplate.format(it)) }
+            .onFailure { _messages.emit(failure) }
         _busy.value = false
     }
 

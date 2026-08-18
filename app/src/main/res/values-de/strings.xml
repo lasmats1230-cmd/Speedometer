@@ -421,4 +421,7 @@
     <string name="trip_slower_than_usual">%1$d%% langsamer als sonst (%2$s)</string>
     <string name="trip_typical">So schnell wie sonst (%1$s)</string>
     <string name="map_unavailable">Der Kartenrenderer ist auf diesem Gerät nicht verfügbar.</string>
+    <string name="settings_export_csv">Verlauf als Tabelle exportieren</string>
+    <string name="settings_export_csv_summary">Eine CSV-Datei aller Fahrten in den Downloads, direkt in einer Tabellenkalkulation zu öffnen</string>
+    <string name="settings_exported_csv">Tabelle gespeichert als %1$s</string>
 </resources>
