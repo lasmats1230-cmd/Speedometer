@@ -392,4 +392,9 @@
     <string name="period_last_year">letztes Jahr</string>
     <string name="stats_up_on_previous">%1$d%% weiter als %2$s</string>
     <string name="stats_down_on_previous">%1$d%% weniger als %2$s</string>
+    <string name="share_image">Als Bild teilen</string>
+    <string name="speed_spoken">Aktuelle Geschwindigkeit %1$s</string>
+    <string name="settings_waypoint_alerts">Wegpunkt-Hinweise</string>
+    <string name="settings_waypoint_alerts_summary">Vibriert, wenn du einem gespeicherten Wegpunkt auf 60 m nahe kommst, und nennt ihn bei eingeschalteten Sprachansagen.</string>
+    <string name="waypoint_nearby">%1$s in der Nähe</string>
 </resources>

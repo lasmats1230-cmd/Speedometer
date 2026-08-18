@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.lasse.speedometer.R
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.io.TripCardText
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.util.Formatters
 
@@ -63,4 +64,37 @@ fun tripSummaryText(trip: TripEntity, settings: AppSettings): String {
         append("\n\n")
         append(footer)
     }
+}
+
+/**
+ * The same figures again, laid out for the shared picture.
+ *
+ * Resolved in the composition rather than the renderer so the card comes out
+ * in the app's language and units without the drawing code knowing either
+ * exists.
+ */
+@Composable
+fun tripCardText(trip: TripEntity?, settings: AppSettings): TripCardText {
+    val units = settings.units
+    val empty = TripCardText("", "", emptyList(), stringResource(R.string.share_footer))
+    if (trip == null) return empty
+
+    val activity = stringResource(trip.activityType.labelRes)
+    return TripCardText(
+        headline = Formatters.distance(trip.distanceM, units),
+        subtitle = "$activity  ·  ${formatTripDate(trip.startedAt)}",
+        stats = buildList {
+            add(stringResource(R.string.stat_time) to Formatters.durationLong(trip.durationMs))
+            add(
+                stringResource(R.string.stat_avg) to if (trip.activityType.prefersPace) {
+                    Formatters.pace(trip.avgSpeedMps, units)
+                } else {
+                    Formatters.speed(trip.avgSpeedMps, units)
+                }
+            )
+            add(stringResource(R.string.stat_max) to Formatters.speed(trip.maxSpeedMps, units))
+            add(stringResource(R.string.ascent) to Formatters.elevation(trip.ascentM, units))
+        },
+        footer = stringResource(R.string.share_footer),
+    )
 }

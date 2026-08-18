@@ -86,6 +86,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSpeedAlertVibrate(value: Boolean) =
         update { settingsRepository.setSpeedAlertVibrate(value) }
 
+    fun setWaypointAlerts(value: Boolean) = update { settingsRepository.setWaypointAlerts(value) }
+
     /** Writes every trip, tour, route and waypoint into Downloads. */
     fun exportBackup(successTemplate: String, failure: String) = viewModelScope.launch {
         _busy.value = true

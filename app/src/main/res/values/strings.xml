@@ -388,4 +388,9 @@
     <string name="period_last_year">last year</string>
     <string name="stats_up_on_previous">%1$d%% further than %2$s</string>
     <string name="stats_down_on_previous">%1$d%% less than %2$s</string>
+    <string name="share_image">Share as picture</string>
+    <string name="speed_spoken">Current speed %1$s</string>
+    <string name="settings_waypoint_alerts">Waypoint alerts</string>
+    <string name="settings_waypoint_alerts_summary">Buzz when you come within 60 m of a saved waypoint, and name it if spoken updates are on.</string>
+    <string name="waypoint_nearby">%1$s nearby</string>
 </resources>

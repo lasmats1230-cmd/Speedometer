@@ -2,6 +2,7 @@ package com.lasse.speedometer.ui.live
 
 import android.Manifest
 import android.content.Context
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -59,8 +60,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -185,157 +189,129 @@ fun LiveScreen(
     val now = System.currentTimeMillis()
     val layout = settings.layout
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        // With the map hidden there is nothing to stretch, so the column
-        // scrolls instead of leaving the controls floating in dead space.
-        val scrollable = layout.minimapSize == MinimapSize.HIDDEN && !extremeMode
+    // Landscape is the car-mount and handlebar case: the readout and the map
+    // sit side by side rather than stacking, so neither is squeezed into a
+    // strip. Extreme mode and a hidden minimap have nothing to put beside the
+    // numbers, so they keep the single column.
+    val landscape = LocalConfiguration.current.orientation ==
+        Configuration.ORIENTATION_LANDSCAPE
+    val showMap = !extremeMode && layout.minimapSize != MinimapSize.HIDDEN
 
+    val readout: @Composable (Modifier) -> Unit = { modifier ->
+        ReadoutPane(
+            modifier = modifier,
+            state = state,
+            settings = settings,
+            idle = idle,
+            overLimit = overLimit,
+            hasLocationPermission = hasLocationPermission,
+            now = now,
+            onRequestPermission = {
+                pendingStart = false
+                permissionLauncher.launch(locationPermissions())
+            },
+            onSelectActivity = viewModel::setActivity,
+            onStart = {
+                lastInteraction = System.currentTimeMillis()
+                if (hasLocationPermission) {
+                    TrackingController.start(context)
+                } else {
+                    pendingStart = true
+                    permissionLauncher.launch(locationPermissions())
+                }
+            },
+            onPause = { TrackingController.pause(context) },
+            onResume = { TrackingController.resume(context) },
+            onSave = { pendingFinish = FinishAction.SAVE },
+            onDiscard = { pendingFinish = FinishAction.DISCARD },
+        )
+    }
+
+    val map: @Composable (Modifier) -> Unit = { modifier ->
+        Surface(
+            modifier = modifier,
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            TrackMap(
+                modifier = Modifier.fillMaxSize(),
+                track = track,
+                route = followedRoute,
+                waypoints = waypoints,
+                currentPosition = state.latitude?.let { latitude ->
+                    state.longitude?.let { longitude -> LatLng(latitude, longitude) }
+                },
+                bearingDeg = state.bearingDeg,
+                followPosition = true,
+                onMapLongPress = { newWaypointAt = it },
+                onWaypointClick = viewModel::openWaypoint,
+            )
+        }
+    }
+
+    if (landscape && showMap) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            readout(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+            )
+            map(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(top = 12.dp, bottom = 12.dp)
+            )
+        }
+    } else {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(12.dp))
+            // With the map hidden there is nothing to stretch, so the column
+            // scrolls instead of leaving the controls floating in dead space.
+            val scrollable = !showMap
 
-            if (layout.showStatusChip) {
-                StatusChip(
-                    status = state.status,
-                    accuracyM = state.accuracyM,
-                    hasPermission = hasLocationPermission,
-                    settings = settings,
-                    onRequestPermission = {
-                        pendingStart = false
-                        permissionLauncher.launch(locationPermissions())
-                    },
-                )
-                Spacer(Modifier.height(12.dp))
-            }
-
-            // Which activity this is only matters before the recording starts;
-            // once it is running the row would just be one more thing between
-            // the speed and the stop button. It stays changeable afterwards
-            // from the trip's own menu.
-            if (idle) {
-                ActivityPicker(
-                    selected = settings.activity,
-                    onSelect = viewModel::setActivity,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(12.dp))
-            } else {
-                Spacer(Modifier.height(4.dp))
-            }
-
-            Text(
-                text = Formatters.bigSpeed(state.speedMps, settings.units),
-                style = SpeedDisplayStyle,
-                color = if (overLimit) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                // Head-up display: the phone lies face up on the dashboard and
-                // the windscreen does the flipping back.
-                modifier = if (layout.hudMirror) Modifier.mirrored() else Modifier,
-            )
-            Text(
-                text = if (overLimit) {
-                    stringResource(
-                        R.string.speed_over_limit,
-                        Formatters.speed(settings.speedAlertMps.toDouble(), settings.units),
-                    )
-                } else {
-                    Formatters.speedUnit(settings.units)
-                },
-                style = SpeedUnitStyle,
-                color = if (overLimit) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-
-            if (layout.stats.isNotEmpty()) {
-                Spacer(Modifier.height(20.dp))
-                StatGrid(
-                    settings = settings,
-                    state = state,
-                    now = now,
-                )
-            }
-
-            if (layout.showTimer) {
-                Spacer(Modifier.height(18.dp))
-                Text(
-                    text = Formatters.duration(state.elapsedMs),
-                    style = TimerStyle,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            TransportControls(
-                status = state.status,
-                onStart = {
-                    lastInteraction = System.currentTimeMillis()
-                    if (hasLocationPermission) {
-                        TrackingController.start(context)
-                    } else {
-                        pendingStart = true
-                        permissionLauncher.launch(locationPermissions())
-                    }
-                },
-                onPause = { TrackingController.pause(context) },
-                onResume = { TrackingController.resume(context) },
-                onSave = { pendingFinish = FinishAction.SAVE },
-                onDiscard = { pendingFinish = FinishAction.DISCARD },
-            )
-
-            Spacer(Modifier.height(18.dp))
-        }
-
-        if (extremeMode) {
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = stringResource(R.string.battery_extreme_map_off),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 20.dp),
-            )
-        } else if (layout.minimapSize != MinimapSize.HIDDEN) {
-            val mapModifier = when (layout.minimapSize) {
-                MinimapSize.SMALL -> Modifier.height(150.dp)
-                MinimapSize.MEDIUM -> Modifier.height(260.dp)
-                else -> Modifier.weight(1f)
-            }
-            Surface(
-                modifier = Modifier
+            readout(
+                Modifier
                     .fillMaxWidth()
-                    .then(mapModifier)
-                    .padding(bottom = 12.dp),
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-            ) {
-                TrackMap(
-                    modifier = Modifier.fillMaxSize(),
-                    track = track,
-                    route = followedRoute,
-                    waypoints = waypoints,
-                    currentPosition = state.latitude?.let { latitude ->
-                        state.longitude?.let { longitude -> LatLng(latitude, longitude) }
-                    },
-                    bearingDeg = state.bearingDeg,
-                    followPosition = true,
-                    onMapLongPress = { newWaypointAt = it },
-                    onWaypointClick = viewModel::openWaypoint,
+                    .then(
+                        if (scrollable) {
+                            Modifier.verticalScroll(rememberScrollState())
+                        } else {
+                            Modifier
+                        }
+                    )
+            )
+
+            if (extremeMode) {
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.battery_extreme_map_off),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 20.dp),
+                )
+            } else if (showMap) {
+                val mapModifier = when (layout.minimapSize) {
+                    MinimapSize.SMALL -> Modifier.height(150.dp)
+                    MinimapSize.MEDIUM -> Modifier.height(260.dp)
+                    else -> Modifier.weight(1f)
+                }
+                map(
+                    Modifier
+                        .fillMaxWidth()
+                        .then(mapModifier)
+                        .padding(bottom = 12.dp)
                 )
             }
         }
@@ -406,6 +382,126 @@ fun LiveScreen(
                 }
             },
         )
+    }
+}
+
+/**
+ * Everything above the map: status, activity, the speed, the tiles, the timer
+ * and the controls. Pulled out so portrait can stack it over the map and
+ * landscape can stand it beside one.
+ */
+@Composable
+private fun ReadoutPane(
+    modifier: Modifier,
+    state: com.lasse.speedometer.tracking.TrackingState,
+    settings: AppSettings,
+    idle: Boolean,
+    overLimit: Boolean,
+    hasLocationPermission: Boolean,
+    now: Long,
+    onRequestPermission: () -> Unit,
+    onSelectActivity: (com.lasse.speedometer.data.db.ActivityType) -> Unit,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    val layout = settings.layout
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(12.dp))
+
+        if (layout.showStatusChip) {
+            StatusChip(
+                status = state.status,
+                accuracyM = state.accuracyM,
+                hasPermission = hasLocationPermission,
+                settings = settings,
+                onRequestPermission = onRequestPermission,
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // Which activity this is only matters before the recording starts;
+        // once it is running the row would just be one more thing between the
+        // speed and the stop button. It stays changeable afterwards from the
+        // trip's own menu.
+        if (idle) {
+            ActivityPicker(
+                selected = settings.activity,
+                onSelect = onSelectActivity,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Spacer(Modifier.height(4.dp))
+        }
+
+        val spokenSpeed = stringResource(
+            R.string.speed_spoken,
+            Formatters.speed(state.speedMps, settings.units),
+        )
+        Text(
+            text = Formatters.bigSpeed(state.speedMps, settings.units),
+            style = SpeedDisplayStyle,
+            color = if (overLimit) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            // Head-up display: the phone lies face up on the dashboard and the
+            // windscreen does the flipping back.
+            modifier = (if (layout.hudMirror) Modifier.mirrored() else Modifier)
+                // A screen reader gets the whole reading with its unit; the
+                // bare digits on their own would be meaningless aloud.
+                .semantics { contentDescription = spokenSpeed },
+        )
+        Text(
+            text = if (overLimit) {
+                stringResource(
+                    R.string.speed_over_limit,
+                    Formatters.speed(settings.speedAlertMps.toDouble(), settings.units),
+                )
+            } else {
+                Formatters.speedUnit(settings.units)
+            },
+            style = SpeedUnitStyle,
+            color = if (overLimit) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+
+        if (layout.stats.isNotEmpty()) {
+            Spacer(Modifier.height(20.dp))
+            StatGrid(settings = settings, state = state, now = now)
+        }
+
+        if (layout.showTimer) {
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = Formatters.duration(state.elapsedMs),
+                style = TimerStyle,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        TransportControls(
+            status = state.status,
+            onStart = onStart,
+            onPause = onPause,
+            onResume = onResume,
+            onSave = onSave,
+            onDiscard = onDiscard,
+        )
+
+        Spacer(Modifier.height(18.dp))
     }
 }
 

@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -98,6 +100,7 @@ fun BarChart(
                 )
                 val interaction = remember { MutableInteractionSource() }
 
+                val spoken = "${'$'}{bar.label}: ${'$'}{formatValue(bar.value)}"
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -105,7 +108,8 @@ fun BarChart(
                         .clickable(
                             interactionSource = interaction,
                             indication = null,
-                        ) { selected = if (isSelected) null else index },
+                        ) { selected = if (isSelected) null else index }
+                        .semantics(mergeDescendants = true) { contentDescription = spoken },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom,
                 ) {

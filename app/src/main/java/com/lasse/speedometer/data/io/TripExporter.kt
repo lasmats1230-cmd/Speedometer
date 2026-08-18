@@ -3,6 +3,7 @@ package com.lasse.speedometer.data.io
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -93,7 +94,39 @@ class TripExporter(private val context: Context) {
         }
     }
 
+    /**
+     * Writes a rendered card into the cache and returns an intent that sends
+     * the picture rather than the file: a chat window shows one and offers to
+     * download the other.
+     */
+    suspend fun shareCard(
+        trip: TripEntity,
+        points: List<TrackPointEntity>,
+        text: TripCardText,
+    ): Result<Intent> = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = TripCardRenderer.render(points, text)
+            val directory = File(context.cacheDir, "exports").apply { mkdirs() }
+            val file = File(directory, fileNameFor(trip).removeSuffix(".gpx") + ".png")
+            file.outputStream().use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            }
+            bitmap.recycle()
+            val uri: Uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file,
+            )
+            Intent(Intent.ACTION_SEND).apply {
+                type = MIME_PNG
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+    }
+
     private companion object {
         const val MIME_GPX = "application/gpx+xml"
+        const val MIME_PNG = "image/png"
     }
 }

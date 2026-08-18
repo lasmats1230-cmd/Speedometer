@@ -472,6 +472,13 @@ fun SettingsScreen(
                         onCheckedChange = viewModel::setSpeedAlertVibrate,
                     )
                 }
+
+                SwitchRow(
+                    title = stringResource(R.string.settings_waypoint_alerts),
+                    subtitle = stringResource(R.string.settings_waypoint_alerts_summary),
+                    checked = settings.waypointAlerts,
+                    onCheckedChange = viewModel::setWaypointAlerts,
+                )
             }
         }
 

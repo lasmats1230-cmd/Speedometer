@@ -15,6 +15,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -42,7 +44,12 @@ fun ProgressRing(
         label = "goal-progress",
     )
 
-    Box(modifier.size(diameter), contentAlignment = Alignment.Center) {
+    Box(
+        modifier
+            .size(diameter)
+            .semantics(mergeDescendants = true) { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
         Canvas(Modifier.size(diameter)) {
             val stroke = Stroke(width = thickness.toPx(), cap = StrokeCap.Round)
             val inset = thickness.toPx() / 2

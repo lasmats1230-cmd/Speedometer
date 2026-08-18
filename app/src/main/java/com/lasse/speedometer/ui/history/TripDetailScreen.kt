@@ -42,6 +42,7 @@ import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.data.io.TripCardText
 import com.lasse.speedometer.data.prefs.UnitSystem
 import com.lasse.speedometer.data.repo.Split
 import com.lasse.speedometer.data.repo.Splits
@@ -101,6 +102,13 @@ class TripDetailViewModel(
 
     fun shareSummary(text: String) = viewModelScope.launch {
         _events.emit(HistoryEvent.Share(TripExporterIntents.text(text)))
+    }
+
+    fun shareCard(text: TripCardText, failure: String) = viewModelScope.launch {
+        val current = trip.value ?: return@launch
+        exporter.shareCard(current, repository.getPoints(tripId), text)
+            .onSuccess { _events.emit(HistoryEvent.Share(it)) }
+            .onFailure { _events.emit(HistoryEvent.Message(failure)) }
     }
 
     fun rename(title: String) = viewModelScope.launch { repository.renameTrip(tripId, title) }
@@ -172,6 +180,7 @@ fun TripDetailScreen(
 
     val current = trip
     val summary = current?.let { tripSummaryText(it, settings) }.orEmpty()
+    val cardText = tripCardText(current, settings)
 
     DetailScaffold(
         title = current?.let { entry ->
@@ -191,6 +200,11 @@ fun TripDetailScreen(
                     add(
                         MenuAction(stringResource(R.string.share_summary)) {
                             viewModel.shareSummary(summary)
+                        }
+                    )
+                    add(
+                        MenuAction(stringResource(R.string.share_image)) {
+                            viewModel.shareCard(cardText, exportFailed)
                         }
                     )
                     add(

@@ -111,6 +111,8 @@ data class AppSettings(
      */
     val speedAlertMps: Float = 0f,
     val speedAlertVibrate: Boolean = true,
+    /** Buzz and, with voice on, name a saved waypoint as you reach it. */
+    val waypointAlerts: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val accentColor: AccentColor = AccentColor.GREEN,
@@ -159,6 +161,7 @@ class SettingsRepository(private val context: Context) {
         val ACTIVITY = stringPreferencesKey("activity")
         val SPEED_ALERT = floatPreferencesKey("speed_alert_mps")
         val SPEED_ALERT_VIBRATE = booleanPreferencesKey("speed_alert_vibrate")
+        val WAYPOINT_ALERTS = booleanPreferencesKey("waypoint_alerts")
         val MAP_STYLE = stringPreferencesKey("map_style")
         val VOICE_INTERVAL = floatPreferencesKey("voice_interval_m")
         val WEEKLY_GOAL = floatPreferencesKey("weekly_goal_m")
@@ -172,6 +175,7 @@ class SettingsRepository(private val context: Context) {
             activity = prefs[Keys.ACTIVITY].toEnum(ActivityType.RIDE),
             speedAlertMps = prefs[Keys.SPEED_ALERT] ?: 0f,
             speedAlertVibrate = prefs[Keys.SPEED_ALERT_VIBRATE] ?: true,
+            waypointAlerts = prefs[Keys.WAYPOINT_ALERTS] ?: false,
             themeMode = prefs[Keys.THEME].toEnum(ThemeMode.SYSTEM),
             dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
             accentColor = prefs[Keys.ACCENT_COLOR].toEnum(AccentColor.GREEN),
@@ -205,6 +209,8 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSpeedAlertVibrate(value: Boolean) =
         edit { it[Keys.SPEED_ALERT_VIBRATE] = value }
+
+    suspend fun setWaypointAlerts(value: Boolean) = edit { it[Keys.WAYPOINT_ALERTS] = value }
 
     suspend fun setMapStyle(value: MapStyle) = edit { it[Keys.MAP_STYLE] = value.name }
 

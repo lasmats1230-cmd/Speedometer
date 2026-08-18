@@ -23,10 +23,12 @@ import com.lasse.speedometer.MainActivity
 import com.lasse.speedometer.R
 import com.lasse.speedometer.SpeedometerApp
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.widget.SpeedometerWidget
 import com.lasse.speedometer.util.AppLocale
 import com.lasse.speedometer.util.Formatters
+import com.lasse.speedometer.util.GeoMath
 import com.lasse.speedometer.util.TripNaming
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -65,6 +67,12 @@ class TrackingService : Service(), LocationListener {
     private var lastNotificationAt = 0L
     private var settings = AppSettings()
 
+    /** Saved places, for the proximity alert. */
+    private var waypoints: List<WaypointEntity> = emptyList()
+
+    /** Waypoints already called out on this trip, so each is named once. */
+    private val announcedWaypoints = mutableSetOf<Long>()
+
     override fun onCreate() {
         super.onCreate()
         locationManager = getSystemService()!!
@@ -74,6 +82,9 @@ class TrackingService : Service(), LocationListener {
                 settings = it
                 recorder.configure(it.minAccuracyM, it.autoPause, it.speedSource)
             }
+        }
+        scope.launch {
+            app().tripRepository.waypoints.collect { waypoints = it }
         }
     }
 
@@ -100,6 +111,7 @@ class TrackingService : Service(), LocationListener {
             return
         }
         recorder.start(System.currentTimeMillis())
+        announcedWaypoints.clear()
         voice.reset()
         if (settings.voiceIntervalM > 0) voice.sayStarted()
         publish()
@@ -231,6 +243,7 @@ class TrackingService : Service(), LocationListener {
         val fix = location.toFix()
         if (recorder.state.isActive) {
             recorder.onFix(fix, System.currentTimeMillis())
+            alertOnNearbyWaypoint(fix)
             updateNotification()
         } else {
             recorder.onIdleFix(fix)
@@ -273,6 +286,49 @@ class TrackingService : Service(), LocationListener {
     }
 
     private fun publish() = TrackingController.publish(recorder.state)
+
+    /**
+     * Buzzes once when a saved waypoint comes within reach, and names it if
+     * spoken updates are on.
+     *
+     * The point of a waypoint is that it is useful again on a later ride — a
+     * water tap, a locked gate, a turning that is easy to miss — and a note
+     * you have to be looking at the screen to see is no use on a bicycle.
+     */
+    private fun alertOnNearbyWaypoint(fix: Fix) {
+        if (!settings.waypointAlerts || waypoints.isEmpty()) return
+        val nearby = waypoints.firstOrNull { waypoint ->
+            waypoint.id !in announcedWaypoints &&
+                GeoMath.distanceMeters(
+                    fix.latitude,
+                    fix.longitude,
+                    waypoint.latitude,
+                    waypoint.longitude,
+                ) <= WAYPOINT_ALERT_RADIUS_M
+        } ?: return
+
+        announcedWaypoints += nearby.id
+        buzz()
+        if (settings.voiceIntervalM > 0) {
+            voice.say(getString(R.string.waypoint_nearby, nearby.label))
+        }
+    }
+
+    private fun buzz() {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSystemService<android.os.VibratorManager>()?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService<android.os.Vibrator>()
+        } ?: return
+        if (!vibrator.hasVibrator()) return
+        vibrator.vibrate(
+            android.os.VibrationEffect.createOneShot(
+                WAYPOINT_BUZZ_MS,
+                android.os.VibrationEffect.DEFAULT_AMPLITUDE,
+            )
+        )
+    }
 
     /** Hands the current figures to the voice coach, which decides if it speaks. */
     private fun announceProgress() {
@@ -446,5 +502,9 @@ class TrackingService : Service(), LocationListener {
         private const val LAST_KNOWN_MAX_AGE_MS = 5 * 60 * 1000L
         private const val WAKE_LOCK_TIMEOUT_MS = 12 * 60 * 60 * 1000L
         private const val MIN_POINTS_TO_SAVE = 2
+
+        /** Close enough that you can still act on being told. */
+        private const val WAYPOINT_ALERT_RADIUS_M = 60.0
+        private const val WAYPOINT_BUZZ_MS = 180L
     }
 }
