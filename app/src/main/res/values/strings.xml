@@ -401,4 +401,12 @@
     <string name="route_remaining">%1$s left on the route</string>
     <string name="route_off">Off route by %1$s</string>
     <string name="notif_title_activity">Recording · %1$s</string>
+    <string name="tab_places">Places</string>
+    <string name="place_distance">%1$s away</string>
+    <string name="place_no_fix">Waiting for a fix to measure from</string>
+    <string name="no_places_title">No places saved yet.</string>
+    <string name="no_places_body">Long-press the map to drop a waypoint — a water tap, a gate, a turning that is easy to miss.</string>
+    <string name="settings_export_all_gpx">Export every trip as GPX</string>
+    <string name="settings_export_all_gpx_summary">One file per trip in Downloads, for another app to read</string>
+    <string name="settings_exported_all">Exported %1$d trips to Downloads</string>
 </resources>

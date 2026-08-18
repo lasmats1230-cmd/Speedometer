@@ -63,6 +63,20 @@ class TripRepository(
 
     suspend fun getPoints(id: Long): List<TrackPointEntity> = tripDao.getPoints(id)
 
+    /**
+     * Every track in a tour, thinned the way the list thumbnails are: a tour
+     * of twenty rides is a hundred thousand fixes, and a map that has to draw
+     * all of them to show the shape of a holiday is a map that stutters.
+     */
+    suspend fun tourTracks(tripIds: List<Long>): List<List<Pair<Double, Double>>> =
+        withContext(Dispatchers.IO) {
+            if (tripIds.isEmpty()) return@withContext emptyList()
+            tripDao.getThumbnailPointsFor(tripIds)
+                .groupBy { it.tripId }
+                .values
+                .map { points -> points.map { it.latitude to it.longitude } }
+        }
+
     suspend fun saveTrip(
         summary: TripSummary,
         points: List<TrackPoint>,

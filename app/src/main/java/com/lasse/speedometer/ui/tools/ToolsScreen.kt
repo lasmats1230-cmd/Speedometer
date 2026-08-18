@@ -2,6 +2,7 @@ package com.lasse.speedometer.ui.tools
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -44,9 +48,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.R
+import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.ui.components.CenteredEmptyState
@@ -63,6 +71,7 @@ import com.lasse.speedometer.ui.live.ActiveRoute
 import com.lasse.speedometer.ui.live.LiveViewModel
 import com.lasse.speedometer.ui.live.WaypointEditorDialog
 import com.lasse.speedometer.util.Formatters
+import com.lasse.speedometer.util.GeoMath
 
 @Composable
 fun ToolsScreen(
@@ -83,11 +92,17 @@ fun ToolsScreen(
             options = listOf(
                 stringResource(R.string.tab_compass),
                 stringResource(R.string.tab_map),
+                stringResource(R.string.tab_places),
                 stringResource(R.string.tab_routes),
             ),
             selectedIndex = selectedTab,
             onSelect = { selectedTab = it },
-            icons = listOf(Icons.Outlined.Explore, Icons.Filled.Map, Icons.Outlined.Route),
+            icons = listOf(
+                Icons.Outlined.Explore,
+                Icons.Filled.Map,
+                Icons.Outlined.Place,
+                Icons.Outlined.Route,
+            ),
             modifier = Modifier.padding(horizontal = 20.dp),
         )
 
@@ -96,6 +111,12 @@ fun ToolsScreen(
         when (selectedTab) {
             0 -> CompassPane(Modifier.weight(1f))
             1 -> MapPane(Modifier.weight(1f))
+            2 -> PlacesPane(
+                settings = settings,
+                viewModel = viewModel,
+                modifier = Modifier.weight(1f),
+            )
+
             else -> RoutesPane(
                 settings = settings,
                 viewModel = viewModel,
@@ -197,6 +218,155 @@ private fun MapPane(
                 liveViewModel.updateWaypoint(waypoint, label, note, color)
             },
             onDelete = { liveViewModel.deleteWaypoint(waypoint.id) },
+        )
+    }
+}
+
+/**
+ * Saved places as a list rather than pins on a map.
+ *
+ * A waypoint you dropped last month is impossible to find by panning, and the
+ * question you actually have about one — how far away is it — cannot be
+ * answered by looking at a marker at all.
+ */
+@Composable
+private fun PlacesPane(
+    settings: AppSettings,
+    viewModel: ToolsViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val waypoints by viewModel.waypoints.collectAsState()
+    val state by TrackingController.state.collectAsState()
+    var editing by remember { mutableStateOf<WaypointEntity?>(null) }
+
+    // A distance needs somewhere to measure from, so the idle fix is kept
+    // warm while this list is open — the same subscription the map uses.
+    DisposableEffect(Unit) {
+        TrackingController.observeIdleLocation(context)
+        onDispose { if (!state.isActive) TrackingController.stopIdleLocation(context) }
+    }
+
+    val here = state.latitude?.let { latitude ->
+        state.longitude?.let { longitude -> latitude to longitude }
+    }
+
+    val sorted = remember(waypoints, here) {
+        if (here == null) {
+            waypoints
+        } else {
+            waypoints.sortedBy { waypoint ->
+                GeoMath.distanceMeters(
+                    here.first,
+                    here.second,
+                    waypoint.latitude,
+                    waypoint.longitude,
+                )
+            }
+        }
+    }
+
+    if (waypoints.isEmpty()) {
+        CenteredEmptyState(
+            icon = Icons.Outlined.Place,
+            title = stringResource(R.string.no_places_title),
+            body = stringResource(R.string.no_places_body),
+            modifier = modifier,
+        )
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = Dimens.Screen,
+            end = Dimens.Screen,
+            bottom = Dimens.BottomGap,
+        ),
+        verticalArrangement = Arrangement.spacedBy(Dimens.Item),
+    ) {
+        items(sorted, key = { it.id }) { waypoint ->
+            val distance = here?.let {
+                GeoMath.distanceMeters(it.first, it.second, waypoint.latitude, waypoint.longitude)
+            }
+            ListCard(onClick = { editing = waypoint }) {
+                Row(
+                    modifier = Modifier.padding(
+                        start = 20.dp,
+                        top = 16.dp,
+                        bottom = 16.dp,
+                        end = 4.dp,
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(Color(waypoint.colorArgb))
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = waypoint.label,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        waypoint.note?.takeIf { it.isNotBlank() }?.let { note ->
+                            Text(
+                                text = note,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            text = distance
+                                ?.let {
+                                    stringResource(
+                                        R.string.place_distance,
+                                        Formatters.distance(it, settings.units),
+                                    )
+                                }
+                                ?: stringResource(R.string.place_no_fix),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    OverflowMenu(
+                        actions = listOf(
+                            MenuAction(stringResource(R.string.waypoint_edit)) {
+                                editing = waypoint
+                            },
+                            MenuAction(
+                                label = stringResource(R.string.delete),
+                                destructive = true,
+                                onClick = { viewModel.deleteWaypoint(waypoint.id) },
+                            ),
+                        ),
+                        contentDescription = stringResource(R.string.more),
+                    )
+                }
+            }
+        }
+    }
+
+    editing?.let { waypoint ->
+        WaypointEditorDialog(
+            existing = waypoint,
+            onDismiss = { editing = null },
+            onSave = { label, note, color ->
+                viewModel.updateWaypoint(waypoint, label, note, color)
+                editing = null
+            },
+            onDelete = {
+                viewModel.deleteWaypoint(waypoint.id)
+                editing = null
+            },
         )
     }
 }

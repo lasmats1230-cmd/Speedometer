@@ -405,4 +405,12 @@
     <string name="route_remaining">Noch %1$s auf der Route</string>
     <string name="route_off">%1$s neben der Route</string>
     <string name="notif_title_activity">Aufzeichnung · %1$s</string>
+    <string name="tab_places">Orte</string>
+    <string name="place_distance">%1$s entfernt</string>
+    <string name="place_no_fix">Warten auf eine Position zum Messen</string>
+    <string name="no_places_title">Noch keine Orte gespeichert.</string>
+    <string name="no_places_body">Lange auf die Karte tippen, um einen Wegpunkt zu setzen — einen Wasserhahn, ein Tor, eine leicht zu übersehende Abzweigung.</string>
+    <string name="settings_export_all_gpx">Alle Fahrten als GPX exportieren</string>
+    <string name="settings_export_all_gpx_summary">Eine Datei je Fahrt in den Downloads, für andere Apps</string>
+    <string name="settings_exported_all">%1$d Fahrten in die Downloads exportiert</string>
 </resources>

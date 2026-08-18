@@ -112,6 +112,7 @@ fun SettingsScreen(
 
     val backupSaved = stringResource(R.string.settings_backup_saved)
     val backupFailed = stringResource(R.string.settings_backup_failed)
+    val exportedAll = stringResource(R.string.settings_exported_all)
 
     val restoreFailed = stringResource(R.string.settings_restore_failed)
 
@@ -545,6 +546,12 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f),
                     ) { Text(stringResource(R.string.settings_backup_restore)) }
                 }
+                Spacer(Modifier.height(8.dp))
+                NavigationRow(
+                    title = stringResource(R.string.settings_export_all_gpx),
+                    subtitle = stringResource(R.string.settings_export_all_gpx_summary),
+                    onClick = { viewModel.exportAllGpx(exportedAll, backupFailed) },
+                )
             }
         }
 

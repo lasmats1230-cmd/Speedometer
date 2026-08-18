@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +40,8 @@ import com.lasse.speedometer.app
 import com.lasse.speedometer.data.db.TourWithTrips
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.ui.components.Dimens
+import com.lasse.speedometer.ui.components.LatLng
+import com.lasse.speedometer.ui.components.TrackMap
 import com.lasse.speedometer.ui.components.DetailScaffold
 import com.lasse.speedometer.ui.components.ListCard
 import com.lasse.speedometer.ui.components.MenuAction
@@ -46,7 +49,9 @@ import com.lasse.speedometer.ui.components.OverflowMenu
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.icon
 import com.lasse.speedometer.util.Formatters
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -60,6 +65,15 @@ class TourDetailViewModel(
 
     val tour: StateFlow<TourWithTrips?> = repository.observeTour(tourId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Every ride in the tour, decimated, for one map of the whole thing. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val tracks: StateFlow<List<List<LatLng>>> = tour
+        .mapLatest { current ->
+            repository.tourTracks(current?.trips.orEmpty().map { it.id })
+                .map { track -> track.map { (latitude, longitude) -> LatLng(latitude, longitude) } }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun removeTrip(tripId: Long) = viewModelScope.launch {
         repository.addTripToTour(tripId, null)
@@ -95,6 +109,7 @@ fun TourDetailScreen(
         key = "tour-$tourId",
     )
     val tour by viewModel.tour.collectAsState()
+    val tracks by viewModel.tracks.collectAsState()
     var renaming by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -133,6 +148,25 @@ fun TourDetailScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(Dimens.Item),
         ) {
+            if (tracks.any { it.size >= 2 }) {
+                item("map") {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                    ) {
+                        TrackMap(
+                            modifier = Modifier.fillMaxSize(),
+                            tracks = tracks,
+                            fitTrack = true,
+                            followPosition = false,
+                        )
+                    }
+                }
+            }
+
             item("totals") {
                 Row(
                     modifier = Modifier.height(IntrinsicSize.Min),

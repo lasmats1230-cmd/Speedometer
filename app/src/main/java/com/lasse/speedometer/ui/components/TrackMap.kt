@@ -63,6 +63,11 @@ data class MapWaypoint(
 fun TrackMap(
     modifier: Modifier = Modifier,
     track: List<LatLng> = emptyList(),
+    /**
+     * Several tracks at once, for a tour: each is drawn as its own line, so
+     * the map does not join the end of one ride to the start of the next.
+     */
+    tracks: List<List<LatLng>> = emptyList(),
     route: List<LatLng> = emptyList(),
     currentPosition: LatLng? = null,
     bearingDeg: Float? = null,
@@ -102,6 +107,7 @@ fun TrackMap(
         update = {
             state.pending = TrackMapData(
                 track = track,
+                tracks = tracks,
                 route = route,
                 position = currentPosition,
                 bearingDeg = bearingDeg,
@@ -126,6 +132,7 @@ fun TrackMap(
 /** The snapshot of everything the map should be showing right now. */
 private data class TrackMapData(
     val track: List<LatLng>,
+    val tracks: List<List<LatLng>>,
     val route: List<LatLng>,
     val position: LatLng?,
     val bearingDeg: Float?,
@@ -305,7 +312,8 @@ private class TrackMapState {
     }
 
     private fun applyData(map: MapLibreMap, style: Style, data: TrackMapData) {
-        style.getSourceAs<GeoJsonSource>(SOURCE_TRACK)?.setGeoJson(lineFeatures(data.track))
+        val lines = if (data.tracks.isNotEmpty()) data.tracks else listOf(data.track)
+        style.getSourceAs<GeoJsonSource>(SOURCE_TRACK)?.setGeoJson(multiLineFeatures(lines))
         style.getSourceAs<GeoJsonSource>(SOURCE_ROUTE)?.setGeoJson(lineFeatures(data.route))
         style.getSourceAs<GeoJsonSource>(SOURCE_POSITION)
             ?.setGeoJson(positionFeatures(data.position, data.bearingDeg))
@@ -327,10 +335,11 @@ private class TrackMapState {
             data.recenterSignal != lastRecenterSignal
         lastRecenterSignal = data.recenterSignal
 
-        if (data.fitTrack && data.track.size >= 2) {
+        val fittable = if (data.tracks.isNotEmpty()) data.tracks.flatten() else data.track
+        if (data.fitTrack && fittable.size >= 2) {
             val bounds = runCatching {
                 LatLngBounds.Builder()
-                    .includes(data.track.map { MapLibreLatLng(it.latitude, it.longitude) })
+                    .includes(fittable.map { MapLibreLatLng(it.latitude, it.longitude) })
                     .build()
             }.getOrNull() ?: return
             runCatching {
@@ -353,6 +362,18 @@ private class TrackMapState {
             CameraUpdateFactory.newLatLng(target)
         }
         map.animateCamera(update, CAMERA_ANIMATION_MS)
+    }
+
+    /** One feature per track, so separate rides stay separate lines. */
+    private fun multiLineFeatures(lines: List<List<LatLng>>): FeatureCollection {
+        val features = lines.filter { it.size >= 2 }.map { points ->
+            Feature.fromGeometry(
+                LineString.fromLngLats(
+                    points.map { Point.fromLngLat(it.longitude, it.latitude) }
+                )
+            )
+        }
+        return FeatureCollection.fromFeatures(features)
     }
 
     private fun lineFeatures(points: List<LatLng>): FeatureCollection {

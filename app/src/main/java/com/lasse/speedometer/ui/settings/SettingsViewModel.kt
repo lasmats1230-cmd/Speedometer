@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -88,6 +89,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         update { settingsRepository.setSpeedAlertVibrate(value) }
 
     fun setWaypointAlerts(value: Boolean) = update { settingsRepository.setWaypointAlerts(value) }
+
+    /**
+     * Writes every trip into Downloads as its own GPX file.
+     *
+     * The JSON backup is for restoring this app; this is for handing a season
+     * of riding to something else — Strava, Komoot, a spreadsheet — which all
+     * speak GPX and none of which speak our backup format.
+     */
+    fun exportAllGpx(successTemplate: String, failure: String) = viewModelScope.launch {
+        _busy.value = true
+        val repository = getApplication<Application>().app.tripRepository
+        val exporter = getApplication<Application>().app.tripExporter
+        var written = 0
+        runCatching {
+            repository.trips.first().forEach { trip ->
+                exporter.saveToDownloads(trip, repository.getPoints(trip.id))
+                    .onSuccess { written++ }
+            }
+        }.onFailure { _messages.emit(failure) }
+        if (written > 0) _messages.emit(successTemplate.format(written))
+        _busy.value = false
+    }
 
     /** Writes every trip, tour, route and waypoint into Downloads. */
     fun exportBackup(successTemplate: String, failure: String) = viewModelScope.launch {

@@ -102,6 +102,16 @@ interface TripDao {
     )
     fun observeThumbnailPoints(): Flow<List<TrackPointLite>>
 
+    /** Decimated tracks for a set of trips, for drawing a tour on one map. */
+    @Query(
+        """
+        SELECT tripId, latitude, longitude FROM track_points
+        WHERE tripId IN (:tripIds) AND id % 4 = 0
+        ORDER BY tripId ASC, timestamp ASC
+        """
+    )
+    suspend fun getThumbnailPointsFor(tripIds: List<Long>): List<TrackPointLite>
+
     /** How much of a trip is already written, so appending can carry on. */
     @Query("SELECT COUNT(*) FROM track_points WHERE tripId = :tripId")
     suspend fun countPoints(tripId: Long): Int
