@@ -53,8 +53,19 @@ import kotlin.math.sin
  * The heading is low-pass filtered across the shortest angular path, so it
  * doesn't spin the long way round as the reading crosses north.
  */
+/** A place to point the compass at, already measured against where you are. */
+data class CompassTarget(
+    val label: String,
+    val bearingDeg: Float,
+    val distanceLabel: String,
+)
+
 @Composable
-fun CompassPane(modifier: Modifier = Modifier) {
+fun CompassPane(
+    modifier: Modifier = Modifier,
+    target: CompassTarget? = null,
+    picker: @Composable () -> Unit = {},
+) {
     val context = LocalContext.current
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     val rotationSensor = remember { sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) }
@@ -116,6 +127,7 @@ fun CompassPane(modifier: Modifier = Modifier) {
     ) {
         CompassDial(
             heading = heading,
+            targetBearing = target?.bearingDeg,
             modifier = Modifier
                 .fillMaxWidth(0.86f)
                 .aspectRatio(1f),
@@ -126,6 +138,17 @@ fun CompassPane(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 28.dp),
         )
+
+        if (target != null) {
+            Text(
+                text = "${target.label}  ·  ${target.distanceLabel}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+
+        Box(Modifier.padding(top = 12.dp)) { picker() }
 
         if (accuracyLow) {
             Text(
@@ -139,12 +162,17 @@ fun CompassPane(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CompassDial(heading: Float, modifier: Modifier = Modifier) {
+private fun CompassDial(
+    heading: Float,
+    targetBearing: Float?,
+    modifier: Modifier = Modifier,
+) {
     val dialColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
     val labelColor = MaterialTheme.colorScheme.onSurface
     val northColor = MaterialTheme.colorScheme.error
     val needleColor = MaterialTheme.colorScheme.primary
+    val targetColor = MaterialTheme.colorScheme.tertiary
     val textMeasurer = rememberTextMeasurer()
 
     Canvas(modifier) {
@@ -192,6 +220,20 @@ private fun CompassDial(heading: Float, modifier: Modifier = Modifier) {
                     ),
                     color = if (degrees == 0) northColor else labelColor,
                 )
+            }
+        }
+
+        // The chosen place sits on the dial at its real bearing, so turning
+        // the phone walks the marker round to the top when you face it.
+        if (targetBearing != null) {
+            rotate(degrees = targetBearing - heading, pivot = centre) {
+                val marker = Path().apply {
+                    moveTo(centre.x, centre.y - radius * 0.9f)
+                    lineTo(centre.x - radius * 0.06f, centre.y - radius * 0.74f)
+                    lineTo(centre.x + radius * 0.06f, centre.y - radius * 0.74f)
+                    close()
+                }
+                drawPath(marker, targetColor)
             }
         }
 

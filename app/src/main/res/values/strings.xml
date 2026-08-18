@@ -409,4 +409,6 @@
     <string name="settings_export_all_gpx">Export every trip as GPX</string>
     <string name="settings_export_all_gpx_summary">One file per trip in Downloads, for another app to read</string>
     <string name="settings_exported_all">Exported %1$d trips to Downloads</string>
+    <string name="compass_pick_place">Point at a place…</string>
+    <string name="compass_no_place">No place</string>
 </resources>

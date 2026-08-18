@@ -36,6 +36,23 @@ class GeoMathTest {
         val back = GeoMath.distanceMeters(48.2, 11.7, 48.1, 11.5)
         assertEquals(there, back, 0.0001)
     }
+    @Test
+    fun `bearings read clockwise from north`() {
+        // Due north, east, south and west of a point near the equator.
+        assertEquals(0f, GeoMath.bearingDegrees(0.0, 0.0, 1.0, 0.0), 0.5f)
+        assertEquals(90f, GeoMath.bearingDegrees(0.0, 0.0, 0.0, 1.0), 0.5f)
+        assertEquals(180f, GeoMath.bearingDegrees(1.0, 0.0, 0.0, 0.0), 0.5f)
+        assertEquals(270f, GeoMath.bearingDegrees(0.0, 1.0, 0.0, 0.0), 0.5f)
+    }
+
+    @Test
+    fun `a bearing is never negative`() {
+        val bearing = GeoMath.bearingDegrees(50.0, 8.0, 49.9, 7.9)
+
+        assertTrue(bearing >= 0f && bearing < 360f)
+        // South-west of the start, as the coordinates say.
+        assertEquals(212.8f, bearing, 0.5f)
+    }
 }
 
 class RouteEncodingTest {

@@ -413,4 +413,6 @@
     <string name="settings_export_all_gpx">Alle Fahrten als GPX exportieren</string>
     <string name="settings_export_all_gpx_summary">Eine Datei je Fahrt in den Downloads, für andere Apps</string>
     <string name="settings_exported_all">%1$d Fahrten in die Downloads exportiert</string>
+    <string name="compass_pick_place">Auf einen Ort ausrichten…</string>
+    <string name="compass_no_place">Kein Ort</string>
 </resources>
