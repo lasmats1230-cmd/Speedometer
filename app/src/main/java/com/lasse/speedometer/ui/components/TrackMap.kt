@@ -4,12 +4,17 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -19,6 +24,11 @@ import androidx.core.graphics.createBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.lasse.speedometer.R
+import com.lasse.speedometer.SpeedometerApp
 import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.ui.theme.TrackColors
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -85,6 +95,34 @@ fun TrackMap(
     // light interface is the sort of mismatch that reads as unfinished.
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val style = LocalMapStyle.current
+
+    // Without the native renderer there is no basemap, but there is still a
+    // route to show: the sketch the history list uses says where you went,
+    // which is most of what the map was for.
+    val appContext = LocalContext.current.applicationContext
+    val mapsAvailable = remember(appContext) {
+        (appContext as? SpeedometerApp)?.mapsAvailable ?: false
+    }
+    if (!mapsAvailable) {
+        val sketch = if (tracks.isNotEmpty()) tracks.flatten() else track
+        Box(modifier, contentAlignment = Alignment.Center) {
+            if (sketch.size >= 2) {
+                TrackThumbnail(
+                    points = sketch.map { it.latitude to it.longitude },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.map_unavailable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(24.dp),
+                )
+            }
+        }
+        return
+    }
     val density = LocalDensity.current.density
     val trackColor = TrackColors.Track.toArgb()
     val routeColor = Color(0xFF4FA3FF).toArgb()

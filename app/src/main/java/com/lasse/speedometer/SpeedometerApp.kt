@@ -36,12 +36,24 @@ class SpeedometerApp : Application() {
 
     val healthConnectManager by lazy { HealthConnectManager(this, tripRepository) }
 
+    /**
+     * Whether the map renderer loaded. False on a device whose ABI the native
+     * library does not cover, where the rest of the app still works.
+     */
+    var mapsAvailable = false
+        private set
+
     override fun onCreate() {
         super.onCreate()
         AppLocale.initialise(this)
         // Must run before any MapView is constructed. The tiles need no API
         // key, so there is no token to pass here.
-        MapLibre.getInstance(this)
+        //
+        // Guarded because this is native code: if it cannot load, the map is
+        // gone but the speedometer, the recording and the history are not, and
+        // taking the whole app down at startup would lose all of them over a
+        // basemap.
+        mapsAvailable = runCatching { MapLibre.getInstance(this) }.isSuccess
     }
 }
 

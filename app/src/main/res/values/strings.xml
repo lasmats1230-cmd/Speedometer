@@ -416,4 +416,5 @@
     <string name="trip_faster_than_usual">%1$d%% faster than your usual %2$s</string>
     <string name="trip_slower_than_usual">%1$d%% slower than your usual %2$s</string>
     <string name="trip_typical">About the same as your usual %1$s</string>
+    <string name="map_unavailable">The map renderer is not available on this device.</string>
 </resources>

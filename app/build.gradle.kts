@@ -106,6 +106,11 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Room's migration tests load the exported schemas as assets at runtime.
+// They ride along in the debug build only: a release APK has no use for them,
+// and the unit tests run against debug.
+android.sourceSets.getByName("debug").assets.srcDir("$projectDir/schemas")
+
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
@@ -137,6 +142,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.androidx.junit)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
