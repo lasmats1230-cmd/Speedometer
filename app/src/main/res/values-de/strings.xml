@@ -47,7 +47,6 @@
     <string name="create">Erstellen</string>
 
     <!-- Detail -->
-    <string name="elevation">Höhe</string>
     <string name="ascent">Aufstieg</string>
     <string name="descent">Abstieg</string>
     <string name="altitude">Höhe</string>
@@ -98,7 +97,6 @@
     <!-- Notification -->
     <string name="notif_channel_name">Fahrtaufzeichnung</string>
     <string name="notif_channel_desc">Zeigt Geschwindigkeit und Strecke während einer Aufzeichnung.</string>
-    <string name="notif_title">Fahrt wird aufgezeichnet</string>
 
     <!-- Misc -->
     <string name="saved">Fahrt gespeichert</string>
@@ -302,9 +300,12 @@
     <string name="settings_backup_restore">Wiederherstellen</string>
     <string name="settings_backup_saved">Sicherung gespeichert als %1$s</string>
     <string name="settings_backup_failed">Sicherung konnte nicht geschrieben werden</string>
-    <string name="settings_backup_restored">%1$d Fahrten wiederhergestellt, %2$d bereits vorhandene übersprungen</string>
     <string name="settings_restore_failed">Diese Datei ist keine Speedometer-Sicherung</string>
 
+    <plurals name="settings_backup_restored">
+        <item quantity="one">%1$d Fahrt wiederhergestellt, %2$d bereits vorhandene übersprungen</item>
+        <item quantity="other">%1$d Fahrten wiederhergestellt, %2$d bereits vorhandene übersprungen</item>
+    </plurals>
     <plurals name="days_count">
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tage</item>
@@ -401,4 +402,7 @@
     <string name="recover_title">Unterbrochene Aufzeichnung wiederherstellen?</string>
     <string name="recover_message">Eine Aufzeichnung wurde unterbrochen — %1$s in %2$s waren bereits gespeichert. Als Fahrt behalten oder verwerfen.</string>
     <string name="recover_keep">Behalten</string>
+    <string name="route_remaining">Noch %1$s auf der Route</string>
+    <string name="route_off">%1$s neben der Route</string>
+    <string name="notif_title_activity">Aufzeichnung · %1$s</string>
 </resources>

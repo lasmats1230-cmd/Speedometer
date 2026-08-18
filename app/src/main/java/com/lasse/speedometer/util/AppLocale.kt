@@ -44,6 +44,10 @@ object AppLocale {
      * recreates the activity for us; doing it as well would be a second,
      * redundant restart.
      */
+    // commit, not apply: the activity is recreated immediately afterwards and
+    // attachBaseContext reads this synchronously. An asynchronous write can
+    // lose that race and rebuild the activity in the language just left.
+    @Suppress("ApplySharedPref")
     fun set(context: Context, language: AppLanguage): Boolean {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)

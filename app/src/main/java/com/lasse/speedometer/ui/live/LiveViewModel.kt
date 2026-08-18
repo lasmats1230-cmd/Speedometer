@@ -8,6 +8,7 @@ import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.io.RouteParser
+import com.lasse.speedometer.data.io.RoutePoint
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.MapWaypoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,17 +74,16 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val followedRoute: StateFlow<List<LatLng>> = ActiveRoute.routeId
+    val followedRoutePoints: StateFlow<List<RoutePoint>> = ActiveRoute.routeId
         .flatMapLatest { id ->
             if (id == null) flowOf(null) else repository.observeRoute(id)
         }
-        .map { route ->
-            route?.let {
-                RouteParser.decode(it.encodedPoints).map { point ->
-                    LatLng(point.latitude, point.longitude)
-                }
-            }.orEmpty()
-        }
+        .map { route -> route?.let { RouteParser.decode(it.encodedPoints) }.orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The same route as map coordinates. */
+    val followedRoute: StateFlow<List<LatLng>> = followedRoutePoints
+        .map { points -> points.map { LatLng(it.latitude, it.longitude) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val waypoints: StateFlow<List<MapWaypoint>> = repository.waypoints

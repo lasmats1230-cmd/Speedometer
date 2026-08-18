@@ -73,6 +73,8 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MinimapSize
+import com.lasse.speedometer.data.repo.RouteProgress
+import com.lasse.speedometer.data.repo.RouteTracker
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.ImmersiveMode
@@ -97,6 +99,7 @@ fun LiveScreen(
     val state by TrackingController.state.collectAsState()
     val savedTripId by TrackingController.savedTripId.collectAsState()
     val followedRoute by viewModel.followedRoute.collectAsState()
+    val followedRoutePoints by viewModel.followedRoutePoints.collectAsState()
     val waypoints by viewModel.waypoints.collectAsState()
     val editingWaypoint by viewModel.editingWaypoint.collectAsState()
 
@@ -230,9 +233,21 @@ fun LiveScreen(
         Configuration.ORIENTATION_LANDSCAPE
     val showMap = !extremeMode && layout.minimapSize != MinimapSize.HIDDEN
 
+    // Following a route: how much is left, and whether you are still on it.
+    val routeProgress = remember(followedRoutePoints, state.latitude, state.longitude) {
+        val latitude = state.latitude
+        val longitude = state.longitude
+        if (latitude == null || longitude == null) {
+            null
+        } else {
+            RouteTracker.progress(followedRoutePoints, latitude, longitude)
+        }
+    }
+
     val readout: @Composable (Modifier) -> Unit = { modifier ->
         ReadoutPane(
             modifier = modifier,
+            routeProgress = routeProgress,
             state = state,
             settings = settings,
             idle = idle,
@@ -426,6 +441,7 @@ fun LiveScreen(
 @Composable
 private fun ReadoutPane(
     modifier: Modifier,
+    routeProgress: RouteProgress?,
     state: com.lasse.speedometer.tracking.TrackingState,
     settings: AppSettings,
     idle: Boolean,
@@ -456,6 +472,11 @@ private fun ReadoutPane(
                 onRequestPermission = onRequestPermission,
             )
             Spacer(Modifier.height(12.dp))
+        }
+
+        if (routeProgress != null) {
+            RouteChip(progress = routeProgress, settings = settings)
+            Spacer(Modifier.height(10.dp))
         }
 
         // Which activity this is only matters before the recording starts;
@@ -535,6 +556,46 @@ private fun ReadoutPane(
         )
 
         Spacer(Modifier.height(18.dp))
+    }
+}
+
+/**
+ * Progress along a followed route: what is left, or how far off it you are.
+ *
+ * The second case matters more than the first — a route you are no longer on
+ * has a remaining distance that means nothing.
+ */
+@Composable
+private fun RouteChip(progress: RouteProgress, settings: AppSettings) {
+    val off = progress.offRoute
+    Surface(
+        shape = CircleShape,
+        color = if (off) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+    ) {
+        Text(
+            text = if (off) {
+                stringResource(
+                    R.string.route_off,
+                    Formatters.elevation(progress.offRouteM, settings.units),
+                )
+            } else {
+                stringResource(
+                    R.string.route_remaining,
+                    Formatters.distance(progress.remainingM, settings.units),
+                )
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = if (off) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
     }
 }
 

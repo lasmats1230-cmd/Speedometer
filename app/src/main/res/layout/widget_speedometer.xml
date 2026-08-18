@@ -4,6 +4,7 @@
   for attention, and a dense one loses.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -28,7 +29,7 @@
         android:layout_marginTop="2dp"
         android:textSize="28sp"
         android:textColor="@color/widget_accent"
-        android:text="0.00 km" />
+        tools:text="0.00 km" />
 
     <TextView
         android:id="@+id/widget_total_label"
@@ -48,7 +49,7 @@
         android:layout_marginTop="2dp"
         android:textSize="18sp"
         android:textColor="@color/widget_text"
-        android:text="0.00 km" />
+        tools:text="0.00 km" />
 
     <TextView
         android:id="@+id/widget_action"

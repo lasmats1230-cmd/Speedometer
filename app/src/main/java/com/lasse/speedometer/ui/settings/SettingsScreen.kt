@@ -41,6 +41,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,6 +66,7 @@ import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.data.prefs.SpeedSource
 import com.lasse.speedometer.data.prefs.ThemeMode
 import com.lasse.speedometer.data.prefs.UnitSystem
+import com.lasse.speedometer.tracking.VoiceCoach
 import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.ScreenTitle
 import com.lasse.speedometer.ui.components.SectionCard
@@ -92,9 +94,25 @@ fun SettingsScreen(
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
 
+    // A restore reports in words the composition can pluralise.
+    val lastRestore by viewModel.lastRestore.collectAsState()
+    val restoreMessage = lastRestore?.let { result ->
+        pluralStringResource(
+            R.plurals.settings_backup_restored,
+            result.trips,
+            result.trips,
+            result.skipped,
+        )
+    }
+    LaunchedEffect(restoreMessage) {
+        val message = restoreMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeRestoreResult()
+    }
+
     val backupSaved = stringResource(R.string.settings_backup_saved)
     val backupFailed = stringResource(R.string.settings_backup_failed)
-    val backupRestored = stringResource(R.string.settings_backup_restored)
+
     val restoreFailed = stringResource(R.string.settings_restore_failed)
 
     // Backups are JSON, but file pickers disagree about what that means often
@@ -102,7 +120,7 @@ fun SettingsScreen(
     val backupPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
-        if (uri != null) viewModel.restoreBackup(uri, backupRestored, restoreFailed)
+        if (uri != null) viewModel.restoreBackup(uri, restoreFailed)
     }
 
     val healthLauncher = rememberLauncherForActivityResult(
@@ -381,6 +399,29 @@ fun SettingsScreen(
                         .coerceAtLeast(0),
                     onSelect = { viewModel.setVoiceInterval(choices[it]) },
                 )
+
+                if (settings.voiceIntervalM > 0) {
+                    Spacer(Modifier.height(12.dp))
+                    // Whether a device can actually speak depends on engines
+                    // and downloaded voices, neither of which this app
+                    // controls — so let the user hear it rather than find out
+                    // ten kilometres into a ride.
+                    val voiceContext = LocalContext.current
+                    val coach = remember { VoiceCoach(voiceContext) }
+                    DisposableEffect(coach) { onDispose { coach.shutdown() } }
+                    val sample = stringResource(
+                        R.string.voice_update,
+                        Formatters.distance(
+                            if (settings.units == UnitSystem.METRIC) 5_000.0 else 8_046.72,
+                            settings.units,
+                        ),
+                        coach.spokenDuration(18 * 60 * 1000L),
+                        Formatters.speed(6.4, settings.units),
+                    )
+                    OutlinedButton(onClick = { coach.say(sample) }) {
+                        Text(stringResource(R.string.voice_test))
+                    }
+                }
             }
         }
 

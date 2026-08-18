@@ -70,7 +70,7 @@ fun ToolsScreen(
     snackbarHostState: SnackbarHostState,
     viewModel: ToolsViewModel = viewModel(),
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }

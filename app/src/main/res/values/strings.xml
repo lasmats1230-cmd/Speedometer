@@ -102,7 +102,6 @@
     <string name="no_matches_body">Try a different search, or clear the activity filter.</string>
 
     <!-- Detail -->
-    <string name="elevation">Elevation</string>
     <string name="ascent">Ascent</string>
     <string name="descent">Descent</string>
     <string name="altitude">Altitude</string>
@@ -168,13 +167,11 @@
     <string name="settings_backup_restore">Restore</string>
     <string name="settings_backup_saved">Backup saved as %1$s</string>
     <string name="settings_backup_failed">Could not write the backup</string>
-    <string name="settings_backup_restored">Restored %1$d trips, skipped %2$d already here</string>
     <string name="settings_restore_failed">That file is not a Speedometer backup</string>
 
     <!-- Notification -->
     <string name="notif_channel_name">Trip recording</string>
     <string name="notif_channel_desc">Shows speed and distance while a trip is recording.</string>
-    <string name="notif_title">Recording trip</string>
 
     <!-- Misc -->
     <string name="saved">Trip saved</string>
@@ -284,6 +281,10 @@
     <plurals name="trips_count">
         <item quantity="one">%1$d trip</item>
         <item quantity="other">%1$d trips</item>
+    </plurals>
+    <plurals name="settings_backup_restored">
+        <item quantity="one">Restored %1$d trip, skipped %2$d already here</item>
+        <item quantity="other">Restored %1$d trips, skipped %2$d already here</item>
     </plurals>
     <plurals name="days_count">
         <item quantity="one">%1$d day</item>
@@ -397,4 +398,7 @@
     <string name="recover_title">Recover the interrupted recording?</string>
     <string name="recover_message">A recording was cut short — %1$s over %2$s was written before it stopped. Keep it as a trip, or throw it away.</string>
     <string name="recover_keep">Keep it</string>
+    <string name="route_remaining">%1$s left on the route</string>
+    <string name="route_off">Off route by %1$s</string>
+    <string name="notif_title_activity">Recording · %1$s</string>
 </resources>

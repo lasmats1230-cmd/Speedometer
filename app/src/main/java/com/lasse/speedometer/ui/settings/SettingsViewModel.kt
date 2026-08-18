@@ -7,6 +7,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
+import com.lasse.speedometer.data.io.RestoreResult
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.data.prefs.MinimapSize
@@ -97,14 +98,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _busy.value = false
     }
 
-    fun restoreBackup(uri: Uri, successTemplate: String, failure: String) = viewModelScope.launch {
+    /**
+     * The outcome of the last restore, for the screen to put into words —
+     * "one trip" and "two trips" are a plural, and plurals are resolved in the
+     * composition, not here.
+     */
+    private val _lastRestore = MutableStateFlow<RestoreResult?>(null)
+    val lastRestore: StateFlow<RestoreResult?> = _lastRestore.asStateFlow()
+
+    fun restoreBackup(uri: Uri, failure: String) = viewModelScope.launch {
         _busy.value = true
         backups.restore(uri)
-            .onSuccess { result ->
-                _messages.emit(successTemplate.format(result.trips, result.skipped))
-            }
+            .onSuccess { _lastRestore.value = it }
             .onFailure { _messages.emit(failure) }
         _busy.value = false
+    }
+
+    fun consumeRestoreResult() {
+        _lastRestore.value = null
     }
 
     fun setMinimapSize(value: MinimapSize) = update { settingsRepository.setMinimapSize(value) }

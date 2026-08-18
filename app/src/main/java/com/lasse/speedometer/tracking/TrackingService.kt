@@ -170,10 +170,23 @@ class TrackingService : Service(), LocationListener {
         val keeping = save && points.size >= MIN_POINTS_TO_SAVE
         if (keeping && settings.voiceIntervalM > 0) voice.sayFinished()
         val autoSync = settings.autoSyncHealth
+        val activity = settings.activity
+        val title = TripNaming.titleFor(this, summary.startedAt, activity)
         scope.launch {
             val repository = app().tripRepository
             when {
-                tripId == null -> Unit
+                // The row is opened asynchronously, so a start immediately
+                // followed by a stop can arrive before it exists. Falling back
+                // to a plain insert keeps that ride rather than dropping it.
+                tripId == null -> if (keeping) {
+                    val id = repository.saveTrip(summary, points, activity, title)
+                    TrackingController.publishSavedTrip(id)
+                    SpeedometerWidget.refresh(this@TrackingService)
+                    if (autoSync) {
+                        runCatching { app().healthConnectManager.writeTrip(id) }
+                    }
+                }
+
                 keeping -> {
                     repository.finishRecording(tripId, summary, points)
                     TrackingController.publishSavedTrip(tripId)
@@ -457,7 +470,15 @@ class TrackingService : Service(), LocationListener {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentTitle(
-                if (paused) getString(R.string.status_paused) else getString(R.string.notif_title)
+                when {
+                    paused -> getString(R.string.status_paused)
+                    // Naming the activity makes the shade readable at a
+                    // glance when several things are running.
+                    else -> getString(
+                        R.string.notif_title_activity,
+                        getString(settings.activity.labelRes),
+                    )
+                }
             )
             .setContentText(content)
             .setContentIntent(openApp)

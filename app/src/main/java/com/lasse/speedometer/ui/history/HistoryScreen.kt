@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,9 +71,7 @@ import com.lasse.speedometer.ui.components.SegmentedTabs
 import com.lasse.speedometer.ui.components.TrackThumbnail
 import com.lasse.speedometer.ui.components.icon
 import com.lasse.speedometer.util.Formatters
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.lasse.speedometer.util.LocaleFormats
 
 @Composable
 fun HistoryScreen(
@@ -92,7 +91,7 @@ fun HistoryScreen(
     val activityFilter by viewModel.activityFilter.collectAsState()
     val presentActivities by viewModel.presentActivities.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var tripPendingDelete by remember { mutableStateOf<Long?>(null) }
     var tripForTour by remember { mutableStateOf<Long?>(null) }
@@ -765,9 +764,8 @@ private fun AddToTourDialog(
     )
 }
 
-private val tripDateFormat = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
-private val tripTimeFormat = SimpleDateFormat("d MMM yyyy, HH:mm:ss", Locale.getDefault())
+internal fun formatTripDate(millis: Long): String =
+    LocaleFormats.format("d MMM yyyy, HH:mm", millis)
 
-internal fun formatTripDate(millis: Long): String = tripDateFormat.format(Date(millis))
-
-internal fun formatTripTime(millis: Long): String = tripTimeFormat.format(Date(millis))
+internal fun formatTripTime(millis: Long): String =
+    LocaleFormats.format("d MMM yyyy, HH:mm:ss", millis)
