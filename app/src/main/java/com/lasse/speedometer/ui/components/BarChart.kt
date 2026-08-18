@@ -100,7 +100,7 @@ fun BarChart(
                 )
                 val interaction = remember { MutableInteractionSource() }
 
-                val spoken = "${'$'}{bar.label}: ${'$'}{formatValue(bar.value)}"
+                val spoken = "${bar.label}: ${formatValue(bar.value)}"
                 Column(
                     modifier = Modifier
                         .weight(1f)

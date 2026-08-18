@@ -92,6 +92,14 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric renders the Compose screens in these tests, which
+            // means it needs the real resources rather than stubs.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 ksp {
@@ -128,5 +136,9 @@ dependencies {
     implementation(libs.maplibre.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
 }
