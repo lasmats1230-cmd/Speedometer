@@ -172,6 +172,39 @@ fun LiveScreen(
         return
     }
 
+    // A row left open by a recording the system killed. Offered back only
+    // when nothing is recording now — mid-ride this is simply the trip being
+    // written.
+    val interrupted by viewModel.interruptedTrip.collectAsState()
+    interrupted?.takeIf { idle }?.let { trip ->
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.recover_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.recover_message,
+                        Formatters.distance(trip.distanceM, settings.units),
+                        Formatters.durationLong(trip.durationMs),
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.recoverInterrupted(trip.id) }) {
+                    Text(stringResource(R.string.recover_keep))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.discardInterrupted(trip.id) }) {
+                    Text(
+                        text = stringResource(R.string.discard),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+        )
+    }
+
     // First run: say what the app does before asking for anything.
     if (!settings.onboarded) {
         OnboardingDialog(

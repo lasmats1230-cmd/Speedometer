@@ -46,6 +46,15 @@ data class TripEntity(
      */
     @ColumnInfo(defaultValue = "RIDE") val activity: String = ActivityType.RIDE.name,
     val note: String? = null,
+    /**
+     * True while the trip is still being recorded.
+     *
+     * A recording is written to the database as it happens rather than held in
+     * memory until the user presses save, so a phone that kills the service
+     * loses seconds rather than the whole ride. Rows with this set are hidden
+     * from history and statistics until they are finished or recovered.
+     */
+    @ColumnInfo(defaultValue = "0") val inProgress: Boolean = false,
 ) {
     val activityType: ActivityType get() = ActivityType.fromName(activity)
 }

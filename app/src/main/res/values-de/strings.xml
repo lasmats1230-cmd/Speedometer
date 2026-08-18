@@ -397,4 +397,8 @@
     <string name="settings_waypoint_alerts">Wegpunkt-Hinweise</string>
     <string name="settings_waypoint_alerts_summary">Vibriert, wenn du einem gespeicherten Wegpunkt auf 60 m nahe kommst, und nennt ihn bei eingeschalteten Sprachansagen.</string>
     <string name="waypoint_nearby">%1$s in der Nähe</string>
+    <!-- Wiederherstellung -->
+    <string name="recover_title">Unterbrochene Aufzeichnung wiederherstellen?</string>
+    <string name="recover_message">Eine Aufzeichnung wurde unterbrochen — %1$s in %2$s waren bereits gespeichert. Als Fahrt behalten oder verwerfen.</string>
+    <string name="recover_keep">Behalten</string>
 </resources>

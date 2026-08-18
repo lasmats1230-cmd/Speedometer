@@ -73,6 +73,10 @@ class TrackingService : Service(), LocationListener {
     /** Waypoints already called out on this trip, so each is named once. */
     private val announcedWaypoints = mutableSetOf<Long>()
 
+    /** The database row this recording is being written into. */
+    private var recordingTripId: Long? = null
+    private var lastPersistAt = 0L
+
     override fun onCreate() {
         super.onCreate()
         locationManager = getSystemService()!!
@@ -110,10 +114,23 @@ class TrackingService : Service(), LocationListener {
             stopSelfIfIdle()
             return
         }
-        recorder.start(System.currentTimeMillis())
+        val startedAt = System.currentTimeMillis()
+        recorder.start(startedAt)
         announcedWaypoints.clear()
         voice.reset()
         if (settings.voiceIntervalM > 0) voice.sayStarted()
+
+        // The trip is written to the database from the first second rather
+        // than held in memory until save: a service the system kills mid-ride
+        // should cost seconds, not the whole ride.
+        val activity = settings.activity
+        val title = TripNaming.titleFor(this, startedAt, activity)
+        lastPersistAt = 0L
+        recordingTripId = null
+        scope.launch {
+            val id = app().tripRepository.startRecording(startedAt, activity, title)
+            recordingTripId = id
+        }
         publish()
         goForeground()
         acquireWakeLock()
@@ -149,22 +166,28 @@ class TrackingService : Service(), LocationListener {
         stopUpdates()
         leaveForeground()
 
-        if (save && points.size >= MIN_POINTS_TO_SAVE) {
-            val activity = settings.activity
-            if (settings.voiceIntervalM > 0) voice.sayFinished()
-            // Named here rather than in the database layer: the name is a
-            // piece of interface text, and this is the last place that still
-            // knows which language the app is in.
-            val title = TripNaming.titleFor(this, summary.startedAt, activity)
-            scope.launch {
-                val id = app().tripRepository.saveTrip(summary, points, activity, title)
-                TrackingController.publishSavedTrip(id)
-                SpeedometerWidget.refresh(this@TrackingService)
-                if (settings.autoSyncHealth) {
-                    runCatching { app().healthConnectManager.writeTrip(id) }
+        val tripId = recordingTripId
+        val keeping = save && points.size >= MIN_POINTS_TO_SAVE
+        if (keeping && settings.voiceIntervalM > 0) voice.sayFinished()
+        val autoSync = settings.autoSyncHealth
+        scope.launch {
+            val repository = app().tripRepository
+            when {
+                tripId == null -> Unit
+                keeping -> {
+                    repository.finishRecording(tripId, summary, points)
+                    TrackingController.publishSavedTrip(tripId)
+                    SpeedometerWidget.refresh(this@TrackingService)
+                    if (autoSync) {
+                        runCatching { app().healthConnectManager.writeTrip(tripId) }
+                    }
                 }
+                // Too short to keep, or discarded outright: the row goes with
+                // it, and its points go with the row.
+                else -> repository.discardRecording(tripId)
             }
         }
+        recordingTripId = null
 
         recorder.reset()
         publish()
@@ -279,6 +302,7 @@ class TrackingService : Service(), LocationListener {
                 delay(TICK_MS)
                 recorder.tick(System.currentTimeMillis())
                 announceProgress()
+                persistProgress()
                 publish()
                 updateNotification()
             }
@@ -328,6 +352,27 @@ class TrackingService : Service(), LocationListener {
                 android.os.VibrationEffect.DEFAULT_AMPLITUDE,
             )
         )
+    }
+
+    /**
+     * Appends whatever the recorder has gathered since the last write.
+     *
+     * Every few seconds rather than every fix: the write is an append of a
+     * handful of rows, and doing it once a second would spin the disk for a
+     * whole ride to save at most a second of track.
+     */
+    private fun persistProgress() {
+        val tripId = recordingTripId ?: return
+        if (recorder.state.status == TrackingStatus.IDLE) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastPersistAt < PERSIST_INTERVAL_MS) return
+        lastPersistAt = now
+
+        val summary = recorder.summary(System.currentTimeMillis())
+        val points = recorder.points.toList()
+        scope.launch {
+            runCatching { app().tripRepository.appendRecording(tripId, summary, points) }
+        }
     }
 
     /** Hands the current figures to the voice coach, which decides if it speaks. */
@@ -502,6 +547,7 @@ class TrackingService : Service(), LocationListener {
         private const val LAST_KNOWN_MAX_AGE_MS = 5 * 60 * 1000L
         private const val WAKE_LOCK_TIMEOUT_MS = 12 * 60 * 60 * 1000L
         private const val MIN_POINTS_TO_SAVE = 2
+        private const val PERSIST_INTERVAL_MS = 10_000L
 
         /** Close enough that you can still act on being told. */
         private const val WAYPOINT_ALERT_RADIUS_M = 60.0

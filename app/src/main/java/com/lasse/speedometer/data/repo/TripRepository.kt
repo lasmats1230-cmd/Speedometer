@@ -103,6 +103,102 @@ class TripRepository(
             tripId
         }
 
+    /** The row a recording is being written into, if a recording is under way. */
+    val inProgressTrip: Flow<TripEntity?> = tripDao.observeInProgress()
+
+    /**
+     * Opens a row for a recording that has just started.
+     *
+     * Any earlier unfinished row is cleared first: two in-progress trips can
+     * only mean the previous one was orphaned, and the user is about to be
+     * offered it or has already declined.
+     */
+    suspend fun startRecording(
+        startedAt: Long,
+        activity: ActivityType,
+        title: String?,
+    ): Long = withContext(Dispatchers.IO) {
+        tripDao.getInProgress().forEach { tripDao.deleteTrip(it.id) }
+        tripDao.insertTrip(
+            TripEntity(
+                startedAt = startedAt,
+                endedAt = startedAt,
+                durationMs = 0,
+                movingTimeMs = 0,
+                distanceM = 0.0,
+                avgSpeedMps = 0.0,
+                maxSpeedMps = 0.0,
+                ascentM = 0.0,
+                descentM = 0.0,
+                minAltitudeM = null,
+                maxAltitudeM = null,
+                title = title,
+                activity = activity.name,
+                inProgress = true,
+            )
+        )
+    }
+
+    /**
+     * Writes the part of the track that is not stored yet and refreshes the
+     * running totals. Called every few seconds while recording, so it only
+     * ever appends what is new.
+     */
+    suspend fun appendRecording(
+        tripId: Long,
+        summary: TripSummary,
+        points: List<TrackPoint>,
+    ) = withContext(Dispatchers.IO) {
+        val stored = tripDao.countPoints(tripId)
+        if (points.size > stored) {
+            points.drop(stored).map { point ->
+                TrackPointEntity(
+                    tripId = tripId,
+                    timestamp = point.timestamp,
+                    latitude = point.latitude,
+                    longitude = point.longitude,
+                    altitudeM = point.altitudeM,
+                    speedMps = point.speedMps,
+                    accuracyM = point.accuracyM,
+                    cumulativeDistanceM = point.cumulativeDistanceM,
+                )
+            }.chunked(500).forEach { tripDao.insertPoints(it) }
+        }
+        tripDao.getTrip(tripId)?.let { trip ->
+            tripDao.updateTrip(trip.applySummary(summary))
+        }
+    }
+
+    /** Closes the row: the recording becomes an ordinary trip. */
+    suspend fun finishRecording(
+        tripId: Long,
+        summary: TripSummary,
+        points: List<TrackPoint>,
+    ) = withContext(Dispatchers.IO) {
+        appendRecording(tripId, summary, points)
+        tripDao.finishTrip(tripId)
+    }
+
+    /** Ends a recording that was interrupted, keeping whatever was written. */
+    suspend fun recoverRecording(tripId: Long) =
+        withContext(Dispatchers.IO) { tripDao.finishTrip(tripId) }
+
+    suspend fun discardRecording(tripId: Long) =
+        withContext(Dispatchers.IO) { tripDao.deleteTrip(tripId) }
+
+    private fun TripEntity.applySummary(summary: TripSummary) = copy(
+        endedAt = summary.endedAt,
+        durationMs = summary.durationMs,
+        movingTimeMs = summary.movingTimeMs,
+        distanceM = summary.distanceM,
+        avgSpeedMps = summary.avgSpeedMps,
+        maxSpeedMps = summary.maxSpeedMps,
+        ascentM = summary.ascentM,
+        descentM = summary.descentM,
+        minAltitudeM = summary.minAltitudeM,
+        maxAltitudeM = summary.maxAltitudeM,
+    )
+
     suspend fun deleteTrip(id: Long) = withContext(Dispatchers.IO) { tripDao.deleteTrip(id) }
 
     suspend fun deleteAllTrips() = withContext(Dispatchers.IO) { tripDao.deleteAllTrips() }

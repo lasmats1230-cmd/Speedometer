@@ -393,4 +393,8 @@
     <string name="settings_waypoint_alerts">Waypoint alerts</string>
     <string name="settings_waypoint_alerts_summary">Buzz when you come within 60 m of a saved waypoint, and name it if spoken updates are on.</string>
     <string name="waypoint_nearby">%1$s nearby</string>
+    <!-- Recovery -->
+    <string name="recover_title">Recover the interrupted recording?</string>
+    <string name="recover_message">A recording was cut short — %1$s over %2$s was written before it stopped. Keep it as a trip, or throw it away.</string>
+    <string name="recover_keep">Keep it</string>
 </resources>

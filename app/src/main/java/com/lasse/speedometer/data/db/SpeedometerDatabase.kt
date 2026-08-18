@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RouteEntity::class,
         WaypointEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class SpeedometerDatabase : RoomDatabase() {
@@ -77,13 +77,26 @@ abstract class SpeedometerDatabase : RoomDatabase() {
             "ALTER TABLE `trips` ADD COLUMN `note` TEXT",
         )
 
+        /**
+         * Marks trips that are still being recorded, so a recording written as
+         * it happens is not mistaken for a finished one.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(ADD_IN_PROGRESS)
+            }
+        }
+
+        const val ADD_IN_PROGRESS =
+            "ALTER TABLE `trips` ADD COLUMN `inProgress` INTEGER NOT NULL DEFAULT 0"
+
         fun get(context: Context): SpeedometerDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     SpeedometerDatabase::class.java,
                     "speedometer.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { instance = it }
             }

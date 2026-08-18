@@ -26,8 +26,19 @@ data class TrackPointLite(
 @Dao
 interface TripDao {
 
-    @Query("SELECT * FROM trips ORDER BY startedAt DESC")
+    /** Finished trips only — a recording in progress is not history yet. */
+    @Query("SELECT * FROM trips WHERE inProgress = 0 ORDER BY startedAt DESC")
     fun observeTrips(): Flow<List<TripEntity>>
+
+    /** The row a recording is being written into, if there is one. */
+    @Query("SELECT * FROM trips WHERE inProgress = 1 ORDER BY startedAt DESC LIMIT 1")
+    fun observeInProgress(): Flow<TripEntity?>
+
+    @Query("SELECT * FROM trips WHERE inProgress = 1")
+    suspend fun getInProgress(): List<TripEntity>
+
+    @Query("UPDATE trips SET inProgress = 0 WHERE id = :tripId")
+    suspend fun finishTrip(tripId: Long)
 
     @Query("SELECT * FROM trips WHERE id = :id")
     fun observeTrip(id: Long): Flow<TripEntity?>
@@ -38,8 +49,8 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE tourId = :tourId ORDER BY startedAt ASC")
     suspend fun getTripsForTour(tourId: Long): List<TripEntity>
 
-    /** Every trip in one read, for a backup. */
-    @Query("SELECT * FROM trips ORDER BY startedAt ASC")
+    /** Every finished trip in one read, for a backup. */
+    @Query("SELECT * FROM trips WHERE inProgress = 0 ORDER BY startedAt ASC")
     suspend fun getAllTrips(): List<TripEntity>
 
     @Insert
@@ -66,7 +77,7 @@ interface TripDao {
     @Query("DELETE FROM trips WHERE id = :id")
     suspend fun deleteTrip(id: Long)
 
-    @Query("DELETE FROM trips")
+    @Query("DELETE FROM trips WHERE inProgress = 0")
     suspend fun deleteAllTrips()
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -90,6 +101,10 @@ interface TripDao {
         """
     )
     fun observeThumbnailPoints(): Flow<List<TrackPointLite>>
+
+    /** How much of a trip is already written, so appending can carry on. */
+    @Query("SELECT COUNT(*) FROM track_points WHERE tripId = :tripId")
+    suspend fun countPoints(tripId: Long): Int
 }
 
 @Dao

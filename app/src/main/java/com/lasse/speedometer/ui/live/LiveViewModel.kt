@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
 import com.lasse.speedometer.data.db.ActivityType
+import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.io.RouteParser
 import com.lasse.speedometer.ui.components.LatLng
@@ -52,6 +53,24 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { settingsRepository.setActivity(activity) }
 
     fun markOnboarded() = viewModelScope.launch { settingsRepository.setOnboarded(true) }
+
+    /**
+     * A recording that was still open when the app last stopped.
+     *
+     * Only interesting while nothing is being recorded — during a recording
+     * this is the row currently being written, which is not something to
+     * offer back to the user.
+     */
+    val interruptedTrip: StateFlow<TripEntity?> = repository.inProgressTrip
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun recoverInterrupted(tripId: Long) = viewModelScope.launch {
+        repository.recoverRecording(tripId)
+    }
+
+    fun discardInterrupted(tripId: Long) = viewModelScope.launch {
+        repository.discardRecording(tripId)
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val followedRoute: StateFlow<List<LatLng>> = ActiveRoute.routeId
