@@ -46,6 +46,7 @@ import com.lasse.speedometer.data.io.TripCardText
 import com.lasse.speedometer.data.prefs.UnitSystem
 import com.lasse.speedometer.data.repo.Split
 import com.lasse.speedometer.data.repo.Splits
+import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.ui.components.ActivityBadge
 import com.lasse.speedometer.ui.components.ChartSample
 import com.lasse.speedometer.ui.components.DetailRow
@@ -59,6 +60,7 @@ import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.TrackMap
 import com.lasse.speedometer.util.Formatters
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +81,10 @@ class TripDetailViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val points: StateFlow<List<TrackPointEntity>> = repository.observePoints(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Every other trip, for the "faster than usual" line. */
+    val allTrips: StateFlow<List<TripEntity>> = repository.trips
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _events = MutableSharedFlow<HistoryEvent>(extraBufferCapacity = 4)
@@ -157,6 +163,7 @@ fun TripDetailScreen(
     )
     val trip by viewModel.trip.collectAsState()
     val points by viewModel.points.collectAsState()
+    val allTrips by viewModel.allTrips.collectAsState()
     var renaming by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf(false) }
     var changingActivity by remember { mutableStateOf(false) }
@@ -249,6 +256,7 @@ fun TripDetailScreen(
         TripDetailContent(
             trip = current,
             points = points,
+            allTrips = allTrips,
             settings = settings,
             contentPadding = padding,
         )
@@ -311,6 +319,7 @@ fun TripDetailScreen(
 private fun TripDetailContent(
     trip: TripEntity,
     points: List<TrackPointEntity>,
+    allTrips: List<TripEntity>,
     settings: AppSettings,
     contentPadding: PaddingValues,
 ) {
@@ -338,6 +347,12 @@ private fun TripDetailContent(
         Splits.MILE_M
     }
     val splits = remember(points, splitUnit) { Splits.compute(points, splitUnit) }
+
+    // How this one sat against the others of its kind, which is what you
+    // actually want to know when you open a ride you have just finished.
+    val comparison = remember(trip, allTrips) {
+        StatsCalculator.comparedWithUsual(trip, allTrips)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -389,6 +404,38 @@ private fun TripDetailContent(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
+            }
+        }
+
+        if (comparison != null) {
+            item("comparison") {
+                val percent = (comparison * 100).roundToInt()
+                Text(
+                    text = when {
+                        percent >= 3 -> stringResource(
+                            R.string.trip_faster_than_usual,
+                            percent,
+                            stringResource(trip.activityType.labelRes),
+                        )
+
+                        percent <= -3 -> stringResource(
+                            R.string.trip_slower_than_usual,
+                            -percent,
+                            stringResource(trip.activityType.labelRes),
+                        )
+
+                        else -> stringResource(
+                            R.string.trip_typical,
+                            stringResource(trip.activityType.labelRes),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (percent >= 3) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
             }
         }
 

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -79,6 +80,7 @@ fun HistoryScreen(
     snackbarHostState: SnackbarHostState,
     onOpenTrip: (Long) -> Unit,
     onOpenTour: (Long) -> Unit,
+    onStartRecording: () -> Unit,
     viewModel: HistoryViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -268,12 +270,19 @@ fun HistoryScreen(
                         icon = Icons.AutoMirrored.Outlined.DirectionsBike,
                         title = stringResource(R.string.no_trips_title),
                         body = stringResource(R.string.no_trips_body),
+                        actionLabel = stringResource(R.string.empty_start_recording),
+                        onAction = onStartRecording,
                     )
 
                     trips.isEmpty() -> CenteredEmptyState(
                         icon = Icons.Outlined.SearchOff,
                         title = stringResource(R.string.no_matches_title),
                         body = stringResource(R.string.no_matches_body),
+                        actionLabel = stringResource(R.string.clear_filters),
+                        onAction = {
+                            viewModel.setQuery("")
+                            viewModel.setActivityFilter(null)
+                        },
                     )
 
                     else -> LazyColumn(
@@ -284,33 +293,65 @@ fun HistoryScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(Dimens.Item),
                     ) {
-                        items(trips, key = { it.trip.id }) { item ->
-                            TripRow(
-                                item = item,
-                                settings = settings,
-                                healthAvailable = viewModel.healthAvailable,
-                                onClick = { onOpenTrip(item.trip.id) },
-                                onDownload = {
-                                    viewModel.downloadGpx(
-                                        item.trip.id,
-                                        downloadTemplate,
-                                        exportFailed,
-                                    )
-                                },
-                                onShare = { viewModel.shareGpx(item.trip.id, exportFailed) },
-                                onShareSummary = viewModel::shareSummary,
-                                onSync = {
-                                    viewModel.syncToHealth(
-                                        item.trip.id,
-                                        syncedMessage,
-                                        healthUnavailable,
-                                    )
-                                },
-                                onRename = { tripBeingRenamed = item.trip },
-                                onChangeActivity = { tripChangingActivity = item.trip },
-                                onAddToTour = { tripForTour = item.trip.id },
-                                onDelete = { tripPendingDelete = item.trip.id },
-                            )
+                        // Months are the unit people scroll history in — "that
+                        // week in June" — and the header keeps a long list from
+                        // becoming an undifferentiated column of cards. Only
+                        // where the order is chronological: under "longest
+                        // first" a month heading would be a lie.
+                        val grouped = sort == TripSort.NEWEST || sort == TripSort.OLDEST
+
+                        itemsIndexed(
+                            items = trips,
+                            key = { _, item -> item.trip.id },
+                        ) { index, item ->
+                            // Header and card in one column rather than two
+                            // loose siblings, so the list's own spacing stays
+                            // between cards and not inside them.
+                            Column {
+                                if (grouped) {
+                                    val month = monthLabel(item.trip.startedAt)
+                                    val previous = trips.getOrNull(index - 1)
+                                        ?.let { monthLabel(it.trip.startedAt) }
+                                    if (month != previous) {
+                                        Text(
+                                            text = month,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(
+                                                start = 8.dp,
+                                                top = if (index == 0) 0.dp else 8.dp,
+                                                bottom = 6.dp,
+                                            ),
+                                        )
+                                    }
+                                }
+                                TripRow(
+                                    item = item,
+                                    settings = settings,
+                                    healthAvailable = viewModel.healthAvailable,
+                                    onClick = { onOpenTrip(item.trip.id) },
+                                    onDownload = {
+                                        viewModel.downloadGpx(
+                                            item.trip.id,
+                                            downloadTemplate,
+                                            exportFailed,
+                                        )
+                                    },
+                                    onShare = { viewModel.shareGpx(item.trip.id, exportFailed) },
+                                    onShareSummary = viewModel::shareSummary,
+                                    onSync = {
+                                        viewModel.syncToHealth(
+                                            item.trip.id,
+                                            syncedMessage,
+                                            healthUnavailable,
+                                        )
+                                    },
+                                    onRename = { tripBeingRenamed = item.trip },
+                                    onChangeActivity = { tripChangingActivity = item.trip },
+                                    onAddToTour = { tripForTour = item.trip.id },
+                                    onDelete = { tripPendingDelete = item.trip.id },
+                                )
+                            }
                         }
                     }
                 }
@@ -769,3 +810,6 @@ internal fun formatTripDate(millis: Long): String =
 
 internal fun formatTripTime(millis: Long): String =
     LocaleFormats.format("d MMM yyyy, HH:mm:ss", millis)
+
+/** "June 2026" — the heading a chronological list is broken up by. */
+private fun monthLabel(millis: Long): String = LocaleFormats.format("LLLL yyyy", millis)

@@ -70,6 +70,7 @@ import kotlin.math.roundToInt
 fun StatsScreen(
     settings: AppSettings,
     onOpenTrip: (Long) -> Unit,
+    onStartRecording: () -> Unit,
     viewModel: StatsViewModel = viewModel(),
 ) {
     val trips by viewModel.trips.collectAsState()
@@ -136,6 +137,8 @@ fun StatsScreen(
                 icon = Icons.Outlined.Insights,
                 title = stringResource(R.string.no_stats_title),
                 body = stringResource(R.string.no_stats_body),
+                actionLabel = stringResource(R.string.empty_start_recording),
+                onAction = onStartRecording,
             )
             return@Column
         }

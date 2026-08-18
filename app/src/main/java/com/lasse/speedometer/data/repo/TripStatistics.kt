@@ -317,6 +317,27 @@ object StatsCalculator {
         return (ChronoUnit.DAYS.between(start, today).toInt() + 1).coerceIn(1, 7)
     }
 
+    /**
+     * How one trip's average speed compares with the others of its kind, as a
+     * fraction: 0.12 means twelve per cent faster than usual.
+     *
+     * Null when there is not enough to compare against — two rides do not make
+     * a habit, and "50% faster than your average" off one previous outing is
+     * noise dressed up as insight.
+     */
+    fun comparedWithUsual(trip: TripEntity, trips: List<TripEntity>): Double? {
+        val others = trips.filter {
+            it.id != trip.id && it.activity == trip.activity && it.avgSpeedMps > 0
+        }
+        if (others.size < MIN_TRIPS_TO_COMPARE || trip.avgSpeedMps <= 0) return null
+        val usual = others.sumOf { it.avgSpeedMps } / others.size
+        if (usual <= 0) return null
+        return (trip.avgSpeedMps - usual) / usual
+    }
+
+    /** Below this the "usual" is one or two outings, not a pattern. */
+    private const val MIN_TRIPS_TO_COMPARE = 3
+
     /** Days since the first recording, for the lifetime card. */
     fun daysSinceFirst(trips: List<TripEntity>, now: Long, zone: ZoneId): Long {
         val first = trips.minByOrNull { it.startedAt } ?: return 0

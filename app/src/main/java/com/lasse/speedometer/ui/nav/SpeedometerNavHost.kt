@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -75,17 +76,7 @@ private fun NavigationScaffold(settings: AppSettings) {
                         val selected = currentRoute == destination.route
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                if (!selected) {
-                                    navController.navigate(destination.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
+                            onClick = { if (!selected) navController.switchTab(destination.route) },
                             icon = {
                                 Icon(
                                     imageVector = if (selected) {
@@ -127,12 +118,14 @@ private fun NavigationScaffold(settings: AppSettings) {
                         snackbarHostState = snackbarHostState,
                         onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
                         onOpenTour = { navController.navigate(Routes.tourDetail(it)) },
+                        onStartRecording = { navController.switchTab(Routes.LIVE) },
                     )
                 }
                 composable(Routes.STATS) {
                     StatsScreen(
                         settings = settings,
                         onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
+                        onStartRecording = { navController.switchTab(Routes.LIVE) },
                     )
                 }
                 composable(Routes.TOOLS) {
@@ -207,5 +200,18 @@ private fun NavigationScaffold(settings: AppSettings) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Moves between tabs the way the navigation bar does — one entry deep, each
+ * tab's own back stack preserved — so a button that sends you to another tab
+ * behaves like tapping that tab.
+ */
+private fun NavHostController.switchTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }

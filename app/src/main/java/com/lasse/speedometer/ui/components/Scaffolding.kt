@@ -288,9 +288,17 @@ fun CenteredEmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
 ) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        EmptyState(icon = icon, title = title, body = body)
+        EmptyState(
+            icon = icon,
+            title = title,
+            body = body,
+            actionLabel = actionLabel,
+            onAction = onAction,
+        )
     }
 }
 

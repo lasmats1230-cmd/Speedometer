@@ -415,4 +415,9 @@
     <string name="settings_exported_all">%1$d Fahrten in die Downloads exportiert</string>
     <string name="compass_pick_place">Auf einen Ort ausrichten…</string>
     <string name="compass_no_place">Kein Ort</string>
+    <string name="empty_start_recording">Aufzeichnung starten</string>
+    <string name="clear_filters">Filter zurücksetzen</string>
+    <string name="trip_faster_than_usual">%1$d%% schneller als sonst (%2$s)</string>
+    <string name="trip_slower_than_usual">%1$d%% langsamer als sonst (%2$s)</string>
+    <string name="trip_typical">So schnell wie sonst (%1$s)</string>
 </resources>
