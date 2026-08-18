@@ -65,6 +65,7 @@ fun DimDisplay(
             letterSpacing = (-6).sp,
             color = speedColor,
             textAlign = TextAlign.Center,
+            modifier = if (settings.layout.hudMirror) Modifier.mirrored() else Modifier,
         )
         Text(
             text = Formatters.speedUnit(settings.units),

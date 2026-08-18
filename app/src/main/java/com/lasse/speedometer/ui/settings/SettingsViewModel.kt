@@ -109,6 +109,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setShowTimer(value: Boolean) = update { settingsRepository.setShowTimer(value) }
     fun setShowStatusChip(value: Boolean) = update { settingsRepository.setShowStatusChip(value) }
     fun setStatColumns(value: Int) = update { settingsRepository.setStatColumns(value) }
+    fun setHudMirror(value: Boolean) = update { settingsRepository.setHudMirror(value) }
     fun resetLayout() = update { settingsRepository.resetLayout() }
 
     fun toggleStat(stat: StatType, current: List<StatType>) =

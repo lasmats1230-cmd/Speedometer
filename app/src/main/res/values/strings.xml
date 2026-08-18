@@ -365,4 +365,27 @@
     <string name="widget_lifetime">Lifetime</string>
     <string name="widget_open">Open Speedometer</string>
     <string name="widget_description">This week and all-time distance, with a tap to open the app.</string>
+    <string name="import_trip">Import a trip (GPX)</string>
+    <string name="imported_trip">Imported “%1$s”</string>
+    <string name="import_no_times">That file has no timestamps, so it is a route rather than a trip. Import it under Tools.</string>
+    <string name="layout_hud">Mirror the speed (head-up display)</string>
+    <string name="layout_hud_summary">Flips the number so it reads correctly reflected in a windscreen.</string>
+    <!-- First run -->
+    <string name="onboarding_title">Welcome to Speedometer</string>
+    <string name="onboarding_intro">A speedometer and trip tracker that works without an account.</string>
+    <string name="onboarding_location">Location is used to measure speed, distance and the route you took.</string>
+    <string name="onboarding_background">Recording carries on with the screen off, and the battery modes trade pixels rather than accuracy.</string>
+    <string name="onboarding_privacy">Everything stays on this device. Nothing is uploaded, and there is no analytics or advertising.</string>
+    <string name="onboarding_grant">Allow location</string>
+    <string name="onboarding_later">Not now</string>
+
+    <!-- Background reliability -->
+    <string name="settings_background">Background reliability</string>
+    <string name="settings_background_unrestricted">Unrestricted — long recordings will not be cut short</string>
+    <string name="settings_background_restricted">Battery optimisation may stop long recordings</string>
+    <string name="period_last_week">last week</string>
+    <string name="period_last_month">last month</string>
+    <string name="period_last_year">last year</string>
+    <string name="stats_up_on_previous">%1$d%% further than %2$s</string>
+    <string name="stats_down_on_previous">%1$d%% less than %2$s</string>
 </resources>

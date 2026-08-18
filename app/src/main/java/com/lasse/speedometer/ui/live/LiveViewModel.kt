@@ -51,6 +51,8 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
     fun setActivity(activity: ActivityType) =
         viewModelScope.launch { settingsRepository.setActivity(activity) }
 
+    fun markOnboarded() = viewModelScope.launch { settingsRepository.setOnboarded(true) }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val followedRoute: StateFlow<List<LatLng>> = ActiveRoute.routeId
         .flatMapLatest { id ->

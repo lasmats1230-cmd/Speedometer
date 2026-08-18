@@ -2,6 +2,8 @@ package com.lasse.speedometer.ui.history
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,8 +11,11 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.app
 import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.TourEntity
+import com.lasse.speedometer.data.io.RouteParser
+import com.lasse.speedometer.data.io.TrackImporter
 import com.lasse.speedometer.data.repo.TourSummary
 import com.lasse.speedometer.data.repo.TripListItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** One-shot things the screen has to react to, like a snackbar or a chooser. */
 sealed interface HistoryEvent {
@@ -116,6 +122,51 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
 
     fun setActivityFilter(value: ActivityType?) {
         _activityFilter.value = value
+    }
+
+    /**
+     * Reads a GPX or TCX recording into history.
+     *
+     * Files without timestamps are routes, not trips — they are the Tools
+     * screen's business — so this says so rather than storing a trip that
+     * happened at the epoch.
+     */
+    fun importTrip(
+        uri: Uri,
+        activity: ActivityType,
+        successTemplate: String,
+        noTimes: String,
+        failure: String,
+    ) = viewModelScope.launch {
+        val context = getApplication<Application>()
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                val name = displayName(uri)
+                val points = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    RouteParser.readTrack(stream)
+                } ?: error("Could not open $uri")
+                name to TrackImporter.build(points)
+            }
+        }
+        result
+            .onSuccess { (name, imported) ->
+                if (imported == null) {
+                    _events.emit(HistoryEvent.Message(noTimes))
+                    return@onSuccess
+                }
+                repository.saveTrip(imported.summary, imported.points, activity, name)
+                _events.emit(HistoryEvent.Message(successTemplate.format(name)))
+            }
+            .onFailure { _events.emit(HistoryEvent.Message(failure)) }
+    }
+
+    private fun displayName(uri: Uri): String {
+        val context = getApplication<Application>()
+        val name = context.contentResolver
+            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+        return (name ?: uri.lastPathSegment.orEmpty()).substringBeforeLast('.')
+            .ifBlank { "Trip" }
     }
 
     fun deleteTrip(id: Long) = viewModelScope.launch { repository.deleteTrip(id) }

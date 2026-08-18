@@ -266,6 +266,34 @@ fun SettingsScreen(
 
         item("recording") {
             SettingsSection(stringResource(R.string.settings_recording)) {
+                // Aggressive battery optimisation is the single most common
+                // reason a long recording stops early, and the fix is two taps
+                // away in a screen nobody knows exists.
+                val powerManager = LocalContext.current
+                    .getSystemService(android.os.PowerManager::class.java)
+                val unrestricted = powerManager
+                    ?.isIgnoringBatteryOptimizations(LocalContext.current.packageName) == true
+                val batterySettingsContext = LocalContext.current
+                NavigationRow(
+                    title = stringResource(R.string.settings_background),
+                    subtitle = stringResource(
+                        if (unrestricted) {
+                            R.string.settings_background_unrestricted
+                        } else {
+                            R.string.settings_background_restricted
+                        }
+                    ),
+                    onClick = {
+                        runCatching {
+                            batterySettingsContext.startActivity(
+                                android.content.Intent(
+                                    android.provider.Settings
+                                        .ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                                )
+                            )
+                        }
+                    },
+                )
                 SwitchRow(
                     title = stringResource(R.string.settings_auto_pause),
                     subtitle = stringResource(R.string.settings_auto_pause_summary),

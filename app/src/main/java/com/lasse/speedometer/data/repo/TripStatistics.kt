@@ -11,11 +11,15 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 /** The window the statistics screen is looking at. */
-enum class StatsPeriod(@param:StringRes val labelRes: Int) {
-    WEEK(R.string.period_week),
-    MONTH(R.string.period_month),
-    YEAR(R.string.period_year),
-    ALL(R.string.period_all),
+enum class StatsPeriod(
+    @param:StringRes val labelRes: Int,
+    /** How the window before this one is named in a comparison. */
+    @param:StringRes val previousLabelRes: Int,
+) {
+    WEEK(R.string.period_week, R.string.period_last_week),
+    MONTH(R.string.period_month, R.string.period_last_month),
+    YEAR(R.string.period_year, R.string.period_last_year),
+    ALL(R.string.period_all, R.string.period_all),
 }
 
 /** Everything totalled over a set of trips. */
@@ -91,6 +95,35 @@ object StatsCalculator {
             StatsPeriod.ALL -> return null
         }
         return start.atStartOfDay(zone).toInstant().toEpochMilli()
+    }
+
+    /**
+     * The same window, one period earlier — last week, last month, last year.
+     * All time has nothing before it, so it compares with nothing.
+     */
+    fun previousPeriodTrips(
+        trips: List<TripEntity>,
+        period: StatsPeriod,
+        now: Long,
+        zone: ZoneId,
+    ): List<TripEntity> {
+        if (period == StatsPeriod.ALL) return emptyList()
+        val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val start = when (period) {
+            StatsPeriod.WEEK -> today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek()))
+            StatsPeriod.MONTH -> today.withDayOfMonth(1)
+            StatsPeriod.YEAR -> today.withDayOfYear(1)
+            StatsPeriod.ALL -> return emptyList()
+        }
+        val previousStart = when (period) {
+            StatsPeriod.WEEK -> start.minusWeeks(1)
+            StatsPeriod.MONTH -> start.minusMonths(1)
+            StatsPeriod.YEAR -> start.minusYears(1)
+            StatsPeriod.ALL -> return emptyList()
+        }
+        val from = previousStart.atStartOfDay(zone).toInstant().toEpochMilli()
+        val until = start.atStartOfDay(zone).toInstant().toEpochMilli()
+        return trips.filter { it.startedAt in from until until }
     }
 
     fun totals(trips: List<TripEntity>, zone: ZoneId): Totals {

@@ -94,6 +94,11 @@ data class LayoutSettings(
     val showStatusChip: Boolean = true,
     /** Tiles per row; fewer means larger, more readable numbers. */
     val statColumns: Int = 3,
+    /**
+     * Mirrors the speed readout so it reads the right way round reflected in
+     * a windscreen. Off by default, because on a handlebar it is nonsense.
+     */
+    val hudMirror: Boolean = false,
 )
 
 data class AppSettings(
@@ -124,6 +129,8 @@ data class AppSettings(
     val voiceIntervalM: Double = 0.0,
     /** Metres per week the user is aiming for; zero is no goal. */
     val weeklyGoalM: Double = 0.0,
+    /** Whether the first-run introduction has been shown. */
+    val onboarded: Boolean = false,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
@@ -146,6 +153,7 @@ class SettingsRepository(private val context: Context) {
         val SHOW_TIMER = booleanPreferencesKey("show_timer")
         val SHOW_STATUS_CHIP = booleanPreferencesKey("show_status_chip")
         val STAT_COLUMNS = intPreferencesKey("stat_columns")
+        val HUD_MIRROR = booleanPreferencesKey("hud_mirror")
         val BATTERY_SAVER = stringPreferencesKey("battery_saver")
         val DIM_DELAY = intPreferencesKey("dim_delay")
         val ACTIVITY = stringPreferencesKey("activity")
@@ -154,6 +162,7 @@ class SettingsRepository(private val context: Context) {
         val MAP_STYLE = stringPreferencesKey("map_style")
         val VOICE_INTERVAL = floatPreferencesKey("voice_interval_m")
         val WEEKLY_GOAL = floatPreferencesKey("weekly_goal_m")
+        val ONBOARDED = booleanPreferencesKey("onboarded")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
@@ -178,12 +187,14 @@ class SettingsRepository(private val context: Context) {
                 showTimer = prefs[Keys.SHOW_TIMER] ?: defaults.showTimer,
                 showStatusChip = prefs[Keys.SHOW_STATUS_CHIP] ?: defaults.showStatusChip,
                 statColumns = prefs[Keys.STAT_COLUMNS] ?: defaults.statColumns,
+                hudMirror = prefs[Keys.HUD_MIRROR] ?: defaults.hudMirror,
             ),
             batterySaver = prefs[Keys.BATTERY_SAVER].toEnum(BatterySaverMode.OFF),
             dimDelaySeconds = prefs[Keys.DIM_DELAY] ?: 10,
             mapStyle = prefs[Keys.MAP_STYLE].toEnum(MapStyle.AUTOMATIC),
             voiceIntervalM = (prefs[Keys.VOICE_INTERVAL] ?: 0f).toDouble(),
             weeklyGoalM = (prefs[Keys.WEEKLY_GOAL] ?: 0f).toDouble(),
+            onboarded = prefs[Keys.ONBOARDED] ?: false,
         )
     }
 
@@ -203,6 +214,8 @@ class SettingsRepository(private val context: Context) {
     suspend fun setWeeklyGoal(metres: Double) =
         edit { it[Keys.WEEKLY_GOAL] = metres.coerceAtLeast(0.0).toFloat() }
 
+    suspend fun setOnboarded(value: Boolean) = edit { it[Keys.ONBOARDED] = value }
+
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME] = value.name }
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }
     suspend fun setAccentColor(value: AccentColor) = edit { it[Keys.ACCENT_COLOR] = value.name }
@@ -217,6 +230,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setShowTimer(value: Boolean) = edit { it[Keys.SHOW_TIMER] = value }
     suspend fun setShowStatusChip(value: Boolean) = edit { it[Keys.SHOW_STATUS_CHIP] = value }
     suspend fun setStatColumns(value: Int) = edit { it[Keys.STAT_COLUMNS] = value.coerceIn(1, 4) }
+    suspend fun setHudMirror(value: Boolean) = edit { it[Keys.HUD_MIRROR] = value }
     suspend fun setBatterySaver(value: BatterySaverMode) =
         edit { it[Keys.BATTERY_SAVER] = value.name }
 
@@ -256,6 +270,7 @@ class SettingsRepository(private val context: Context) {
         it.remove(Keys.SHOW_TIMER)
         it.remove(Keys.SHOW_STATUS_CHIP)
         it.remove(Keys.STAT_COLUMNS)
+        it.remove(Keys.HUD_MIRROR)
     }
 
     private fun decodeStats(raw: String): List<StatType> = raw

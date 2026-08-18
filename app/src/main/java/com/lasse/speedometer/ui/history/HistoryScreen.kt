@@ -1,6 +1,8 @@
 package com.lasse.speedometer.ui.history
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +23,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.outlined.Luggage
@@ -112,9 +113,28 @@ fun HistoryScreen(
     }
 
     val downloadTemplate = stringResource(R.string.imported_route)
+    val importedTrip = stringResource(R.string.imported_trip)
+    val importNoTimes = stringResource(R.string.import_no_times)
+    val importFailed = stringResource(R.string.import_failed)
     val exportFailed = stringResource(R.string.export_failed)
     val syncedMessage = stringResource(R.string.synced)
     val healthUnavailable = stringResource(R.string.health_unavailable)
+
+    // GPX and TCX have no dependable MIME type across file pickers, so
+    // anything is accepted and the parser decides.
+    val tripPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importTrip(
+                uri = uri,
+                activity = settings.activity,
+                successTemplate = importedTrip,
+                noTimes = importNoTimes,
+                failure = importFailed,
+            )
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTitle(
@@ -149,12 +169,27 @@ fun HistoryScreen(
                             }
                         }
                     }
-                    IconButton(onClick = { confirmDeleteAll = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.DeleteSweep,
-                            contentDescription = stringResource(R.string.delete_all),
-                        )
-                    }
+                }
+                if (selectedTab == 0) {
+                    OverflowMenu(
+                        actions = buildList {
+                            add(
+                                MenuAction(stringResource(R.string.import_trip)) {
+                                    tripPicker.launch(arrayOf("*/*"))
+                                }
+                            )
+                            if (hasAnyTrips) {
+                                add(
+                                    MenuAction(
+                                        label = stringResource(R.string.delete_all),
+                                        destructive = true,
+                                        onClick = { confirmDeleteAll = true },
+                                    )
+                                )
+                            }
+                        },
+                        contentDescription = stringResource(R.string.more),
+                    )
                 }
             },
         )

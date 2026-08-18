@@ -57,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -167,6 +168,17 @@ fun LiveScreen(
         return
     }
 
+    // First run: say what the app does before asking for anything.
+    if (!settings.onboarded) {
+        OnboardingDialog(
+            onGrantLocation = {
+                viewModel.markOnboarded()
+                if (!hasLocationPermission) permissionLauncher.launch(locationPermissions())
+            },
+            onDismiss = viewModel::markOnboarded,
+        )
+    }
+
     val track = remember(state.pointCount) {
         state.track.map { LatLng(it.latitude, it.longitude) }
     }
@@ -228,6 +240,9 @@ fun LiveScreen(
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
+                // Head-up display: the phone lies face up on the dashboard and
+                // the windscreen does the flipping back.
+                modifier = if (layout.hudMirror) Modifier.mirrored() else Modifier,
             )
             Text(
                 text = if (overLimit) {
@@ -605,6 +620,9 @@ private fun ControlButton(
         }
     }
 }
+
+/** Flips a composable horizontally, for reading a reflection. */
+internal fun Modifier.mirrored(): Modifier = graphicsLayer(scaleX = -1f)
 
 private val CONTROL_SIZE = 68.dp
 private val CONTROL_ICON_SIZE = 30.dp

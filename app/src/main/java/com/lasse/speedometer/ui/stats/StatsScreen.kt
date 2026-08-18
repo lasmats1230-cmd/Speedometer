@@ -86,6 +86,12 @@ fun StatsScreen(
         StatsCalculator.tripsIn(trips, period, now, zone)
     }
     val totals = remember(periodTrips) { StatsCalculator.totals(periodTrips, zone) }
+    val previous = remember(trips, period, now) {
+        StatsCalculator.totals(
+            StatsCalculator.previousPeriodTrips(trips, period, now, zone),
+            zone,
+        )
+    }
     val breakdown = remember(periodTrips) { StatsCalculator.breakdown(periodTrips, zone) }
     val trend = remember(periodTrips, period, now) {
         StatsCalculator.trend(periodTrips, period, now, zone)
@@ -155,7 +161,12 @@ fun StatsScreen(
             }
 
             item("totals") {
-                SummaryCard(totals = totals, settings = settings, period = period)
+                SummaryCard(
+                    totals = totals,
+                    previous = previous,
+                    settings = settings,
+                    period = period,
+                )
             }
 
             item("trend") {
@@ -248,7 +259,12 @@ fun StatsScreen(
 }
 
 @Composable
-private fun SummaryCard(totals: Totals, settings: AppSettings, period: StatsPeriod) {
+private fun SummaryCard(
+    totals: Totals,
+    previous: Totals,
+    settings: AppSettings,
+    period: StatsPeriod,
+) {
     val units = settings.units
     SectionCard(title = stringResource(period.labelRes)) {
         if (totals.isEmpty) {
@@ -276,6 +292,28 @@ private fun SummaryCard(totals: Totals, settings: AppSettings, period: StatsPeri
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // Against the same window a period ago, which is the only comparison
+        // that means anything: 40 km is a lot or a little depending on what
+        // last week looked like.
+        if (!previous.isEmpty) {
+            Spacer(Modifier.height(6.dp))
+            val change = (totals.distanceM - previous.distanceM) / previous.distanceM
+            val percent = (change * 100).roundToInt()
+            Text(
+                text = stringResource(
+                    if (percent >= 0) R.string.stats_up_on_previous else R.string.stats_down_on_previous,
+                    kotlin.math.abs(percent),
+                    stringResource(period.previousLabelRes),
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (percent >= 0) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+
         Spacer(Modifier.height(14.dp))
 
         val tiles = listOf(

@@ -126,6 +126,12 @@ fun LayoutSettingsScreen(
                         onCheckedChange = viewModel::setShowStatusChip,
                     )
                     SwitchRow(
+                        title = stringResource(R.string.layout_hud),
+                        subtitle = stringResource(R.string.layout_hud_summary),
+                        checked = layout.hudMirror,
+                        onCheckedChange = viewModel::setHudMirror,
+                    )
+                    SwitchRow(
                         title = stringResource(R.string.layout_show_timer),
                         checked = layout.showTimer,
                         onCheckedChange = viewModel::setShowTimer,
