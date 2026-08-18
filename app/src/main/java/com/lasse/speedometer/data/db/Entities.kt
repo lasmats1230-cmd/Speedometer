@@ -55,6 +55,14 @@ data class TripEntity(
      * from history and statistics until they are finished or recovered.
      */
     @ColumnInfo(defaultValue = "0") val inProgress: Boolean = false,
+    /**
+     * A few dozen points of the track, encoded, for the list thumbnail.
+     *
+     * Kept on the trip so drawing history does not mean reading its track
+     * points back out of the database — see
+     * [com.lasse.speedometer.data.repo.TrackSketch].
+     */
+    @ColumnInfo(defaultValue = "''") val sketch: String = "",
 ) {
     val activityType: ActivityType get() = ActivityType.fromName(activity)
 }

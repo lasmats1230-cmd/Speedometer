@@ -43,10 +43,11 @@ class MigrationTest {
         SpeedometerDatabase.MIGRATION_1_2,
         SpeedometerDatabase.MIGRATION_2_3,
         SpeedometerDatabase.MIGRATION_3_4,
+        SpeedometerDatabase.MIGRATION_4_5,
     )
 
     @Test
-    fun `a version one database migrates all the way to four`() {
+    fun `a version one database migrates all the way to the current one`() {
         helper.createDatabase(DATABASE, 1).use { database ->
             database.execSQL(
                 """
@@ -70,17 +71,20 @@ class MigrationTest {
             )
         }
 
-        val migrated = helper.runMigrationsAndValidate(DATABASE, 4, true, *migrations)
+        val migrated = helper.runMigrationsAndValidate(DATABASE, 5, true, *migrations)
 
         // The trip survived, and the columns added along the way defaulted the
         // way an existing recording needs them to.
-        migrated.query("SELECT title, activity, note, inProgress FROM trips").use { cursor ->
-            assertTrue("The trip did not survive the migrations", cursor.moveToFirst())
-            assertEquals("Ride to the lake", cursor.getString(0))
-            assertEquals("RIDE", cursor.getString(1))
-            assertTrue("A migrated trip has no note", cursor.isNull(2))
-            assertEquals(0, cursor.getInt(3))
-        }
+        migrated.query("SELECT title, activity, note, inProgress, sketch FROM trips")
+            .use { cursor ->
+                assertTrue("The trip did not survive the migrations", cursor.moveToFirst())
+                assertEquals("Ride to the lake", cursor.getString(0))
+                assertEquals("RIDE", cursor.getString(1))
+                assertTrue("A migrated trip has no note", cursor.isNull(2))
+                assertEquals(0, cursor.getInt(3))
+                // Filled in on first launch rather than in the migration.
+                assertEquals("", cursor.getString(4))
+            }
 
         migrated.query("SELECT COUNT(*) FROM track_points").use { cursor ->
             cursor.moveToFirst()
@@ -106,20 +110,21 @@ class MigrationTest {
 
         helper.runMigrationsAndValidate(DATABASE, 2, true, SpeedometerDatabase.MIGRATION_1_2)
         helper.runMigrationsAndValidate(DATABASE, 3, true, SpeedometerDatabase.MIGRATION_2_3)
-        val four = helper.runMigrationsAndValidate(
+        helper.runMigrationsAndValidate(DATABASE, 4, true, SpeedometerDatabase.MIGRATION_3_4)
+        val five = helper.runMigrationsAndValidate(
             DATABASE,
-            4,
+            5,
             true,
-            SpeedometerDatabase.MIGRATION_3_4,
+            SpeedometerDatabase.MIGRATION_4_5,
         )
 
-        assertEquals(4, four.version)
+        assertEquals(5, five.version)
     }
 
     @Test
     fun `an in-progress trip is hidden from history but still in the table`() {
         helper.createDatabase(DATABASE, 1).close()
-        val migrated = helper.runMigrationsAndValidate(DATABASE, 4, true, *migrations)
+        val migrated = helper.runMigrationsAndValidate(DATABASE, 5, true, *migrations)
 
         migrated.execSQL(
             """

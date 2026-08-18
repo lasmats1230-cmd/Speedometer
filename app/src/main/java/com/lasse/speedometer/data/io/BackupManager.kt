@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.lasse.speedometer.data.db.SpeedometerDatabase
 import com.lasse.speedometer.data.db.TourEntity
+import com.lasse.speedometer.data.repo.TrackSketch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -154,7 +155,15 @@ class BackupManager(
                 return@forEach
             }
             val tripId = tripDao.insertTrip(
-                entry.trip.copy(id = 0, tourId = entry.trip.tourId?.let { tourIds[it] })
+                entry.trip.copy(
+                    id = 0,
+                    tourId = entry.trip.tourId?.let { tourIds[it] },
+                    // Backups predating the stored thumbnail carry none, so it
+                    // is derived from the track that came with them.
+                    sketch = entry.trip.sketch.ifBlank {
+                        TrackSketch.encode(entry.points.map { it.latitude to it.longitude })
+                    },
+                )
             )
             entry.points
                 .map { it.copy(id = 0, tripId = tripId) }

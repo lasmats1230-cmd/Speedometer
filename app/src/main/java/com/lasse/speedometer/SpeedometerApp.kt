@@ -9,6 +9,10 @@ import com.lasse.speedometer.data.prefs.SettingsRepository
 import com.lasse.speedometer.data.repo.TripRepository
 import com.lasse.speedometer.health.HealthConnectManager
 import com.lasse.speedometer.util.AppLocale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.maplibre.android.MapLibre
 
 /**
@@ -54,6 +58,13 @@ class SpeedometerApp : Application() {
         // taking the whole app down at startup would lose all of them over a
         // basemap.
         mapsAvailable = runCatching { MapLibre.getInstance(this) }.isSuccess
+
+        // Trips recorded before thumbnails were stored get theirs derived
+        // once, in the background, so the history list never has to read a
+        // track again.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching { tripRepository.backfillSketches() }
+        }
     }
 }
 

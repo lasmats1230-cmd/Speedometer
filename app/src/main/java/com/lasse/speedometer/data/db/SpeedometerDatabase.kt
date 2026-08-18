@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RouteEntity::class,
         WaypointEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class SpeedometerDatabase : RoomDatabase() {
@@ -90,13 +90,27 @@ abstract class SpeedometerDatabase : RoomDatabase() {
         const val ADD_IN_PROGRESS =
             "ALTER TABLE `trips` ADD COLUMN `inProgress` INTEGER NOT NULL DEFAULT 0"
 
+        /**
+         * Adds the thumbnail sketch. Existing trips get an empty one and are
+         * filled in on first read, since deriving thousands of them inside a
+         * migration would stall the first launch after an update.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(ADD_SKETCH)
+            }
+        }
+
+        const val ADD_SKETCH =
+            "ALTER TABLE `trips` ADD COLUMN `sketch` TEXT NOT NULL DEFAULT ''"
+
         fun get(context: Context): SpeedometerDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     SpeedometerDatabase::class.java,
                     "speedometer.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { instance = it }
             }

@@ -15,7 +15,6 @@ import com.lasse.speedometer.tracking.TrackPoint
 import com.lasse.speedometer.tracking.TripSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -36,16 +35,15 @@ class TripRepository(
 
     val trips: Flow<List<TripEntity>> = tripDao.observeTrips()
 
-    val tripListItems: Flow<List<TripListItem>> =
-        combine(tripDao.observeTrips(), tripDao.observeThumbnailPoints()) { trips, points ->
-            val byTrip = points.groupBy { it.tripId }
-            trips.map { trip ->
-                TripListItem(
-                    trip = trip,
-                    thumbnail = byTrip[trip.id].orEmpty().map { it.latitude to it.longitude },
-                )
-            }
+    /**
+     * The history list. The sketch each row draws is stored on the trip, so
+     * this reads one table and no track points at all.
+     */
+    val tripListItems: Flow<List<TripListItem>> = tripDao.observeTrips().map { trips ->
+        trips.map { trip ->
+            TripListItem(trip = trip, thumbnail = TrackSketch.decode(trip.sketch))
         }
+    }
 
     val tours: Flow<List<TourWithTrips>> = tourDao.observeToursWithTrips()
 
@@ -114,8 +112,26 @@ class TripRepository(
                     cumulativeDistanceM = point.cumulativeDistanceM,
                 )
             }.chunked(500).forEach { tripDao.insertPoints(it) }
+            tripDao.setTripSketch(tripId, sketchOf(points.map { it.latitude to it.longitude }))
             tripId
         }
+
+    /**
+     * Fills in thumbnails for trips recorded before they were stored.
+     *
+     * Done once, in the background, rather than inside the migration: a
+     * hundred rides is a hundred track reads, and doing that while the user
+     * waits for the app to open after an update is the wrong trade.
+     */
+    suspend fun backfillSketches() = withContext(Dispatchers.IO) {
+        tripDao.tripsWithoutSketch().forEach { tripId ->
+            val points = tripDao.getPoints(tripId).map { it.latitude to it.longitude }
+            if (points.size >= 2) tripDao.setTripSketch(tripId, sketchOf(points))
+        }
+    }
+
+    private fun sketchOf(points: List<Pair<Double, Double>>): String =
+        if (points.size >= 2) TrackSketch.encode(points) else ""
 
     /** The row a recording is being written into, if a recording is under way. */
     val inProgressTrip: Flow<TripEntity?> = tripDao.observeInProgress()
@@ -190,12 +206,16 @@ class TripRepository(
         points: List<TrackPoint>,
     ) = withContext(Dispatchers.IO) {
         appendRecording(tripId, summary, points)
+        tripDao.setTripSketch(tripId, sketchOf(points.map { it.latitude to it.longitude }))
         tripDao.finishTrip(tripId)
     }
 
     /** Ends a recording that was interrupted, keeping whatever was written. */
-    suspend fun recoverRecording(tripId: Long) =
-        withContext(Dispatchers.IO) { tripDao.finishTrip(tripId) }
+    suspend fun recoverRecording(tripId: Long) = withContext(Dispatchers.IO) {
+        val points = tripDao.getPoints(tripId).map { it.latitude to it.longitude }
+        tripDao.setTripSketch(tripId, sketchOf(points))
+        tripDao.finishTrip(tripId)
+    }
 
     suspend fun discardRecording(tripId: Long) =
         withContext(Dispatchers.IO) { tripDao.deleteTrip(tripId) }

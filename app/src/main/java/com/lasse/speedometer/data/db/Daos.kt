@@ -71,6 +71,13 @@ interface TripDao {
     @Query("UPDATE trips SET activity = :activity WHERE id = :tripId")
     suspend fun setTripActivity(tripId: Long, activity: String)
 
+    @Query("UPDATE trips SET sketch = :sketch WHERE id = :tripId")
+    suspend fun setTripSketch(tripId: Long, sketch: String)
+
+    /** The ids of trips saved before sketches existed, to fill in. */
+    @Query("SELECT id FROM trips WHERE sketch = '' AND inProgress = 0")
+    suspend fun tripsWithoutSketch(): List<Long>
+
     @Query("UPDATE trips SET syncedToHealth = 1 WHERE id = :tripId")
     suspend fun markSynced(tripId: Long)
 
@@ -88,19 +95,6 @@ interface TripDao {
 
     @Query("SELECT * FROM track_points WHERE tripId = :tripId ORDER BY timestamp ASC")
     fun observePoints(tripId: Long): Flow<List<TrackPointEntity>>
-
-    /**
-     * Every fourth point of every trip — enough resolution for the list
-     * thumbnails, a fraction of the rows.
-     */
-    @Query(
-        """
-        SELECT tripId, latitude, longitude FROM track_points
-        WHERE id % 4 = 0
-        ORDER BY tripId ASC, timestamp ASC
-        """
-    )
-    fun observeThumbnailPoints(): Flow<List<TrackPointLite>>
 
     /** Decimated tracks for a set of trips, for drawing a tour on one map. */
     @Query(
