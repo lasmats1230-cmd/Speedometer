@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.view.View
 import android.widget.RemoteViews
 import com.lasse.speedometer.MainActivity
 import com.lasse.speedometer.R
@@ -58,8 +59,42 @@ class SpeedometerWidget : AppWidgetProvider() {
                     zone,
                 )
                 val lifetime = StatsCalculator.totals(trips, zone)
+                val goalM = settings.weeklyGoalM
+                val streak = StatsCalculator.currentStreak(trips, now, zone)
+
+                // "of 100 km · 3 days in a row" — whichever halves apply. One
+                // day is not a streak, it is today.
+                val caption = listOfNotNull(
+                    goalM.takeIf { it > 0 }?.let {
+                        localised.getString(
+                            R.string.widget_goal,
+                            Formatters.distance(it, settings.units),
+                        )
+                    },
+                    streak.takeIf { it > 1 }?.let {
+                        localised.resources.getQuantityString(R.plurals.today_streak, it, it)
+                    },
+                ).joinToString(" · ")
 
                 val views = RemoteViews(context.packageName, R.layout.widget_speedometer).apply {
+                    if (goalM > 0) {
+                        setProgressBar(
+                            R.id.widget_goal_bar,
+                            GOAL_STEPS,
+                            ((week.distanceM / goalM) * GOAL_STEPS)
+                                .toInt()
+                                .coerceIn(0, GOAL_STEPS),
+                            false,
+                        )
+                        setViewVisibility(R.id.widget_goal_bar, View.VISIBLE)
+                    } else {
+                        setViewVisibility(R.id.widget_goal_bar, View.GONE)
+                    }
+                    setTextViewText(R.id.widget_goal_text, caption)
+                    setViewVisibility(
+                        R.id.widget_goal_text,
+                        if (caption.isEmpty()) View.GONE else View.VISIBLE,
+                    )
                     setTextViewText(
                         R.id.widget_week_value,
                         Formatters.distance(week.distanceM, settings.units),
@@ -98,6 +133,9 @@ class SpeedometerWidget : AppWidgetProvider() {
 
     companion object {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        /** A progress bar wants whole steps; a hundred is finer than the pixels. */
+        private const val GOAL_STEPS = 100
 
         /** Redraws every placed widget — called when a trip lands. */
         fun refresh(context: Context) {

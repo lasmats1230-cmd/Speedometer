@@ -368,6 +368,7 @@
     <string name="shortcut_start_long">Start recording a trip</string>
     <string name="widget_this_week">This week</string>
     <string name="widget_lifetime">Lifetime</string>
+    <string name="widget_goal">of %1$s</string>
     <string name="widget_open">Open Speedometer</string>
     <string name="widget_description">This week and all-time distance, with a tap to open the app.</string>
     <string name="import_trip">Import a trip (GPX)</string>

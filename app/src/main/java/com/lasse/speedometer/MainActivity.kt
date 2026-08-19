@@ -24,6 +24,7 @@ import com.lasse.speedometer.ui.ImmersiveMode
 import com.lasse.speedometer.ui.nav.SpeedometerNavHost
 import com.lasse.speedometer.ui.theme.SpeedometerTheme
 import com.lasse.speedometer.util.AppLocale
+import com.lasse.speedometer.widget.SpeedometerWidget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
@@ -50,6 +51,16 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleShortcut(intent)
+    }
+
+    /**
+     * The widget reads the units and the weekly goal, and both are changed
+     * from inside the app. Redrawing on the way out covers that without the
+     * settings layer having to know a widget exists.
+     */
+    override fun onStop() {
+        super.onStop()
+        SpeedometerWidget.refresh(this)
     }
 
     /** Applies the in-app language before any resource is resolved. */

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Navigation -->
     <string name="nav_live">Live</string>
     <string name="nav_history">Verlauf</string>
@@ -372,6 +372,7 @@
     <string name="shortcut_start_long">Aufzeichnung einer Fahrt starten</string>
     <string name="widget_this_week">Diese Woche</string>
     <string name="widget_lifetime">Insgesamt</string>
+    <string name="widget_goal">von %1$s</string>
     <string name="widget_open">Speedometer öffnen</string>
     <string name="widget_description">Strecke dieser Woche und insgesamt, mit einem Tipp zum Öffnen.</string>
     <string name="import_trip">Fahrt importieren (GPX)</string>
@@ -445,7 +446,11 @@
     <string name="today_week">%1$s diese Woche</string>
     <string name="today_goal_left">Noch %1$s diese Woche</string>
     <string name="today_goal_done">Wochenziel erreicht</string>
-    <plurals name="today_streak">
+    <!--
+      "in Folge" is right here — lint's German dictionary confuses it with
+      "infolge", which means "as a result of" and is a different word.
+    -->
+    <plurals name="today_streak" tools:ignore="Typos">
         <item quantity="one">%1$d Tag in Folge</item>
         <item quantity="other">%1$d Tage in Folge</item>
     </plurals>
