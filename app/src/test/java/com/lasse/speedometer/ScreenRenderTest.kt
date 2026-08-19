@@ -13,13 +13,17 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.lasse.speedometer.data.db.ActivityType
+import com.lasse.speedometer.data.db.RouteEntity
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.tracking.TripSummary
 import com.lasse.speedometer.ui.history.HistoryScreen
+import com.lasse.speedometer.ui.live.ActiveRoute
 import com.lasse.speedometer.ui.settings.SettingsScreen
 import com.lasse.speedometer.ui.stats.StatsScreen
+import com.lasse.speedometer.ui.tools.RouteDetailScreen
 import com.lasse.speedometer.ui.theme.SpeedometerTheme
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -206,6 +210,52 @@ class ScreenRenderTest {
         compose.onNodeWithText("Start a recording").performClick()
 
         assertTrue("The empty state's button did nothing", started)
+    }
+
+    @Test
+    fun `an imported route opens on its figures and a way to follow it`() {
+        // Eleven points running north, climbing 100 m over about a kilometre.
+        val encoded = (0..10).joinToString(";") { index ->
+            "${50.0 + index * 0.0008993},8.0,${100 + index * 10}"
+        }
+        val routeId = runBlocking {
+            app.tripRepository.insertRoute(
+                RouteEntity(
+                    name = "Sunday loop",
+                    importedAt = System.currentTimeMillis(),
+                    distanceM = 1_000.0,
+                    ascentM = 100.0,
+                    encodedPoints = encoded,
+                )
+            )
+        }
+        var followed = false
+
+        compose.setContent {
+            SpeedometerTheme {
+                RouteDetailScreen(
+                    routeId = routeId,
+                    settings = settings,
+                    onBack = {},
+                    onFollow = { followed = true },
+                )
+            }
+        }
+
+        compose.awaitText("Sunday loop")
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Follow on live view"))
+        compose.onNodeWithText("Follow on live view").performClick()
+
+        assertTrue("Following a route did not open the live view", followed)
+        assertEquals(routeId, ActiveRoute.routeId.value)
+
+        // The high point is read from the decoded points, not from the row,
+        // which only stores distance and ascent.
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("200 m"))
+        compose.onNodeWithContentDescription("200 m", substring = true).assertIsDisplayed()
+
+        ActiveRoute.clear()
+        runBlocking { app.tripRepository.deleteRoute(routeId) }
     }
 }
 

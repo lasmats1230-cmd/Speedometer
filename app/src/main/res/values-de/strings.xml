@@ -266,6 +266,10 @@
     <string name="trip_name">Name der Fahrt</string>
     <string name="rename_trip">Fahrt umbenennen</string>
     <string name="rename_tour">Tour umbenennen</string>
+    <string name="rename_route">Route umbenennen</string>
+    <string name="route_name">Routenname</string>
+    <string name="delete_route_title">Route löschen?</string>
+    <string name="delete_route_message">Die importierte Route wird entfernt. Aufgezeichnete Fahrten bleiben erhalten.</string>
     <string name="change_activity">Aktivität ändern</string>
     <string name="share_summary">Zusammenfassung teilen</string>
     <string name="search_trips">Fahrten durchsuchen</string>

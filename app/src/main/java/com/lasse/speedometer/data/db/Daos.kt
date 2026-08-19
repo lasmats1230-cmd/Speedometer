@@ -175,6 +175,9 @@ interface RouteDao {
     @Insert
     suspend fun insertRoute(route: RouteEntity): Long
 
+    @Query("UPDATE routes SET name = :name WHERE id = :id")
+    suspend fun renameRoute(id: Long, name: String)
+
     @Query("DELETE FROM routes WHERE id = :id")
     suspend fun deleteRoute(id: Long)
 }

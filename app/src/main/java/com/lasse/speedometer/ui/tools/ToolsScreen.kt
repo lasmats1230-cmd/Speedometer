@@ -78,6 +78,7 @@ import com.lasse.speedometer.util.GeoMath
 fun ToolsScreen(
     settings: AppSettings,
     snackbarHostState: SnackbarHostState,
+    onOpenRoute: (Long) -> Unit,
     viewModel: ToolsViewModel = viewModel(),
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -125,6 +126,7 @@ fun ToolsScreen(
             else -> RoutesPane(
                 settings = settings,
                 viewModel = viewModel,
+                onOpenRoute = onOpenRoute,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -463,6 +465,7 @@ private fun PlacesPane(
 private fun RoutesPane(
     settings: AppSettings,
     viewModel: ToolsViewModel,
+    onOpenRoute: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val routes by viewModel.routes.collectAsState()
@@ -517,7 +520,7 @@ private fun RoutesPane(
 
                     ListCard(
                         selected = following,
-                        onClick = { ActiveRoute.toggle(route.id) },
+                        onClick = { onOpenRoute(route.id) },
                     ) {
                         Row(
                             modifier = Modifier.padding(

@@ -286,6 +286,9 @@ class TripRepository(
     suspend fun insertRoute(route: RouteEntity): Long =
         withContext(Dispatchers.IO) { routeDao.insertRoute(route) }
 
+    suspend fun renameRoute(id: Long, name: String) =
+        withContext(Dispatchers.IO) { routeDao.renameRoute(id, name) }
+
     suspend fun deleteRoute(id: Long) = withContext(Dispatchers.IO) { routeDao.deleteRoute(id) }
 
     suspend fun addWaypoint(

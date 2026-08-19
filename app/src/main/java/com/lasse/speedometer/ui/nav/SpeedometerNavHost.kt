@@ -44,6 +44,7 @@ import com.lasse.speedometer.ui.settings.LayoutSettingsScreen
 import com.lasse.speedometer.ui.settings.LicensesScreen
 import com.lasse.speedometer.ui.settings.SettingsScreen
 import com.lasse.speedometer.ui.stats.StatsScreen
+import com.lasse.speedometer.ui.tools.RouteDetailScreen
 import com.lasse.speedometer.ui.tools.ToolsScreen
 
 @Composable
@@ -129,7 +130,11 @@ private fun NavigationScaffold(settings: AppSettings) {
                     )
                 }
                 composable(Routes.TOOLS) {
-                    ToolsScreen(settings = settings, snackbarHostState = snackbarHostState)
+                    ToolsScreen(
+                        settings = settings,
+                        snackbarHostState = snackbarHostState,
+                        onOpenRoute = { navController.navigate(Routes.routeDetail(it)) },
+                    )
                 }
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
@@ -196,6 +201,25 @@ private fun NavigationScaffold(settings: AppSettings) {
                         settings = settings,
                         onBack = { navController.popBackStack() },
                         onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
+                    )
+                }
+                composable(
+                    route = Routes.ROUTE_DETAIL,
+                    arguments = listOf(navArgument("routeId") { type = NavType.LongType }),
+                    enterTransition = {
+                        slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(260))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(260))
+                    },
+                ) { entry ->
+                    RouteDetailScreen(
+                        routeId = entry.arguments?.getLong("routeId") ?: 0L,
+                        settings = settings,
+                        onBack = { navController.popBackStack() },
+                        // Following a route is something you do on the live
+                        // view, so choosing it here goes there.
+                        onFollow = { navController.switchTab(Routes.LIVE) },
                     )
                 }
             }

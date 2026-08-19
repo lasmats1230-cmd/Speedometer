@@ -2,6 +2,7 @@ package com.lasse.speedometer
 
 import com.lasse.speedometer.data.io.RoutePoint
 import com.lasse.speedometer.data.repo.RouteTracker
+import com.lasse.speedometer.ui.tools.elevationProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -61,5 +62,43 @@ class RouteTrackerTest {
     fun `a route needs at least two points to follow`() {
         assertNull(RouteTracker.progress(emptyList(), 50.0, 8.0))
         assertNull(RouteTracker.progress(listOf(route.first()), 50.0, 8.0))
+    }
+
+    @Test
+    fun `the elevation profile runs against distance travelled`() {
+        val climbing = List(11) { index ->
+            RoutePoint(50.0 + index * 0.0008993, 8.0, 100.0 + index * 10)
+        }
+
+        val samples = elevationProfile(climbing)
+
+        assertEquals(11, samples.size)
+        assertEquals(0f, samples.first().x, 0.001f)
+        assertEquals(100f, samples.first().y, 0.001f)
+        // Ten hops of about 100 m, so the axis ends near a kilometre.
+        assertEquals(1000f, samples.last().x, 40f)
+        assertEquals(200f, samples.last().y, 0.001f)
+    }
+
+    @Test
+    fun `points with no altitude are left out rather than drawn at zero`() {
+        val patchy = listOf(
+            RoutePoint(50.0, 8.0, 100.0),
+            RoutePoint(50.0008993, 8.0, null),
+            RoutePoint(50.0017986, 8.0, 140.0),
+        )
+
+        val samples = elevationProfile(patchy)
+
+        assertEquals(2, samples.size)
+        assertEquals(140f, samples.last().y, 0.001f)
+        // The gap still counts towards the distance axis: the rider covered it.
+        assertEquals(200f, samples.last().x, 20f)
+    }
+
+    @Test
+    fun `a route too short to draw produces no profile`() {
+        assertTrue(elevationProfile(emptyList()).isEmpty())
+        assertTrue(elevationProfile(listOf(RoutePoint(50.0, 8.0, 100.0))).isEmpty())
     }
 }
