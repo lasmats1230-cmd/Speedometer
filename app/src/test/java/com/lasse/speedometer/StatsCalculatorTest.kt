@@ -2,6 +2,7 @@ package com.lasse.speedometer
 
 import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.repo.RecordKind
 import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.data.repo.StatsPeriod
 import org.junit.After
@@ -264,6 +265,68 @@ class StatsCalculatorTest {
         )
 
         assertEquals(0, StatsCalculator.daySummary(trips, today, zone).streakDays)
+    }
+
+    @Test
+    fun `a trip that beats the longest and the fastest says both`() {
+        val earlier = listOf(
+            trip(at(2026, 4, 1, 6), distanceM = 40_000.0, maxSpeedMps = 15.0, ascentM = 800.0),
+            trip(at(2026, 4, 2, 6), distanceM = 20_000.0, maxSpeedMps = 12.0, ascentM = 200.0),
+        )
+        val today = trip(
+            at(2026, 4, 15, 6),
+            distanceM = 50_000.0,
+            maxSpeedMps = 18.0,
+            ascentM = 300.0,
+            durationMs = 3_600_000,
+        )
+
+        val beaten = StatsCalculator.personalBests(today, earlier)
+
+        assertEquals(listOf(RecordKind.DISTANCE, RecordKind.SPEED), beaten)
+    }
+
+    @Test
+    fun `the first trip ever is not a personal best`() {
+        val first = trip(at(2026, 4, 15, 6), distanceM = 50_000.0)
+
+        assertTrue(StatsCalculator.personalBests(first, emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `matching the previous best is not beating it`() {
+        val earlier = listOf(trip(at(2026, 4, 1, 6), distanceM = 40_000.0, maxSpeedMps = 15.0))
+        val same = trip(at(2026, 4, 15, 6), distanceM = 40_000.0, maxSpeedMps = 15.0)
+
+        assertTrue(StatsCalculator.personalBests(same, earlier).isEmpty())
+    }
+
+    @Test
+    fun `a metre of drift does not count as a biggest climb`() {
+        val earlier = listOf(trip(at(2026, 4, 1, 6), distanceM = 40_000.0, ascentM = 0.0))
+        val drifted = trip(at(2026, 4, 15, 6), distanceM = 10_000.0, ascentM = 0.5)
+
+        assertTrue(
+            "Half a metre of GPS noise was reported as a record",
+            RecordKind.CLIMB !in StatsCalculator.personalBests(drifted, earlier),
+        )
+    }
+
+    @Test
+    fun `a longer trip beats a longer time as well when both are longer`() {
+        val earlier = listOf(
+            trip(at(2026, 4, 1, 6), distanceM = 40_000.0, durationMs = 3_600_000)
+        )
+        val epic = trip(
+            at(2026, 4, 15, 6),
+            distanceM = 60_000.0,
+            durationMs = 7_200_000,
+            movingTimeMs = 7_200_000,
+            ascentM = 900.0,
+            maxSpeedMps = 20.0,
+        )
+
+        assertEquals(RecordKind.entries, StatsCalculator.personalBests(epic, earlier))
     }
 
     private val today: LocalDate = LocalDate.of(2026, 4, 15)

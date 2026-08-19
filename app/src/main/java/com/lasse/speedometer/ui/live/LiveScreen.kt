@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -74,6 +75,7 @@ import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.data.repo.DaySummary
+import com.lasse.speedometer.data.repo.RecordKind
 import com.lasse.speedometer.data.repo.RouteProgress
 import com.lasse.speedometer.data.repo.RouteTracker
 import com.lasse.speedometer.data.repo.StatsCalculator
@@ -128,11 +130,24 @@ fun LiveScreen(
     }
 
     val savedMessage = stringResource(R.string.saved)
+    // Resolved here rather than in the effect: the effect is not a composition
+    // and cannot reach a resource, and there are only four of them.
+    val bestLabels = RecordKind.entries.associateWith { stringResource(it.beatenRes) }
     LaunchedEffect(savedTripId) {
-        if (savedTripId != null) {
-            snackbarHostState.showSnackbar(savedMessage)
-            TrackingController.consumeSavedTrip()
-        }
+        val id = savedTripId ?: return@LaunchedEffect
+        // Anything the trip just beat is worth saying instead of "Saved" —
+        // that is the one moment a personal best means something, and the
+        // statistics tab will still be there tomorrow.
+        val beaten = viewModel.personalBests(id).mapNotNull(bestLabels::get)
+        snackbarHostState.showSnackbar(
+            message = if (beaten.isEmpty()) {
+                savedMessage
+            } else {
+                (listOf(savedMessage) + beaten).joinToString(" · ")
+            },
+            duration = if (beaten.isEmpty()) SnackbarDuration.Short else SnackbarDuration.Long,
+        )
+        TrackingController.consumeSavedTrip()
     }
 
     // The always-on readout belongs to cycling mode alone. Extreme mode is

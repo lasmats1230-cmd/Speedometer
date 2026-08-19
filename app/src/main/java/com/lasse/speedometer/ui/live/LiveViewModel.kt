@@ -9,6 +9,8 @@ import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.io.RouteParser
 import com.lasse.speedometer.data.io.RoutePoint
+import com.lasse.speedometer.data.repo.RecordKind
+import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.MapWaypoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -75,6 +78,19 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
      */
     val interruptedTrip: StateFlow<TripEntity?> = repository.inProgressTrip
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Which personal bests a just-saved trip beat.
+     *
+     * Read straight from the repository rather than from [trips]: the snackbar
+     * fires the moment the service reports a saved id, which can be before the
+     * list flow has caught up with the row.
+     */
+    suspend fun personalBests(tripId: Long): List<RecordKind> {
+        val all = repository.trips.first()
+        val trip = all.firstOrNull { it.id == tripId } ?: return emptyList()
+        return StatsCalculator.personalBests(trip, all.filter { it.id != tripId })
+    }
 
     fun recoverInterrupted(tripId: Long) = viewModelScope.launch {
         repository.recoverRecording(tripId)

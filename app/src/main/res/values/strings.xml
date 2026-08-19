@@ -429,6 +429,12 @@
     <string name="settings_exported_csv">Spreadsheet saved as %1$s</string>
     <string name="route_remaining_eta">%1$s left · about %2$s</string>
 
+    <!-- Said once, when a saved trip turns out to have beaten something -->
+    <string name="best_distance">Your longest yet</string>
+    <string name="best_duration">Your longest time out</string>
+    <string name="best_speed">Your fastest yet</string>
+    <string name="best_climb">Your biggest climb</string>
+
     <!-- What today already amounts to, above the start button -->
     <string name="today_label">Today</string>
     <string name="today_nothing">Nothing yet</string>

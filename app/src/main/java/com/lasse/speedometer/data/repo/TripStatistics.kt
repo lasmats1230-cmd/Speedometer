@@ -75,6 +75,19 @@ data class DaySummary(
         get() = totals.isEmpty && streakDays == 0 && weekDistanceM <= 0.0
 }
 
+/**
+ * Something a trip can be the best at.
+ *
+ * The statistics screen lists these as records; the live view uses them to
+ * say so at the moment a trip is saved, which is when it means anything.
+ */
+enum class RecordKind(@param:StringRes val labelRes: Int, @param:StringRes val beatenRes: Int) {
+    DISTANCE(R.string.record_longest, R.string.best_distance),
+    DURATION(R.string.record_longest_time, R.string.best_duration),
+    SPEED(R.string.record_fastest, R.string.best_speed),
+    CLIMB(R.string.record_climb, R.string.best_climb),
+}
+
 /** The best a trip has ever been at something. */
 data class TripRecord(
     @param:StringRes val labelRes: Int,
@@ -310,46 +323,51 @@ object StatsCalculator {
         formatElevation: (Double) -> String,
         describe: (TripEntity) -> String,
     ): List<TripRecord> = buildList {
-        trips.filter { it.distanceM > 0 }.maxByOrNull { it.distanceM }?.let {
-            add(
-                TripRecord(
-                    R.string.record_longest,
-                    it.id,
-                    formatDistance(it.distanceM),
-                    describe(it),
-                )
-            )
+        fun record(kind: RecordKind, value: (TripEntity) -> String) {
+            best(trips, kind)?.let { add(TripRecord(kind.labelRes, it.id, value(it), describe(it))) }
         }
-        trips.filter { it.durationMs > 0 }.maxByOrNull { it.durationMs }?.let {
-            add(
-                TripRecord(
-                    R.string.record_longest_time,
-                    it.id,
-                    formatDuration(it.durationMs),
-                    describe(it),
-                )
-            )
+        record(RecordKind.DISTANCE) { formatDistance(it.distanceM) }
+        record(RecordKind.DURATION) { formatDuration(it.durationMs) }
+        record(RecordKind.SPEED) { formatSpeed(it.maxSpeedMps) }
+        record(RecordKind.CLIMB) { formatElevation(it.ascentM) }
+    }
+
+    /**
+     * Which personal bests [trip] set, measured against everything else
+     * recorded.
+     *
+     * A first trip sets nothing: it is the only one, and telling someone their
+     * first ride is their longest, fastest and highest is the sort of praise
+     * that stops meaning anything. Ties do not count either — a record has to
+     * be beaten, not matched.
+     */
+    fun personalBests(trip: TripEntity, others: List<TripEntity>): List<RecordKind> {
+        if (others.isEmpty()) return emptyList()
+        return RecordKind.entries.filter { kind ->
+            val value = kind.measure(trip)
+            val previous = best(others, kind)?.let { kind.measure(it) }
+            kind.counts(value) && previous != null && value > previous
         }
-        trips.filter { it.maxSpeedMps > 0 }.maxByOrNull { it.maxSpeedMps }?.let {
-            add(
-                TripRecord(
-                    R.string.record_fastest,
-                    it.id,
-                    formatSpeed(it.maxSpeedMps),
-                    describe(it),
-                )
-            )
-        }
-        trips.filter { it.ascentM >= 1 }.maxByOrNull { it.ascentM }?.let {
-            add(
-                TripRecord(
-                    R.string.record_climb,
-                    it.id,
-                    formatElevation(it.ascentM),
-                    describe(it),
-                )
-            )
-        }
+    }
+
+    /** The trip holding the record for [kind], ignoring values too small to count. */
+    private fun best(trips: List<TripEntity>, kind: RecordKind): TripEntity? = trips
+        .filter { kind.counts(kind.measure(it)) }
+        .maxByOrNull { kind.measure(it) }
+
+    /** What the record is measured on, as one comparable number. */
+    private fun RecordKind.measure(trip: TripEntity): Double = when (this) {
+        RecordKind.DISTANCE -> trip.distanceM
+        RecordKind.DURATION -> trip.durationMs.toDouble()
+        RecordKind.SPEED -> trip.maxSpeedMps
+        RecordKind.CLIMB -> trip.ascentM
+    }
+
+    /** Whether a value is a figure at all rather than the noise around zero. */
+    private fun RecordKind.counts(value: Double): Boolean = when (this) {
+        // A metre of climb is what a stationary GPS reports on its own.
+        RecordKind.CLIMB -> value >= 1.0
+        else -> value > 0.0
     }
 
     /**
