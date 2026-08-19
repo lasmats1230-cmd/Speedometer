@@ -44,6 +44,7 @@ class MigrationTest {
         SpeedometerDatabase.MIGRATION_2_3,
         SpeedometerDatabase.MIGRATION_3_4,
         SpeedometerDatabase.MIGRATION_4_5,
+        SpeedometerDatabase.MIGRATION_5_6,
     )
 
     @Test
@@ -71,7 +72,7 @@ class MigrationTest {
             )
         }
 
-        val migrated = helper.runMigrationsAndValidate(DATABASE, 5, true, *migrations)
+        val migrated = helper.runMigrationsAndValidate(DATABASE, 6, true, *migrations)
 
         // The trip survived, and the columns added along the way defaulted the
         // way an existing recording needs them to.
@@ -102,6 +103,42 @@ class MigrationTest {
             assertTrue(cursor.moveToFirst())
             assertEquals("Water tap", cursor.getString(0))
         }
+
+        // Version 6 added photos, which hang off the trip that survived.
+        migrated.execSQL(
+            "INSERT INTO trip_photos (tripId, uri, addedAt) VALUES (1, 'content://x/1', 1)"
+        )
+        migrated.query("SELECT uri FROM trip_photos WHERE tripId = 1").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("content://x/1", cursor.getString(0))
+        }
+    }
+
+    @Test
+    fun `deleting a trip takes its photos with it`() {
+        helper.createDatabase(DATABASE, 1).close()
+        val migrated = helper.runMigrationsAndValidate(DATABASE, 6, true, *migrations)
+
+        migrated.execSQL("PRAGMA foreign_keys = ON")
+        migrated.execSQL(
+            """
+            INSERT INTO trips (
+                startedAt, endedAt, durationMs, movingTimeMs, distanceM,
+                avgSpeedMps, maxSpeedMps, ascentM, descentM,
+                minAltitudeM, maxAltitudeM
+            ) VALUES (1, 2, 1, 1, 0.0, 0.0, 0.0, 0.0, 0.0, NULL, NULL)
+            """.trimIndent()
+        )
+        migrated.execSQL(
+            "INSERT INTO trip_photos (tripId, uri, addedAt) VALUES (1, 'content://x/1', 1)"
+        )
+
+        migrated.execSQL("DELETE FROM trips WHERE id = 1")
+
+        migrated.query("SELECT COUNT(*) FROM trip_photos").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("The cascade left photos behind", 0, cursor.getInt(0))
+        }
     }
 
     @Test
@@ -111,20 +148,21 @@ class MigrationTest {
         helper.runMigrationsAndValidate(DATABASE, 2, true, SpeedometerDatabase.MIGRATION_1_2)
         helper.runMigrationsAndValidate(DATABASE, 3, true, SpeedometerDatabase.MIGRATION_2_3)
         helper.runMigrationsAndValidate(DATABASE, 4, true, SpeedometerDatabase.MIGRATION_3_4)
-        val five = helper.runMigrationsAndValidate(
+        helper.runMigrationsAndValidate(DATABASE, 5, true, SpeedometerDatabase.MIGRATION_4_5)
+        val six = helper.runMigrationsAndValidate(
             DATABASE,
-            5,
+            6,
             true,
-            SpeedometerDatabase.MIGRATION_4_5,
+            SpeedometerDatabase.MIGRATION_5_6,
         )
 
-        assertEquals(5, five.version)
+        assertEquals(6, six.version)
     }
 
     @Test
     fun `an in-progress trip is hidden from history but still in the table`() {
         helper.createDatabase(DATABASE, 1).close()
-        val migrated = helper.runMigrationsAndValidate(DATABASE, 5, true, *migrations)
+        val migrated = helper.runMigrationsAndValidate(DATABASE, 6, true, *migrations)
 
         migrated.execSQL(
             """

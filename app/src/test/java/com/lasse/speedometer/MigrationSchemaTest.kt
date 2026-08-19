@@ -85,8 +85,17 @@ class MigrationSchemaTest {
     }
 
     @Test
+    fun `the photos table added at version six matches the schema`() {
+        val schema = File(schemaDir, "6.json").readText()
+
+        val expected = createSqlFor(schema, "trip_photos").replace("\${TABLE_NAME}", "trip_photos")
+
+        assertEquals(expected, SpeedometerDatabase.CREATE_TRIP_PHOTOS)
+    }
+
+    @Test
     fun `every table in the schema is reachable from version one`() {
-        val schema = File(schemaDir, "5.json").readText()
+        val schema = File(schemaDir, "6.json").readText()
         // The tables that already existed at version 1 plus the one the
         // migration adds should account for the whole version 2 schema.
         val tables = Regex("\"tableName\"\\s*:\\s*\"([^\"]+)\"")
@@ -94,7 +103,7 @@ class MigrationSchemaTest {
             .map { it.groupValues[1] }
             .toSet()
         assertEquals(
-            setOf("trips", "track_points", "tours", "routes", "waypoints"),
+            setOf("trips", "track_points", "tours", "routes", "waypoints", "trip_photos"),
             tables,
         )
     }

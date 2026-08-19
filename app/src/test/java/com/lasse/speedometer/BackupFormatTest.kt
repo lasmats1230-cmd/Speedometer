@@ -39,6 +39,7 @@ class BackupFormatTest {
         syncedToHealth = true,
         activity = "RUN",
         note = "Windy\nsecond line",
+        sketch = "50.10000,8.20000;50.10500,8.20500",
     )
 
     private val points = listOf(
@@ -60,7 +61,12 @@ class BackupFormatTest {
         writer.append(",\"tours\":[")
         BackupFormat.writeTour(writer, TourEntity(id = 3, name = "Alps", createdAt = 1_000))
         writer.append("],\"trips\":[")
-        BackupFormat.writeTrip(writer, trip, points)
+        BackupFormat.writeTrip(
+            writer = writer,
+            trip = trip,
+            points = points,
+            photoUris = listOf("content://media/1", "content://media/2"),
+        )
         writer.append("],\"routes\":[")
         BackupFormat.writeRoute(
             writer,
@@ -121,6 +127,14 @@ class BackupFormatTest {
         assertNull(restored[1].altitudeM)
         assertEquals(45.25, restored[1].cumulativeDistanceM, 0.001)
         assertEquals(5.5f, restored[1].speedMps, 0.001f)
+    }
+
+    @Test
+    fun `photos and the stored sketch come back with their trip`() {
+        val restored = BackupFormat.parse(write()).trips.single()
+
+        assertEquals(listOf("content://media/1", "content://media/2"), restored.photoUris)
+        assertEquals(trip.sketch, restored.trip.sketch)
     }
 
     @Test

@@ -420,4 +420,11 @@
     <string name="settings_export_csv">Export history as a spreadsheet</string>
     <string name="settings_export_csv_summary">One CSV of every trip in Downloads, ready to open in a spreadsheet</string>
     <string name="settings_exported_csv">Spreadsheet saved as %1$s</string>
+    <string name="route_remaining_eta">%1$s left · about %2$s</string>
+    <string name="photos">Photos</string>
+    <string name="photos_empty">Add a picture from the ride.</string>
+    <string name="photos_remove_hint">Long-press a picture to remove it.</string>
+    <string name="photo_add">Add a photo</string>
+    <string name="photo_of_trip">Photo from this trip</string>
+    <string name="photo_missing">This photo is no longer on the device</string>
 </resources>

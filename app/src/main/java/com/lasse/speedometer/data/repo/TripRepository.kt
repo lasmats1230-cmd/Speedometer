@@ -9,6 +9,8 @@ import com.lasse.speedometer.data.db.TourWithTrips
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripDao
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.db.TripPhotoDao
+import com.lasse.speedometer.data.db.TripPhotoEntity
 import com.lasse.speedometer.data.db.WaypointDao
 import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.tracking.TrackPoint
@@ -29,7 +31,25 @@ class TripRepository(
     private val tourDao: TourDao,
     private val routeDao: RouteDao,
     private val waypointDao: WaypointDao,
+    private val photoDao: TripPhotoDao,
 ) {
+
+    fun observePhotos(tripId: Long): Flow<List<TripPhotoEntity>> = photoDao.observePhotos(tripId)
+
+    suspend fun addPhoto(tripId: Long, uri: String) = withContext(Dispatchers.IO) {
+        photoDao.insertPhoto(
+            TripPhotoEntity(
+                tripId = tripId,
+                uri = uri,
+                addedAt = System.currentTimeMillis(),
+            )
+        )
+    }
+
+    suspend fun deletePhoto(id: Long) = withContext(Dispatchers.IO) { photoDao.deletePhoto(id) }
+
+    suspend fun photosFor(tripId: Long): List<TripPhotoEntity> =
+        withContext(Dispatchers.IO) { photoDao.getPhotos(tripId) }
 
     val waypoints: Flow<List<WaypointEntity>> = waypointDao.observeWaypoints()
 

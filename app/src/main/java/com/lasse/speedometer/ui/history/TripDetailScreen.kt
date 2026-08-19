@@ -2,6 +2,9 @@ package com.lasse.speedometer.ui.history
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +44,7 @@ import com.lasse.speedometer.app
 import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.db.TripPhotoEntity
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.io.TripCardText
 import com.lasse.speedometer.data.prefs.UnitSystem
@@ -82,6 +86,28 @@ class TripDetailViewModel(
 
     val points: StateFlow<List<TrackPointEntity>> = repository.observePoints(tripId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val photos: StateFlow<List<TripPhotoEntity>> = repository.observePhotos(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Attaches a picture, keeping the right to read it.
+     *
+     * The document picker hands over a temporary grant; without persisting it
+     * the photo would show today and be a broken thumbnail after the next
+     * restart.
+     */
+    fun addPhoto(uri: Uri) = viewModelScope.launch {
+        runCatching {
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        repository.addPhoto(tripId, uri.toString())
+    }
+
+    fun removePhoto(id: Long) = viewModelScope.launch { repository.deletePhoto(id) }
 
     /** Every other trip, for the "faster than usual" line. */
     val allTrips: StateFlow<List<TripEntity>> = repository.trips
@@ -164,6 +190,14 @@ fun TripDetailScreen(
     val trip by viewModel.trip.collectAsState()
     val points by viewModel.points.collectAsState()
     val allTrips by viewModel.allTrips.collectAsState()
+    val photos by viewModel.photos.collectAsState()
+
+    // The system document picker rather than the photo picker: only this one
+    // grants access that survives a restart, which is what a picture attached
+    // to a ride from three years ago needs.
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) viewModel.addPhoto(uri) }
     var renaming by remember { mutableStateOf(false) }
     var editingNote by remember { mutableStateOf(false) }
     var changingActivity by remember { mutableStateOf(false) }
@@ -257,8 +291,11 @@ fun TripDetailScreen(
             trip = current,
             points = points,
             allTrips = allTrips,
+            photos = photos,
             settings = settings,
             contentPadding = padding,
+            onAddPhoto = { photoPicker.launch(arrayOf("image/*")) },
+            onRemovePhoto = viewModel::removePhoto,
         )
     }
 
@@ -320,8 +357,11 @@ private fun TripDetailContent(
     trip: TripEntity,
     points: List<TrackPointEntity>,
     allTrips: List<TripEntity>,
+    photos: List<TripPhotoEntity>,
     settings: AppSettings,
     contentPadding: PaddingValues,
+    onAddPhoto: () -> Unit,
+    onRemovePhoto: (Long) -> Unit,
 ) {
     val track = remember(points) { points.map { LatLng(it.latitude, it.longitude) } }
 
@@ -393,6 +433,20 @@ private fun TripDetailContent(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        item("photos") {
+            SectionCard(
+                title = stringResource(R.string.photos),
+                subtitle = if (photos.isEmpty()) {
+                    stringResource(R.string.photos_empty)
+                } else {
+                    stringResource(R.string.photos_remove_hint)
+                },
+                contentPadding = PaddingValues(16.dp),
+            ) {
+                PhotoStrip(photos = photos, onAdd = onAddPhoto, onRemove = onRemovePhoto)
             }
         }
 

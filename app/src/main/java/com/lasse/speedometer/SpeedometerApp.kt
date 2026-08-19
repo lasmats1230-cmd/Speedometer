@@ -31,6 +31,7 @@ class SpeedometerApp : Application() {
             database.tourDao(),
             database.routeDao(),
             database.waypointDao(),
+            database.tripPhotoDao(),
         )
     }
 

@@ -94,6 +94,33 @@ data class TrackPointEntity(
     val cumulativeDistanceM: Double,
 )
 
+/**
+ * A picture taken on a trip.
+ *
+ * Only the content URI is kept, never a copy: the photo already exists in the
+ * gallery, and duplicating it would double the storage a ride costs and leave
+ * two versions to delete. The permission to read it is persisted when the
+ * picture is attached.
+ */
+@Entity(
+    tableName = "trip_photos",
+    foreignKeys = [
+        ForeignKey(
+            entity = TripEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tripId"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("tripId")],
+)
+data class TripPhotoEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val tripId: Long,
+    val uri: String,
+    val addedAt: Long,
+)
+
 @Entity(tableName = "tours")
 data class TourEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

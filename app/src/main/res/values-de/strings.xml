@@ -424,4 +424,11 @@
     <string name="settings_export_csv">Verlauf als Tabelle exportieren</string>
     <string name="settings_export_csv_summary">Eine CSV-Datei aller Fahrten in den Downloads, direkt in einer Tabellenkalkulation zu öffnen</string>
     <string name="settings_exported_csv">Tabelle gespeichert als %1$s</string>
+    <string name="route_remaining_eta">Noch %1$s · etwa %2$s</string>
+    <string name="photos">Fotos</string>
+    <string name="photos_empty">Füge ein Bild von der Fahrt hinzu.</string>
+    <string name="photos_remove_hint">Zum Entfernen lange auf ein Bild tippen.</string>
+    <string name="photo_add">Foto hinzufügen</string>
+    <string name="photo_of_trip">Foto von dieser Fahrt</string>
+    <string name="photo_missing">Dieses Foto ist nicht mehr auf dem Gerät</string>
 </resources>

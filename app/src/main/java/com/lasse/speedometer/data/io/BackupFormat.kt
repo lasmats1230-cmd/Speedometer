@@ -8,8 +8,13 @@ import com.lasse.speedometer.data.db.WaypointEntity
 import java.io.Writer
 import java.util.Locale
 
-/** A trip and its track, as one backup entry. */
-data class BackupTrip(val trip: TripEntity, val points: List<TrackPointEntity>)
+/** A trip, its track and the pictures taken on it, as one backup entry. */
+data class BackupTrip(
+    val trip: TripEntity,
+    val points: List<TrackPointEntity>,
+    /** Content URIs, which only restore usefully onto the same device. */
+    val photoUris: List<String> = emptyList(),
+)
 
 /** Everything a backup file holds, once read back. */
 data class BackupContents(
@@ -45,7 +50,12 @@ object BackupFormat {
         writer.append('}')
     }
 
-    fun writeTrip(writer: Writer, trip: TripEntity, points: List<TrackPointEntity>) {
+    fun writeTrip(
+        writer: Writer,
+        trip: TripEntity,
+        points: List<TrackPointEntity>,
+        photoUris: List<String> = emptyList(),
+    ) {
         writer.append("{\"startedAt\":").append(trip.startedAt.toString())
         writer.append(",\"endedAt\":").append(trip.endedAt.toString())
         writer.append(",\"durationMs\":").append(trip.durationMs.toString())
@@ -62,6 +72,15 @@ object BackupFormat {
         trip.tourId?.let { writer.append(",\"tourId\":").append(it.toString()) }
         writer.append(",\"activity\":").append(MiniJson.quote(trip.activity))
         writer.append(",\"syncedToHealth\":").append(trip.syncedToHealth.toString())
+        writer.append(",\"sketch\":").append(MiniJson.quote(trip.sketch))
+        if (photoUris.isNotEmpty()) {
+            writer.append(",\"photos\":[")
+            photoUris.forEachIndexed { index, uri ->
+                if (index > 0) writer.append(',')
+                writer.append(MiniJson.quote(uri))
+            }
+            writer.append(']')
+        }
 
         // Points are arrays, not objects: repeating seven key names per fix
         // doubles the file for nothing a reader cannot infer from position.
@@ -140,8 +159,13 @@ object BackupFormat {
                 syncedToHealth = entry.bool("syncedToHealth") ?: false,
                 activity = entry.string("activity") ?: "RIDE",
                 note = entry.string("note"),
+                sketch = entry.string("sketch").orEmpty(),
             )
-            BackupTrip(trip, entry.array("points").mapNotNull(::parsePoint))
+            BackupTrip(
+                trip = trip,
+                points = entry.array("points").mapNotNull(::parsePoint),
+                photoUris = entry.array("photos").filterIsInstance<String>(),
+            )
         }
 
         val routes = root.array("routes").filterIsInstance<Map<String, Any?>>()

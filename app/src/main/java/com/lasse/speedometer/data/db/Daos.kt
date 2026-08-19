@@ -112,6 +112,25 @@ interface TripDao {
 }
 
 @Dao
+interface TripPhotoDao {
+
+    @Query("SELECT * FROM trip_photos WHERE tripId = :tripId ORDER BY addedAt ASC")
+    fun observePhotos(tripId: Long): Flow<List<TripPhotoEntity>>
+
+    @Query("SELECT * FROM trip_photos ORDER BY addedAt ASC")
+    suspend fun getAllPhotos(): List<TripPhotoEntity>
+
+    @Query("SELECT * FROM trip_photos WHERE tripId = :tripId ORDER BY addedAt ASC")
+    suspend fun getPhotos(tripId: Long): List<TripPhotoEntity>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPhoto(photo: TripPhotoEntity): Long
+
+    @Query("DELETE FROM trip_photos WHERE id = :id")
+    suspend fun deletePhoto(id: Long)
+}
+
+@Dao
 interface TourDao {
 
     @Query("SELECT * FROM tours ORDER BY createdAt DESC")

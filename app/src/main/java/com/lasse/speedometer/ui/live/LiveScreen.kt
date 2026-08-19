@@ -254,6 +254,12 @@ fun LiveScreen(
         ReadoutPane(
             modifier = modifier,
             routeProgress = routeProgress,
+            // At the pace held so far, which is a better guess on a long
+            // climb than the speed at this instant.
+            routeEtaMs = routeProgress?.let { progress ->
+                val speed = state.avgSpeedMps
+                if (speed > 0.5) ((progress.remainingM / speed) * 1000).toLong() else null
+            },
             state = state,
             settings = settings,
             idle = idle,
@@ -448,6 +454,7 @@ fun LiveScreen(
 private fun ReadoutPane(
     modifier: Modifier,
     routeProgress: RouteProgress?,
+    routeEtaMs: Long?,
     state: com.lasse.speedometer.tracking.TrackingState,
     settings: AppSettings,
     idle: Boolean,
@@ -481,7 +488,7 @@ private fun ReadoutPane(
         }
 
         if (routeProgress != null) {
-            RouteChip(progress = routeProgress, settings = settings)
+            RouteChip(progress = routeProgress, etaMs = routeEtaMs, settings = settings)
             Spacer(Modifier.height(10.dp))
         }
 
@@ -572,7 +579,7 @@ private fun ReadoutPane(
  * has a remaining distance that means nothing.
  */
 @Composable
-private fun RouteChip(progress: RouteProgress, settings: AppSettings) {
+private fun RouteChip(progress: RouteProgress, etaMs: Long?, settings: AppSettings) {
     val off = progress.offRoute
     Surface(
         shape = CircleShape,
@@ -587,6 +594,12 @@ private fun RouteChip(progress: RouteProgress, settings: AppSettings) {
                 stringResource(
                     R.string.route_off,
                     Formatters.elevation(progress.offRouteM, settings.units),
+                )
+            } else if (etaMs != null) {
+                stringResource(
+                    R.string.route_remaining_eta,
+                    Formatters.distance(progress.remainingM, settings.units),
+                    Formatters.duration(etaMs),
                 )
             } else {
                 stringResource(

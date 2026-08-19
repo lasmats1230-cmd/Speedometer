@@ -14,8 +14,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TourEntity::class,
         RouteEntity::class,
         WaypointEntity::class,
+        TripPhotoEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class SpeedometerDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class SpeedometerDatabase : RoomDatabase() {
     abstract fun tourDao(): TourDao
     abstract fun routeDao(): RouteDao
     abstract fun waypointDao(): WaypointDao
+    abstract fun tripPhotoDao(): TripPhotoDao
 
     companion object {
         @Volatile
@@ -104,13 +106,41 @@ abstract class SpeedometerDatabase : RoomDatabase() {
         const val ADD_SKETCH =
             "ALTER TABLE `trips` ADD COLUMN `sketch` TEXT NOT NULL DEFAULT ''"
 
+        /**
+         * Adds the photos table. Written out by hand to match what Room
+         * exports, index included — `MigrationSchemaTest` compares them.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(CREATE_TRIP_PHOTOS)
+                db.execSQL(INDEX_TRIP_PHOTOS)
+            }
+        }
+
+        const val CREATE_TRIP_PHOTOS = "CREATE TABLE IF NOT EXISTS `trip_photos` (" +
+            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`tripId` INTEGER NOT NULL, " +
+            "`uri` TEXT NOT NULL, " +
+            "`addedAt` INTEGER NOT NULL, " +
+            "FOREIGN KEY(`tripId`) REFERENCES `trips`(`id`) " +
+            "ON UPDATE NO ACTION ON DELETE CASCADE )"
+
+        const val INDEX_TRIP_PHOTOS =
+            "CREATE INDEX IF NOT EXISTS `index_trip_photos_tripId` ON `trip_photos` (`tripId`)"
+
         fun get(context: Context): SpeedometerDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     SpeedometerDatabase::class.java,
                     "speedometer.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                ).addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
                     .build()
                     .also { instance = it }
             }

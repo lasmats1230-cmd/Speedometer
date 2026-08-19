@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.lasse.speedometer.data.db.SpeedometerDatabase
 import com.lasse.speedometer.data.db.TourEntity
+import com.lasse.speedometer.data.db.TripPhotoEntity
 import com.lasse.speedometer.data.repo.TrackSketch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -102,9 +103,15 @@ class BackupManager(
         writer.append(']')
 
         writer.append(",\"trips\":[")
+        val photoDao = database.tripPhotoDao()
         tripDao.getAllTrips().forEachIndexed { index, trip ->
             if (index > 0) writer.append(',')
-            BackupFormat.writeTrip(writer, trip, tripDao.getPoints(trip.id))
+            BackupFormat.writeTrip(
+                writer = writer,
+                trip = trip,
+                points = tripDao.getPoints(trip.id),
+                photoUris = photoDao.getPhotos(trip.id).map { it.uri },
+            )
         }
         writer.append(']')
 
@@ -131,6 +138,7 @@ class BackupManager(
         val tourDao = database.tourDao()
         val routeDao = database.routeDao()
         val waypointDao = database.waypointDao()
+        val photoDao = database.tripPhotoDao()
 
         // Ids belong to the database that issued them, so every tour gets a
         // new one and its trips are rewired rather than pointing at whatever
@@ -169,6 +177,19 @@ class BackupManager(
                 .map { it.copy(id = 0, tripId = tripId) }
                 .chunked(POINT_CHUNK)
                 .forEach { tripDao.insertPoints(it) }
+            // Photos restore as references. On the phone they came from they
+            // light up again; on another one they show as missing rather than
+            // silently disappearing, which is the honest outcome for a backup
+            // that never contained the pictures themselves.
+            entry.photoUris.forEach { uri ->
+                photoDao.insertPhoto(
+                    TripPhotoEntity(
+                        tripId = tripId,
+                        uri = uri,
+                        addedAt = entry.trip.startedAt,
+                    )
+                )
+            }
             restored++
         }
 
