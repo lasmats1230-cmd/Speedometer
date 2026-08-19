@@ -4,7 +4,13 @@
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!--
+      No ACCESS_BACKGROUND_LOCATION. Recording runs in a foreground service
+      typed "location", which keeps fixes coming with the screen off without
+      it. Declaring it anyway asked the user for "allow all the time" and put
+      the app in front of a Play Store policy review, for a permission nothing
+      here ever requested.
+    -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

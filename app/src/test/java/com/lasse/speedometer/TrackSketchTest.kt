@@ -61,6 +61,14 @@ class TrackSketchTest {
     }
 
     @Test
+    fun `a limit too small to interpolate does not divide by zero`() {
+        // (size - 1) / (limit - 1) is infinity at a limit of one, and every
+        // index then lands on the same point.
+        assertEquals(1, TrackSketch.decimate(track(100), limit = 1).size)
+        assertTrue(TrackSketch.decimate(track(100), limit = 0).isEmpty())
+    }
+
+    @Test
     fun `a comma decimal locale still writes dots`() {
         val original = Locale.getDefault()
         try {

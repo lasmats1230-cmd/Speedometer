@@ -54,7 +54,14 @@ object TrackingController {
         if (action == TrackingService.ACTION_START) {
             ContextCompat.startForegroundService(context, intent)
         } else {
-            context.startService(intent)
+            // From Android 8 a background app may not start a service, and
+            // trying throws. Every action but START is either aimed at a
+            // service already running in the foreground — where it is allowed
+            // — or is housekeeping like dropping the idle GPS subscription,
+            // which the system has already taken care of by refusing. The one
+            // that used to crash was exactly that: the live view being
+            // disposed after the app had gone to the background.
+            runCatching { context.startService(intent) }
         }
     }
 }

@@ -23,6 +23,9 @@ data class TrackPointLite(
     val longitude: Double,
 )
 
+/** Big enough to be one statement, small enough not to be a huge one. */
+private const val POINT_CHUNK = 500
+
 @Dao
 interface TripDao {
 
@@ -89,6 +92,56 @@ interface TripDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPoints(points: List<TrackPointEntity>)
+
+    /**
+     * A trip and its track, all or nothing.
+     *
+     * Importing a GPX runs on a view model's scope, and leaving that screen
+     * cancels it. Without a transaction, a cancellation between the trip row
+     * and its points left a trip in history with an empty track — a ride that
+     * opens onto nothing.
+     */
+    @Transaction
+    suspend fun insertTripWithTrack(
+        trip: TripEntity,
+        points: List<TrackPointEntity>,
+        sketch: String,
+    ): Long {
+        val tripId = insertTrip(trip)
+        // Chunked so a long ride does not build one enormous statement.
+        points.map { it.copy(tripId = tripId) }.chunked(POINT_CHUNK).forEach { insertPoints(it) }
+        setTripSketch(tripId, sketch)
+        return tripId
+    }
+
+    /**
+     * Appends the rest of a recording's track and closes the row, in one go,
+     * so a trip is never left half finished.
+     */
+    @Transaction
+    suspend fun finishTripWithTrack(
+        tripId: Long,
+        summary: TripEntity,
+        points: List<TrackPointEntity>,
+        sketch: String,
+    ) {
+        appendTrack(tripId, summary, points)
+        setTripSketch(tripId, sketch)
+        finishTrip(tripId)
+    }
+
+    /** Writes whatever part of the track is not stored yet, and the totals. */
+    @Transaction
+    suspend fun appendTrack(tripId: Long, summary: TripEntity, points: List<TrackPointEntity>) {
+        val stored = countPoints(tripId)
+        if (points.size > stored) {
+            points.drop(stored)
+                .map { it.copy(tripId = tripId) }
+                .chunked(POINT_CHUNK)
+                .forEach { insertPoints(it) }
+        }
+        updateTrip(summary)
+    }
 
     @Query("SELECT * FROM track_points WHERE tripId = :tripId ORDER BY timestamp ASC")
     suspend fun getPoints(tripId: Long): List<TrackPointEntity>

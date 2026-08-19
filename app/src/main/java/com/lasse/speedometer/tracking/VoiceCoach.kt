@@ -23,12 +23,19 @@ import kotlin.math.floor
 class VoiceCoach(private val context: Context) {
 
     private var engine: TextToSpeech? = null
+
+    /**
+     * Written by the engine's init callback, which arrives on whichever thread
+     * the speech service hands it back on, and read from the recording loop.
+     */
+    @Volatile
     private var ready = false
 
     /** The last milestone spoken, so a stop-start ride is not announced twice. */
     private var lastMilestone = 0.0
 
     /** Whatever could not be said while the engine was still starting. */
+    @Volatile
     private var pending: String? = null
 
     private fun ensureEngine() {

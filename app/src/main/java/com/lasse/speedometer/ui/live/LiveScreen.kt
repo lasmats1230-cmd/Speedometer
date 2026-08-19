@@ -271,13 +271,18 @@ fun LiveScreen(
     val showMap = !extremeMode && layout.minimapSize != MinimapSize.HIDDEN
 
     // Following a route: how much is left, and whether you are still on it.
-    val routeProgress = remember(followedRoutePoints, state.latitude, state.longitude) {
+    // The route's own measurements are worked out once — this runs on every
+    // fix, during composition, and a long GPX is tens of thousands of points.
+    val preparedRoute = remember(followedRoutePoints) {
+        RouteTracker.prepare(followedRoutePoints)
+    }
+    val routeProgress = remember(preparedRoute, state.latitude, state.longitude) {
         val latitude = state.latitude
         val longitude = state.longitude
-        if (latitude == null || longitude == null) {
+        if (preparedRoute == null || latitude == null || longitude == null) {
             null
         } else {
-            RouteTracker.progress(followedRoutePoints, latitude, longitude)
+            RouteTracker.progress(preparedRoute, latitude, longitude)
         }
     }
 

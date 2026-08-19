@@ -3,9 +3,11 @@ package com.lasse.speedometer.data.prefs
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -14,7 +16,9 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.ui.theme.AccentColor
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 enum class UnitSystem { METRIC, IMPERIAL }
 
@@ -135,7 +139,18 @@ data class AppSettings(
     val onboarded: Boolean = false,
 )
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
+/**
+ * The preferences file, with a way back from a broken one.
+ *
+ * Without the corruption handler a settings file damaged by a crash mid-write
+ * makes every read throw for the life of the install — and the activity
+ * collects this flow, so that is a crash loop on launch over a set of
+ * preferences that could simply have been reset.
+ */
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 class SettingsRepository(private val context: Context) {
 
@@ -168,7 +183,12 @@ class SettingsRepository(private val context: Context) {
         val ONBOARDED = booleanPreferencesKey("onboarded")
     }
 
-    val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
+    val settings: Flow<AppSettings> = context.dataStore.data
+        // A read that fails is a read that would otherwise take the collector
+        // down with it. Defaults are a worse answer than the stored ones and a
+        // far better one than no app.
+        .catch { failure -> if (failure is IOException) emit(emptyPreferences()) else throw failure }
+        .map { prefs ->
         val defaults = LayoutSettings()
         AppSettings(
             units = prefs[Keys.UNITS].toEnum(UnitSystem.METRIC),

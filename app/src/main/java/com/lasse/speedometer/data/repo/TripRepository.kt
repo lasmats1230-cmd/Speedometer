@@ -51,6 +51,10 @@ class TripRepository(
     suspend fun photosFor(tripId: Long): List<TripPhotoEntity> =
         withContext(Dispatchers.IO) { photoDao.getPhotos(tripId) }
 
+    /** Every picture still attached to a trip, for reconciling read grants. */
+    suspend fun allPhotoUris(): List<String> =
+        withContext(Dispatchers.IO) { photoDao.getAllPhotos().map { it.uri } }
+
     val waypoints: Flow<List<WaypointEntity>> = waypointDao.observeWaypoints()
 
     val trips: Flow<List<TripEntity>> = tripDao.observeTrips()
@@ -102,8 +106,8 @@ class TripRepository(
         title: String? = null,
     ): Long =
         withContext(Dispatchers.IO) {
-            val tripId = tripDao.insertTrip(
-                TripEntity(
+            tripDao.insertTripWithTrack(
+                trip = TripEntity(
                     activity = activity.name,
                     title = title,
                     startedAt = summary.startedAt,
@@ -117,24 +121,22 @@ class TripRepository(
                     descentM = summary.descentM,
                     minAltitudeM = summary.minAltitudeM,
                     maxAltitudeM = summary.maxAltitudeM,
-                )
+                ),
+                points = points.map { it.toEntity() },
+                sketch = sketchOf(points.map { it.latitude to it.longitude }),
             )
-            // Chunked so a long ride doesn't build one enormous statement.
-            points.map { point ->
-                TrackPointEntity(
-                    tripId = tripId,
-                    timestamp = point.timestamp,
-                    latitude = point.latitude,
-                    longitude = point.longitude,
-                    altitudeM = point.altitudeM,
-                    speedMps = point.speedMps,
-                    accuracyM = point.accuracyM,
-                    cumulativeDistanceM = point.cumulativeDistanceM,
-                )
-            }.chunked(500).forEach { tripDao.insertPoints(it) }
-            tripDao.setTripSketch(tripId, sketchOf(points.map { it.latitude to it.longitude }))
-            tripId
         }
+
+    private fun TrackPoint.toEntity(tripId: Long = 0) = TrackPointEntity(
+        tripId = tripId,
+        timestamp = timestamp,
+        latitude = latitude,
+        longitude = longitude,
+        altitudeM = altitudeM,
+        speedMps = speedMps,
+        accuracyM = accuracyM,
+        cumulativeDistanceM = cumulativeDistanceM,
+    )
 
     /**
      * Fills in thumbnails for trips recorded before they were stored.
@@ -199,24 +201,8 @@ class TripRepository(
         summary: TripSummary,
         points: List<TrackPoint>,
     ) = withContext(Dispatchers.IO) {
-        val stored = tripDao.countPoints(tripId)
-        if (points.size > stored) {
-            points.drop(stored).map { point ->
-                TrackPointEntity(
-                    tripId = tripId,
-                    timestamp = point.timestamp,
-                    latitude = point.latitude,
-                    longitude = point.longitude,
-                    altitudeM = point.altitudeM,
-                    speedMps = point.speedMps,
-                    accuracyM = point.accuracyM,
-                    cumulativeDistanceM = point.cumulativeDistanceM,
-                )
-            }.chunked(500).forEach { tripDao.insertPoints(it) }
-        }
-        tripDao.getTrip(tripId)?.let { trip ->
-            tripDao.updateTrip(trip.applySummary(summary))
-        }
+        val trip = tripDao.getTrip(tripId) ?: return@withContext
+        tripDao.appendTrack(tripId, trip.applySummary(summary), points.map { it.toEntity() })
     }
 
     /** Closes the row: the recording becomes an ordinary trip. */
@@ -225,9 +211,13 @@ class TripRepository(
         summary: TripSummary,
         points: List<TrackPoint>,
     ) = withContext(Dispatchers.IO) {
-        appendRecording(tripId, summary, points)
-        tripDao.setTripSketch(tripId, sketchOf(points.map { it.latitude to it.longitude }))
-        tripDao.finishTrip(tripId)
+        val trip = tripDao.getTrip(tripId) ?: return@withContext
+        tripDao.finishTripWithTrack(
+            tripId = tripId,
+            summary = trip.applySummary(summary),
+            points = points.map { it.toEntity() },
+            sketch = sketchOf(points.map { it.latitude to it.longitude }),
+        )
     }
 
     /** Ends a recording that was interrupted, keeping whatever was written. */

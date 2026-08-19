@@ -44,6 +44,7 @@ object TrackSketch {
         points: List<Pair<Double, Double>>,
         limit: Int = MAX_POINTS,
     ): List<Pair<Double, Double>> {
+        if (limit < 2) return points.take(limit.coerceAtLeast(0))
         if (points.size <= limit) return points
         val step = (points.size - 1).toFloat() / (limit - 1)
         return List(limit) { index -> points[(index * step).toInt().coerceIn(points.indices)] }

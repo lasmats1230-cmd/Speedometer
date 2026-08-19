@@ -9,6 +9,12 @@ import android.service.quicksettings.TileService
 import androidx.annotation.RequiresApi
 import com.lasse.speedometer.MainActivity
 import com.lasse.speedometer.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Start and stop a recording from the notification shade.
@@ -23,9 +29,31 @@ import com.lasse.speedometer.R
  */
 class RecordingTileService : TileService() {
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var watching: Job? = null
+
+    /**
+     * The tile follows the recording rather than being redrawn by hand.
+     *
+     * Tapping it sends an intent the service handles a moment later, so
+     * refreshing straight after a tap drew the state the tile was *leaving* —
+     * "Record a trip" on a tile that had just started recording.
+     */
     override fun onStartListening() {
         super.onStartListening()
-        refresh()
+        watching?.cancel()
+        watching = scope.launch { TrackingController.state.collect { refresh() } }
+    }
+
+    override fun onStopListening() {
+        watching?.cancel()
+        watching = null
+        super.onStopListening()
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 
     override fun onClick() {
@@ -36,7 +64,6 @@ class RecordingTileService : TileService() {
             state.isActive -> TrackingController.stopAndSave(this)
             else -> TrackingController.start(this)
         }
-        refresh()
     }
 
     private fun refresh() {

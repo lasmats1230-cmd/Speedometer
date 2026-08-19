@@ -30,43 +30,60 @@ data class RouteProgress(
  */
 object RouteTracker {
 
-    fun progress(route: List<RoutePoint>, latitude: Double, longitude: Double): RouteProgress? {
-        if (route.size < 2) return null
+    /**
+     * A route with the distance to each of its points worked out once.
+     *
+     * The live view asks for progress on every fix, about once a second, and
+     * it asks during composition — on the main thread. Measuring the whole
+     * route each time meant three passes over what can be twenty thousand
+     * points for a long GPX. The route does not change between fixes, so
+     * neither does any of that.
+     */
+    class Prepared internal constructor(
+        internal val points: List<RoutePoint>,
+        /** Metres from the start to each point; the last entry is the total. */
+        internal val cumulativeM: DoubleArray,
+    ) {
+        val totalM: Double get() = cumulativeM.last()
+    }
 
+    /** Null for anything too short to be a route. */
+    fun prepare(route: List<RoutePoint>): Prepared? {
+        if (route.size < 2) return null
+        val cumulative = DoubleArray(route.size)
+        for (index in 1 until route.size) {
+            cumulative[index] = cumulative[index - 1] + GeoMath.distanceMeters(
+                route[index - 1].latitude,
+                route[index - 1].longitude,
+                route[index].latitude,
+                route[index].longitude,
+            )
+        }
+        return Prepared(route, cumulative)
+    }
+
+    fun progress(route: Prepared, latitude: Double, longitude: Double): RouteProgress {
         var nearestIndex = 0
         var nearestDistance = Double.MAX_VALUE
-        route.forEachIndexed { index, point ->
-            val distance = GeoMath.distanceMeters(latitude, longitude, point.latitude, point.longitude)
+        route.points.forEachIndexed { index, point ->
+            val distance =
+                GeoMath.distanceMeters(latitude, longitude, point.latitude, point.longitude)
             if (distance < nearestDistance) {
                 nearestDistance = distance
                 nearestIndex = index
             }
         }
 
-        var remaining = 0.0
-        for (index in nearestIndex until route.lastIndex) {
-            remaining += GeoMath.distanceMeters(
-                route[index].latitude,
-                route[index].longitude,
-                route[index + 1].latitude,
-                route[index + 1].longitude,
-            )
-        }
-
-        var total = 0.0
-        for (index in 0 until route.lastIndex) {
-            total += GeoMath.distanceMeters(
-                route[index].latitude,
-                route[index].longitude,
-                route[index + 1].latitude,
-                route[index + 1].longitude,
-            )
-        }
-
+        val total = route.totalM
+        val remaining = total - route.cumulativeM[nearestIndex]
         return RouteProgress(
             remainingM = remaining,
             offRouteM = nearestDistance,
             fraction = if (total > 0) ((total - remaining) / total).toFloat() else 0f,
         )
     }
+
+    /** The same answer from a raw route, for a one-off question. */
+    fun progress(route: List<RoutePoint>, latitude: Double, longitude: Double): RouteProgress? =
+        prepare(route)?.let { progress(it, latitude, longitude) }
 }

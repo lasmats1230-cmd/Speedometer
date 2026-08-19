@@ -47,7 +47,18 @@ import kotlinx.coroutines.Dispatchers
  */
 class TrackingService : Service(), LocationListener {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /**
+     * Everything that touches the recorder runs here.
+     *
+     * Fixes arrive on the main looper, so the ticker, the persistence pass and
+     * the stop handler have to as well: the recorder holds a plain list and a
+     * plain state object, and reading them from a background thread while a
+     * fix appends to them is a torn read at best and a
+     * ConcurrentModificationException mid-ride at worst. The work itself is a
+     * few sums and a list copy once every ten seconds; the database calls
+     * switch to IO inside the repository.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val recorder = TripRecorder()
     private val voice by lazy { VoiceCoach(this) }
 
@@ -75,7 +86,16 @@ class TrackingService : Service(), LocationListener {
     private val announcedWaypoints = mutableSetOf<Long>()
 
     /** The database row this recording is being written into. */
+    @Volatile
     private var recordingTripId: Long? = null
+
+    /**
+     * The insert that opens that row. Stopping waits on it: a start followed
+     * immediately by a stop used to read a null id, save a second trip, and
+     * leave the first row marked in progress forever — offered back as a
+     * recovery prompt for a ride that never happened.
+     */
+    private var openRowJob: Job? = null
     private var lastPersistAt = 0L
 
     override fun onCreate() {
@@ -103,6 +123,10 @@ class TrackingService : Service(), LocationListener {
             ACTION_IDLE_WATCH -> startIdleWatch()
             ACTION_IDLE_STOP -> stopIdleWatch()
             ACTION_MARK_WAYPOINT -> markWaypoint()
+            // START_STICKY hands back a null intent when the system restarts
+            // the service. There is no recording to resume — that is what the
+            // in-progress row is for — so it should not sit there running.
+            else -> stopSelfIfIdle()
         }
         return START_STICKY
     }
@@ -129,9 +153,8 @@ class TrackingService : Service(), LocationListener {
         val title = TripNaming.titleFor(this, startedAt, activity)
         lastPersistAt = 0L
         recordingTripId = null
-        scope.launch {
-            val id = app().tripRepository.startRecording(startedAt, activity, title)
-            recordingTripId = id
+        openRowJob = scope.launch {
+            recordingTripId = app().tripRepository.startRecording(startedAt, activity, title)
         }
         publish()
         goForeground()
@@ -168,41 +191,50 @@ class TrackingService : Service(), LocationListener {
         stopUpdates()
         leaveForeground()
 
-        val tripId = recordingTripId
         val keeping = save && points.size >= MIN_POINTS_TO_SAVE
         if (keeping && settings.voiceIntervalM > 0) voice.sayFinished()
         val autoSync = settings.autoSyncHealth
         val activity = settings.activity
         val title = TripNaming.titleFor(this, summary.startedAt, activity)
-        scope.launch {
-            val repository = app().tripRepository
+        val opening = openRowJob
+        val application = app()
+
+        // On the application's scope, not the service's: stopSelfIfIdle below
+        // destroys this service, and a write cancelled halfway through is the
+        // ride the user just pressed save on.
+        application.applicationScope.launch {
+            // The row is opened asynchronously, so a start immediately
+            // followed by a stop can arrive before the insert has run.
+            opening?.join()
+            val tripId = recordingTripId
+            val repository = application.tripRepository
             when {
-                // The row is opened asynchronously, so a start immediately
-                // followed by a stop can arrive before it exists. Falling back
-                // to a plain insert keeps that ride rather than dropping it.
+                // No row at all, which now only means the insert failed. A
+                // plain insert keeps that ride rather than dropping it.
                 tripId == null -> if (keeping) {
                     val id = repository.saveTrip(summary, points, activity, title)
                     TrackingController.publishSavedTrip(id)
-                    SpeedometerWidget.refresh(this@TrackingService)
+                    SpeedometerWidget.refresh(application)
                     if (autoSync) {
-                        runCatching { app().healthConnectManager.writeTrip(id) }
+                        runCatching { application.healthConnectManager.writeTrip(id) }
                     }
                 }
 
                 keeping -> {
                     repository.finishRecording(tripId, summary, points)
                     TrackingController.publishSavedTrip(tripId)
-                    SpeedometerWidget.refresh(this@TrackingService)
+                    SpeedometerWidget.refresh(application)
                     if (autoSync) {
-                        runCatching { app().healthConnectManager.writeTrip(tripId) }
+                        runCatching { application.healthConnectManager.writeTrip(tripId) }
                     }
                 }
                 // Too short to keep, or discarded outright: the row goes with
                 // it, and its points go with the row.
                 else -> repository.discardRecording(tripId)
             }
+            recordingTripId = null
         }
-        recordingTripId = null
+        openRowJob = null
 
         recorder.reset()
         publish()
@@ -498,7 +530,10 @@ class TrackingService : Service(), LocationListener {
         val toggleLabel = getString(if (paused) R.string.resume else R.string.pause)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            // The app's own glyph rather than a platform menu icon: a
+            // notification small icon is drawn from its alpha channel alone,
+            // and the stock drawables are not designed for that.
+            .setSmallIcon(R.drawable.ic_notification_recording)
             .setContentTitle(
                 when {
                     paused -> getString(R.string.status_paused)

@@ -1,22 +1,15 @@
 package com.lasse.speedometer.data.io
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
+import androidx.room.withTransaction
 import com.lasse.speedometer.data.db.SpeedometerDatabase
 import com.lasse.speedometer.data.db.TourEntity
 import com.lasse.speedometer.data.db.TripPhotoEntity
 import com.lasse.speedometer.data.repo.TrackSketch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.io.Writer
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** What a restore put back, for the message that follows it. */
 data class RestoreResult(
@@ -45,34 +38,11 @@ class BackupManager(
     private val database: SpeedometerDatabase,
 ) {
 
-    private val fileStamp = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.US)
-
     /** Writes a backup into the public Downloads folder, returning its name. */
     suspend fun export(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val name = "Speedometer_backup_${fileStamp.format(Date())}.json"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, name)
-                    put(MediaStore.Downloads.MIME_TYPE, MIME_JSON)
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                    ?: error("Downloads folder unavailable")
-                resolver.openOutputStream(uri)?.bufferedWriter()?.use { write(it) }
-                    ?: error("Could not open $uri")
-                values.clear()
-                values.put(MediaStore.Downloads.IS_PENDING, 0)
-                resolver.update(uri, values, null, null)
-            } else {
-                @Suppress("DEPRECATION")
-                val directory = Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_DOWNLOADS
-                )
-                directory.mkdirs()
-                File(directory, name).bufferedWriter().use { write(it) }
-            }
+            val name = "Speedometer_backup_${Downloads.stamp(System.currentTimeMillis())}.json"
+            Downloads.write(context, name, MIME_JSON) { write(it) }
             name
         }
     }
@@ -83,7 +53,11 @@ class BackupManager(
             val text = context.contentResolver.openInputStream(uri)?.use { stream ->
                 stream.reader().readText()
             } ?: error("Could not open $uri")
-            merge(BackupFormat.parse(text))
+            // All of it or none of it. A restore that failed halfway used to
+            // leave the database half merged, and the "skip what is already
+            // here" rule then made a second attempt skip exactly the trips the
+            // first one had managed to write.
+            database.withTransaction { merge(BackupFormat.parse(text)) }
         }
     }
 

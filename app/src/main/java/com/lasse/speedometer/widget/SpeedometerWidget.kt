@@ -15,9 +15,6 @@ import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.data.repo.StatsPeriod
 import com.lasse.speedometer.util.AppLocale
 import com.lasse.speedometer.util.Formatters
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -45,7 +42,7 @@ class SpeedometerWidget : AppWidgetProvider() {
         // outlive onUpdate; goAsync would need the result inside 10 seconds,
         // and a scope tied to the application is the calmer way to do it.
         val pending = goAsync()
-        scope.launch {
+        context.app.applicationScope.launch {
             runCatching {
                 val localised = AppLocale.wrap(context)
                 val application = context.app
@@ -132,8 +129,6 @@ class SpeedometerWidget : AppWidgetProvider() {
     )
 
     companion object {
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
         /** A progress bar wants whole steps; a hundred is finer than the pixels. */
         private const val GOAL_STEPS = 100
 

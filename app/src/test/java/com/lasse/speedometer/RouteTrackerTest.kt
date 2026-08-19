@@ -65,6 +65,28 @@ class RouteTrackerTest {
     }
 
     @Test
+    fun `a prepared route measures itself once and answers the same`() {
+        val prepared = RouteTracker.prepare(route)!!
+
+        // Ten hops of about 100 m.
+        assertEquals(1000.0, prepared.totalM, 40.0)
+
+        val here = route[3]
+        val direct = RouteTracker.progress(route, here.latitude, here.longitude)!!
+        val fromPrepared = RouteTracker.progress(prepared, here.latitude, here.longitude)
+
+        assertEquals(direct.remainingM, fromPrepared.remainingM, 0.001)
+        assertEquals(direct.offRouteM, fromPrepared.offRouteM, 0.001)
+        assertEquals(direct.fraction, fromPrepared.fraction, 0.0001f)
+    }
+
+    @Test
+    fun `a route too short to follow cannot be prepared`() {
+        assertNull(RouteTracker.prepare(emptyList()))
+        assertNull(RouteTracker.prepare(listOf(route.first())))
+    }
+
+    @Test
     fun `the elevation profile runs against distance travelled`() {
         val climbing = List(11) { index ->
             RoutePoint(50.0 + index * 0.0008993, 8.0, 100.0 + index * 10)
