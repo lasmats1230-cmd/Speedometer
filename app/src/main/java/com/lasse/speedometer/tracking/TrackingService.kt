@@ -27,6 +27,7 @@ import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.widget.SpeedometerWidget
 import com.lasse.speedometer.util.AppLocale
+import com.lasse.speedometer.util.LocaleFormats
 import com.lasse.speedometer.util.Formatters
 import com.lasse.speedometer.util.GeoMath
 import com.lasse.speedometer.util.TripNaming
@@ -101,6 +102,7 @@ class TrackingService : Service(), LocationListener {
             ACTION_STOP_DISCARD -> stopRecording(save = false)
             ACTION_IDLE_WATCH -> startIdleWatch()
             ACTION_IDLE_STOP -> stopIdleWatch()
+            ACTION_MARK_WAYPOINT -> markWaypoint()
         }
         return START_STICKY
     }
@@ -205,6 +207,34 @@ class TrackingService : Service(), LocationListener {
         recorder.reset()
         publish()
         stopSelfIfIdle()
+    }
+
+    /**
+     * Saves the spot the recording is at, from the notification.
+     *
+     * Marking a water tap or a turning otherwise means stopping, unlocking the
+     * phone, finding the map and long-pressing it — by which point you are a
+     * hundred metres past the thing you wanted to remember. The label carries
+     * the time, since naming it properly can wait until later.
+     */
+    private fun markWaypoint() {
+        val state = recorder.state
+        val latitude = state.latitude ?: return
+        val longitude = state.longitude ?: return
+        val label = getString(
+            R.string.waypoint_marked,
+            LocaleFormats.format("HH:mm", System.currentTimeMillis()),
+        )
+        buzz()
+        scope.launch {
+            runCatching {
+                app().tripRepository.addWaypoint(
+                    label = label,
+                    latitude = latitude,
+                    longitude = longitude,
+                )
+            }
+        }
     }
 
     private fun startIdleWatch() {
@@ -489,6 +519,11 @@ class TrackingService : Service(), LocationListener {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .addAction(0, toggleLabel, servicePendingIntent(toggleAction, 1))
+            .addAction(
+                0,
+                getString(R.string.waypoint_mark),
+                servicePendingIntent(ACTION_MARK_WAYPOINT, 3),
+            )
             .addAction(0, getString(R.string.stop), servicePendingIntent(ACTION_STOP_SAVE, 2))
             .build()
     }
@@ -557,6 +592,7 @@ class TrackingService : Service(), LocationListener {
         const val ACTION_STOP_DISCARD = "com.lasse.speedometer.STOP_DISCARD"
         const val ACTION_IDLE_WATCH = "com.lasse.speedometer.IDLE_WATCH"
         const val ACTION_IDLE_STOP = "com.lasse.speedometer.IDLE_STOP"
+        const val ACTION_MARK_WAYPOINT = "com.lasse.speedometer.MARK_WAYPOINT"
 
         private const val CHANNEL_ID = "trip_recording"
         private const val NOTIFICATION_ID = 1001

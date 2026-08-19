@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.lasse.speedometer.R
 import com.lasse.speedometer.app
 import com.lasse.speedometer.data.io.CsvHeadings
 import com.lasse.speedometer.data.io.RestoreResult
@@ -98,10 +99,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * of riding to something else — Strava, Komoot, a spreadsheet — which all
      * speak GPX and none of which speak our backup format.
      */
-    fun exportAllGpx(successTemplate: String, failure: String) = viewModelScope.launch {
+    fun exportAllGpx(failure: String) = viewModelScope.launch {
         _busy.value = true
-        val repository = getApplication<Application>().app.tripRepository
-        val exporter = getApplication<Application>().app.tripExporter
+        val application = getApplication<Application>()
+        val repository = application.app.tripRepository
+        val exporter = application.app.tripExporter
         var written = 0
         runCatching {
             repository.trips.first().forEach { trip ->
@@ -109,7 +111,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     .onSuccess { written++ }
             }
         }.onFailure { _messages.emit(failure) }
-        if (written > 0) _messages.emit(successTemplate.format(written))
+        if (written > 0) {
+            // The count decides the wording, so unlike the other messages this
+            // one cannot be resolved by the screen before the work is done.
+            _messages.emit(
+                application.resources.getQuantityString(
+                    R.plurals.settings_exported_all,
+                    written,
+                    written,
+                )
+            )
+        }
         _busy.value = false
     }
 

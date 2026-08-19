@@ -292,7 +292,7 @@ class TripRepository(
         label: String,
         latitude: Double,
         longitude: Double,
-        colorArgb: Int,
+        colorArgb: Int = DEFAULT_WAYPOINT_COLOR,
         note: String? = null,
     ): Long = withContext(Dispatchers.IO) {
         waypointDao.insertWaypoint(
@@ -333,6 +333,14 @@ class TripRepository(
                 maxSpeedMps = entry.trips.maxOfOrNull { it.maxSpeedMps } ?: 0.0,
             )
         }
+    }
+
+    private companion object {
+        /**
+         * The blue a marker gets when nobody chose one: dropping a waypoint
+         * from the notification has no screen to pick a colour on.
+         */
+        const val DEFAULT_WAYPOINT_COLOR = 0xFF2F7BFF.toInt()
     }
 }
 

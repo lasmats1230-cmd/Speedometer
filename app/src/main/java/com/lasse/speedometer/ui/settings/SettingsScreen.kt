@@ -114,7 +114,6 @@ fun SettingsScreen(
 
     val backupSaved = stringResource(R.string.settings_backup_saved)
     val backupFailed = stringResource(R.string.settings_backup_failed)
-    val exportedAll = stringResource(R.string.settings_exported_all)
     val exportedCsv = stringResource(R.string.settings_exported_csv)
 
     // The spreadsheet's headings and activity names are interface text, so
@@ -571,7 +570,7 @@ fun SettingsScreen(
                 NavigationRow(
                     title = stringResource(R.string.settings_export_all_gpx),
                     subtitle = stringResource(R.string.settings_export_all_gpx_summary),
-                    onClick = { viewModel.exportAllGpx(exportedAll, backupFailed) },
+                    onClick = { viewModel.exportAllGpx(backupFailed) },
                 )
                 NavigationRow(
                     title = stringResource(R.string.settings_export_csv),

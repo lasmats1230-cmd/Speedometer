@@ -408,7 +408,10 @@
     <string name="no_places_body">Long-press the map to drop a waypoint — a water tap, a gate, a turning that is easy to miss.</string>
     <string name="settings_export_all_gpx">Export every trip as GPX</string>
     <string name="settings_export_all_gpx_summary">One file per trip in Downloads, for another app to read</string>
-    <string name="settings_exported_all">Exported %1$d trips to Downloads</string>
+    <plurals name="settings_exported_all">
+        <item quantity="one">Exported %1$d trip to Downloads</item>
+        <item quantity="other">Exported %1$d trips to Downloads</item>
+    </plurals>
     <string name="compass_pick_place">Point at a place…</string>
     <string name="compass_no_place">No place</string>
     <string name="empty_start_recording">Start a recording</string>
@@ -427,4 +430,6 @@
     <string name="photo_add">Add a photo</string>
     <string name="photo_of_trip">Photo from this trip</string>
     <string name="photo_missing">This photo is no longer on the device</string>
+    <string name="waypoint_mark">Mark spot</string>
+    <string name="waypoint_marked">Marked at %1$s</string>
 </resources>

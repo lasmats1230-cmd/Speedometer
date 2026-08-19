@@ -40,6 +40,9 @@ object TrackingController {
     fun stopAndSave(context: Context) = send(context, TrackingService.ACTION_STOP_SAVE)
     fun stopAndDiscard(context: Context) = send(context, TrackingService.ACTION_STOP_DISCARD)
 
+    /** Saves the current position as a waypoint, named after the time. */
+    fun markWaypoint(context: Context) = send(context, TrackingService.ACTION_MARK_WAYPOINT)
+
     /** Keeps the map warm while idle; harmless if permission is missing. */
     fun observeIdleLocation(context: Context) = send(context, TrackingService.ACTION_IDLE_WATCH)
 

@@ -412,7 +412,10 @@
     <string name="no_places_body">Lange auf die Karte tippen, um einen Wegpunkt zu setzen — einen Wasserhahn, ein Tor, eine leicht zu übersehende Abzweigung.</string>
     <string name="settings_export_all_gpx">Alle Fahrten als GPX exportieren</string>
     <string name="settings_export_all_gpx_summary">Eine Datei je Fahrt in den Downloads, für andere Apps</string>
-    <string name="settings_exported_all">%1$d Fahrten in die Downloads exportiert</string>
+    <plurals name="settings_exported_all">
+        <item quantity="one">%1$d Fahrt in die Downloads exportiert</item>
+        <item quantity="other">%1$d Fahrten in die Downloads exportiert</item>
+    </plurals>
     <string name="compass_pick_place">Auf einen Ort ausrichten…</string>
     <string name="compass_no_place">Kein Ort</string>
     <string name="empty_start_recording">Aufzeichnung starten</string>
@@ -431,4 +434,6 @@
     <string name="photo_add">Foto hinzufügen</string>
     <string name="photo_of_trip">Foto von dieser Fahrt</string>
     <string name="photo_missing">Dieses Foto ist nicht mehr auf dem Gerät</string>
+    <string name="waypoint_mark">Ort merken</string>
+    <string name="waypoint_marked">Gemerkt um %1$s</string>
 </resources>
