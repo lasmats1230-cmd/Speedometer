@@ -3,7 +3,6 @@ package com.lasse.speedometer.ui.history
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -34,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.lasse.speedometer.R
 import com.lasse.speedometer.data.db.TripPhotoEntity
 import kotlinx.coroutines.Dispatchers
@@ -138,7 +138,7 @@ fun rememberPhotoThumbnail(uri: String): ImageBitmap? {
 }
 
 private fun decodeThumbnail(context: Context, uri: String): Bitmap? = runCatching {
-    val parsed = Uri.parse(uri)
+    val parsed = uri.toUri()
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     context.contentResolver.openInputStream(parsed)?.use {
         BitmapFactory.decodeStream(it, null, bounds)

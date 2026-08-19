@@ -11,7 +11,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +36,13 @@ jobs:
 
       - name: Assemble
         run: ./gradlew assembleDebug
+
+      # The debug build never runs R8, so a shrinker that cannot read the
+      # compiler's output stays invisible until release day. This step is here
+      # because exactly that happened: R8 could not parse Kotlin 2.2 metadata
+      # and logged a failure for every class in the app.
+      - name: Assemble release
+        run: ./gradlew assembleRelease
 
       # Uploaded whether or not the run passed: a failing lint or test is
       # exactly when the report is worth reading.

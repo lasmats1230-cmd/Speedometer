@@ -93,6 +93,15 @@ android {
         }
     }
 
+    bundle {
+        language {
+            // The language switch in settings changes the locale while the app
+            // is running. Play's per-language splits would have left the other
+            // translation undownloaded, so the switch would land on English.
+            enableSplit = false
+        }
+    }
+
     testOptions {
         unitTests {
             // Robolectric renders the Compose screens in these tests, which

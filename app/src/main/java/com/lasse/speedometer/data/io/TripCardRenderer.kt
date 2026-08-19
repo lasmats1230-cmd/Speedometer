@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
 import android.graphics.Typeface
+import androidx.core.graphics.createBitmap
 import com.lasse.speedometer.data.db.TrackPointEntity
 import kotlin.math.cos
 
@@ -42,7 +43,7 @@ object TripCardRenderer {
     private const val MUTED = 0xFF93A09A.toInt()
 
     fun render(points: List<TrackPointEntity>, text: TripCardText): Bitmap {
-        val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(WIDTH, HEIGHT)
         val canvas = Canvas(bitmap)
         canvas.drawColor(BACKGROUND)
 
