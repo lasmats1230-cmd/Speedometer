@@ -56,6 +56,25 @@ data class TrendBucket(
     val current: Boolean = false,
 )
 
+/**
+ * What one day already amounts to, and the run-up to it.
+ *
+ * This is the figure the live view shows before a recording starts: the
+ * question there is "have I been out yet, and how is the week going", not the
+ * full breakdown the statistics screen exists for.
+ */
+data class DaySummary(
+    val totals: Totals,
+    /** Consecutive days ending on this one with at least one recording. */
+    val streakDays: Int,
+    /** Distance recorded in the week this day falls in. */
+    val weekDistanceM: Double,
+) {
+    /** Nothing today, no streak, nothing this week — better to show nothing. */
+    val isEmpty: Boolean
+        get() = totals.isEmpty && streakDays == 0 && weekDistanceM <= 0.0
+}
+
 /** The best a trip has ever been at something. */
 data class TripRecord(
     @param:StringRes val labelRes: Int,
@@ -239,10 +258,36 @@ object StatsCalculator {
      * Consecutive days up to today with a recording. Yesterday still counts as
      * a live streak — the day is not over until it is.
      */
-    fun currentStreak(trips: List<TripEntity>, now: Long, zone: ZoneId): Int {
-        if (trips.isEmpty()) return 0
+    fun currentStreak(trips: List<TripEntity>, now: Long, zone: ZoneId): Int =
+        streakEndingOn(
+            days = trips.map { dateOf(it, zone) }.toSet(),
+            today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate(),
+        )
+
+    /**
+     * Today's totals, the streak they extend, and the week they belong to.
+     *
+     * Takes the day rather than a clock so a screen that recomposes every
+     * second is not recomputing this every second: the date only changes at
+     * midnight, and that is what the caller can remember on.
+     */
+    fun daySummary(trips: List<TripEntity>, today: LocalDate, zone: ZoneId): DaySummary {
         val days = trips.map { dateOf(it, zone) }.toSet()
-        val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek()))
+        val weekFrom = weekStart.atStartOfDay(zone).toInstant().toEpochMilli()
+        return DaySummary(
+            totals = totals(trips.filter { dateOf(it, zone) == today }, zone),
+            streakDays = streakEndingOn(days, today),
+            // A trip started before the week began but still running into it is
+            // not this week's; the start is what files a trip everywhere else.
+            weekDistanceM = trips.filter { it.startedAt >= weekFrom }.sumOf { it.distanceM },
+        )
+    }
+
+    private fun streakEndingOn(days: Set<LocalDate>, today: LocalDate): Int {
+        if (days.isEmpty()) return 0
+        // Yesterday still counts: a day with no ride yet is not a broken
+        // streak until it is over.
         var cursor = when {
             today in days -> today
             today.minusDays(1) in days -> today.minusDays(1)

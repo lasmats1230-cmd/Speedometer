@@ -56,6 +56,17 @@ class LiveViewModel(application: Application) : AndroidViewModel(application) {
     fun markOnboarded() = viewModelScope.launch { settingsRepository.setOnboarded(true) }
 
     /**
+     * Every saved trip, for the summary shown before a recording starts.
+     *
+     * The figures are derived in the composition rather than here, the same
+     * way the statistics screen does it: they need the user's units to be
+     * readable, and totalling a few hundred rows costs less than the
+     * recomposition that draws them.
+     */
+    val trips: StateFlow<List<TripEntity>> = repository.trips
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
      * A recording that was still open when the app last stopped.
      *
      * Only interesting while nothing is being recorded — during a recording

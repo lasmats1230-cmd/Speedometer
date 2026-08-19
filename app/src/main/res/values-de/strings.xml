@@ -428,6 +428,17 @@
     <string name="settings_export_csv_summary">Eine CSV-Datei aller Fahrten in den Downloads, direkt in einer Tabellenkalkulation zu öffnen</string>
     <string name="settings_exported_csv">Tabelle gespeichert als %1$s</string>
     <string name="route_remaining_eta">Noch %1$s · etwa %2$s</string>
+
+    <!-- Was heute schon zusammengekommen ist, über dem Startknopf -->
+    <string name="today_label">Heute</string>
+    <string name="today_nothing">Noch nichts</string>
+    <string name="today_week">%1$s diese Woche</string>
+    <string name="today_goal_left">Noch %1$s diese Woche</string>
+    <string name="today_goal_done">Wochenziel erreicht</string>
+    <plurals name="today_streak">
+        <item quantity="one">%1$d Tag in Folge</item>
+        <item quantity="other">%1$d Tage in Folge</item>
+    </plurals>
     <string name="photos">Fotos</string>
     <string name="photos_empty">Füge ein Bild von der Fahrt hinzu.</string>
     <string name="photos_remove_hint">Zum Entfernen lange auf ein Bild tippen.</string>

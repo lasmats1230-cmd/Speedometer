@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.Locale
@@ -212,4 +213,58 @@ class StatsCalculatorTest {
 
         assertEquals(14L, StatsCalculator.daysSinceFirst(trips, now, zone))
     }
+
+    @Test
+    fun `the day summary counts today, the streak and the week`() {
+        val trips = listOf(
+            // Today, twice.
+            trip(at(2026, 4, 15, 7), distanceM = 5_000.0, movingTimeMs = 1_200_000),
+            trip(at(2026, 4, 15, 18), distanceM = 8_000.0, movingTimeMs = 1_800_000),
+            // Yesterday and the day before, so the streak runs to three.
+            trip(at(2026, 4, 14, 8), distanceM = 12_000.0),
+            trip(at(2026, 4, 13, 8), distanceM = 3_000.0),
+            // The Saturday before: same month, previous week.
+            trip(at(2026, 4, 11, 8), distanceM = 40_000.0),
+        )
+
+        val summary = StatsCalculator.daySummary(trips, today, zone)
+
+        assertEquals(2, summary.totals.trips)
+        assertEquals(13_000.0, summary.totals.distanceM, 0.001)
+        assertEquals(3_000_000L, summary.totals.movingTimeMs)
+        assertEquals(3, summary.streakDays)
+        // Monday the 13th onwards; the Saturday before is another week.
+        assertEquals(28_000.0, summary.weekDistanceM, 0.001)
+    }
+
+    @Test
+    fun `a day with nothing on it still reports the streak it sits on`() {
+        val trips = listOf(trip(at(2026, 4, 14, 8), distanceM = 12_000.0))
+
+        val summary = StatsCalculator.daySummary(trips, today, zone)
+
+        assertTrue(summary.totals.isEmpty)
+        // Yesterday counts: today is not over yet.
+        assertEquals(1, summary.streakDays)
+        assertEquals(12_000.0, summary.weekDistanceM, 0.001)
+        assertTrue(!summary.isEmpty)
+    }
+
+    @Test
+    fun `no history at all means there is nothing to show`() {
+        assertTrue(StatsCalculator.daySummary(emptyList(), today, zone).isEmpty)
+    }
+
+    @Test
+    fun `a gap of one whole day breaks the streak`() {
+        val trips = listOf(
+            trip(at(2026, 4, 13, 8)),
+            // Nothing on the 14th, and nothing today.
+            trip(at(2026, 4, 10, 8)),
+        )
+
+        assertEquals(0, StatsCalculator.daySummary(trips, today, zone).streakDays)
+    }
+
+    private val today: LocalDate = LocalDate.of(2026, 4, 15)
 }

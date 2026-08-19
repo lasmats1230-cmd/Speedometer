@@ -73,8 +73,10 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MinimapSize
+import com.lasse.speedometer.data.repo.DaySummary
 import com.lasse.speedometer.data.repo.RouteProgress
 import com.lasse.speedometer.data.repo.RouteTracker
+import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.ImmersiveMode
@@ -88,6 +90,8 @@ import com.lasse.speedometer.ui.theme.TimerStyle
 import com.lasse.speedometer.ui.theme.TrackColors
 import com.lasse.speedometer.util.Formatters
 import kotlinx.coroutines.delay
+import java.time.Instant
+import java.time.ZoneId
 
 @Composable
 fun LiveScreen(
@@ -231,6 +235,18 @@ fun LiveScreen(
     val now = System.currentTimeMillis()
     val layout = settings.layout
 
+    // Today's figures, for the idle view. Keyed on the date rather than the
+    // clock: this screen recomposes every second while recording, and the
+    // answer only changes at midnight or when a trip is saved.
+    val savedTrips by viewModel.trips.collectAsState()
+    val zone = remember { ZoneId.systemDefault() }
+    val today = remember(now / DAY_CHECK_MS) {
+        Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    }
+    val daySummary = remember(savedTrips, today) {
+        StatsCalculator.daySummary(savedTrips, today, zone)
+    }
+
     // Landscape is the car-mount and handlebar case: the readout and the map
     // sit side by side rather than stacking, so neither is squeezed into a
     // strip. Extreme mode and a hidden minimap have nothing to put beside the
@@ -263,6 +279,7 @@ fun LiveScreen(
             state = state,
             settings = settings,
             idle = idle,
+            daySummary = daySummary,
             overLimit = overLimit,
             hasLocationPermission = hasLocationPermission,
             now = now,
@@ -458,6 +475,8 @@ private fun ReadoutPane(
     state: com.lasse.speedometer.tracking.TrackingState,
     settings: AppSettings,
     idle: Boolean,
+    /** Today's figures, or null while there is nothing worth showing. */
+    daySummary: DaySummary?,
     overLimit: Boolean,
     hasLocationPermission: Boolean,
     now: Long,
@@ -503,6 +522,14 @@ private fun ReadoutPane(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(12.dp))
+            if (daySummary != null) {
+                TodaySummary(
+                    summary = daySummary,
+                    settings = settings,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+            }
         } else {
             Spacer(Modifier.height(4.dp))
         }
@@ -835,6 +862,13 @@ internal fun Modifier.mirrored(): Modifier = graphicsLayer(scaleX = -1f)
 
 /** Long enough that a row still open is not simply one being written. */
 private const val RECOVERY_STALE_MS = 60_000L
+
+/**
+ * How coarsely the clock is rounded before asking what day it is. A minute is
+ * fine enough that midnight is noticed while the app is open, and coarse
+ * enough that the answer is not recomputed on every recomposition.
+ */
+private const val DAY_CHECK_MS = 60_000L
 
 private val CONTROL_SIZE = 68.dp
 private val CONTROL_ICON_SIZE = 30.dp

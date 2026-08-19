@@ -1,5 +1,6 @@
 package com.lasse.speedometer
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -9,6 +10,8 @@ import androidx.compose.ui.test.performClick
 import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.LayoutSettings
+import com.lasse.speedometer.data.repo.DaySummary
+import com.lasse.speedometer.data.repo.Totals
 import com.lasse.speedometer.tracking.TrackingState
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.components.ActivityPicker
@@ -21,6 +24,7 @@ import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.live.DimDisplay
 import com.lasse.speedometer.ui.live.OnboardingDialog
+import com.lasse.speedometer.ui.live.TodaySummary
 import com.lasse.speedometer.ui.theme.SpeedometerTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -217,5 +221,39 @@ class ComponentRenderTest {
 
         assertEquals("21.34 km", card?.headline)
         assertEquals(4, card?.stats?.size)
+    }
+
+    @Test
+    fun `today's summary shows the day, the streak and the goal left`() {
+        val summary = DaySummary(
+            totals = Totals(trips = 2, distanceM = 13_000.0, movingTimeMs = 3_000_000),
+            streakDays = 3,
+            weekDistanceM = 28_000.0,
+        )
+
+        compose.setContent {
+            SpeedometerTheme {
+                TodaySummary(summary = summary, settings = settings.copy(weeklyGoalM = 50_000.0))
+            }
+        }
+
+        compose.onNodeWithText("Today").assertIsDisplayed()
+        compose.onNodeWithText("13.00 km · 50:00").assertIsDisplayed()
+        compose.onNodeWithText("3 days in a row · 22.00 km to go this week").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a day with no history at all draws nothing`() {
+        compose.setContent {
+            SpeedometerTheme {
+                Column {
+                    Text("anchor")
+                    TodaySummary(summary = DaySummary(Totals(), 0, 0.0), settings = settings)
+                }
+            }
+        }
+
+        compose.onNodeWithText("anchor").assertIsDisplayed()
+        compose.onNodeWithText("Today").assertDoesNotExist()
     }
 }
