@@ -110,6 +110,7 @@
     <string name="descent">Descent</string>
     <string name="altitude">Altitude</string>
     <string name="elevation_profile">Elevation profile</string>
+    <string name="chart_spoken">Chart, %1$s to %2$s, over %3$s</string>
     <string name="speed_profile">Speed profile</string>
     <string name="lowest">Lowest %1$s</string>
     <string name="highest">Highest %1$s</string>
@@ -430,6 +431,17 @@
     <string name="settings_exported_csv">Spreadsheet saved as %1$s</string>
     <string name="route_remaining_eta">%1$s left · about %2$s</string>
 
+    <!-- The waypoint palette, so nine circles are not nine unnamed buttons -->
+    <string name="colour_red">Red</string>
+    <string name="colour_orange">Orange</string>
+    <string name="colour_yellow">Yellow</string>
+    <string name="colour_green">Green</string>
+    <string name="colour_teal">Teal</string>
+    <string name="colour_blue">Blue</string>
+    <string name="colour_purple">Purple</string>
+    <string name="colour_pink">Pink</string>
+    <string name="colour_grey">Grey</string>
+
     <!-- Said once, when a saved trip turns out to have beaten something -->
     <string name="best_distance">Your longest yet</string>
     <string name="best_duration">Your longest time out</string>
@@ -449,6 +461,7 @@
     <string name="photos">Photos</string>
     <string name="photos_empty">Add a picture from the ride.</string>
     <string name="photos_remove_hint">Long-press a picture to remove it.</string>
+    <string name="photo_remove">Remove picture</string>
     <string name="photo_add">Add a photo</string>
     <string name="photo_of_trip">Photo from this trip</string>
     <string name="photo_missing">This photo is no longer on the device</string>

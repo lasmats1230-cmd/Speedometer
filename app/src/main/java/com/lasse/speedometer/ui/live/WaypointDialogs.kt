@@ -2,7 +2,6 @@ package com.lasse.speedometer.ui.live
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -31,6 +31,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lasse.speedometer.R
 import com.lasse.speedometer.data.db.WaypointEntity
@@ -124,35 +127,56 @@ private fun ColorPicker(selectedArgb: Int, onSelect: (Int) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        WaypointColors.options.forEach { color ->
-            val argb = color.toArgb()
+        WaypointColors.options.forEach { option ->
+            val argb = option.color.toArgb()
             val selected = argb == selectedArgb
+            val name = stringResource(option.nameRes)
             Box(
+                // The swatch stays 38dp, but the thing you tap is 48dp: a
+                // circle small enough to look right is smaller than a fingertip.
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(TOUCH_TARGET)
                     .clip(CircleShape)
-                    .background(color)
-                    .border(
-                        width = if (selected) 3.dp else 0.dp,
-                        color = if (selected) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            Color.Transparent
-                        },
-                        shape = CircleShape,
+                    .selectable(
+                        selected = selected,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(argb) },
                     )
-                    .clickable { onSelect(argb) },
+                    .semantics { contentDescription = name },
                 contentAlignment = Alignment.Center,
             ) {
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(SWATCH)
+                        .clip(CircleShape)
+                        .background(option.color)
+                        .border(
+                            width = if (selected) 3.dp else 0.dp,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/** Small enough to fit nine in a dialog, big enough to read as a colour. */
+private val SWATCH = 38.dp
+
+/** Material's smallest comfortable target, whatever the swatch looks like. */
+private val TOUCH_TARGET = 48.dp

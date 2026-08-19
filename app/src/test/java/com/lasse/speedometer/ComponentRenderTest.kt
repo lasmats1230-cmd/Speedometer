@@ -3,6 +3,8 @@ package com.lasse.speedometer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -25,6 +27,7 @@ import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.live.DimDisplay
 import com.lasse.speedometer.ui.live.OnboardingDialog
 import com.lasse.speedometer.ui.live.TodaySummary
+import com.lasse.speedometer.ui.live.WaypointEditorDialog
 import com.lasse.speedometer.ui.theme.SpeedometerTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -255,5 +258,29 @@ class ComponentRenderTest {
 
         compose.onNodeWithText("anchor").assertIsDisplayed()
         compose.onNodeWithText("Today").assertDoesNotExist()
+    }
+
+    @Test
+    fun `every waypoint colour is named and reports whether it is chosen`() {
+        var chosen: Int? = null
+
+        compose.setContent {
+            SpeedometerTheme {
+                WaypointEditorDialog(
+                    existing = null,
+                    onDismiss = {},
+                    onSave = { _, _, colorArgb -> chosen = colorArgb },
+                )
+            }
+        }
+
+        // Nine circles used to be nine unlabelled buttons.
+        compose.onNodeWithContentDescription("Blue").assertIsSelected()
+        compose.onNodeWithContentDescription("Red").assertIsNotSelected()
+
+        compose.onNodeWithContentDescription("Red").performClick()
+        compose.onNodeWithContentDescription("Red").assertIsSelected()
+
+        assertEquals(null, chosen)
     }
 }

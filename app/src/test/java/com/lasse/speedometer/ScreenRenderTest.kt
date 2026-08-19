@@ -1,6 +1,8 @@
 package com.lasse.speedometer
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -11,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.RouteEntity
@@ -213,6 +217,44 @@ class ScreenRenderTest {
     }
 
     @Test
+    fun `the screens still say what they say at the largest font scale`() {
+        // Android's accessibility settings go to 2x, and the tiles, chips and
+        // headers here are the sort of layout that quietly stops fitting.
+        compose.setContent {
+            HugeText {
+                SpeedometerTheme {
+                    StatsScreen(settings = settings, onOpenTrip = {}, onStartRecording = {})
+                }
+            }
+        }
+
+        compose.awaitText("21.34 km")
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Longest trip"))
+        compose.onNodeWithText("Longest trip").assertIsDisplayed()
+    }
+
+    @Test
+    fun `history is still readable and searchable at the largest font scale`() {
+        compose.setContent {
+            HugeText {
+                SpeedometerTheme {
+                    HistoryScreen(
+                        settings = settings,
+                        snackbarHostState = SnackbarHostState(),
+                        onOpenTrip = {},
+                        onOpenTour = {},
+                        onStartRecording = {},
+                    )
+                }
+            }
+        }
+
+        compose.awaitText("Morning ride")
+        compose.onNodeWithText("Search trips").performTextInput("something else")
+        compose.onNodeWithText("Nothing matches.").assertIsDisplayed()
+    }
+
+    @Test
     fun `an imported route opens on its figures and a way to follow it`() {
         // Eleven points running north, climbing 100 m over about a kilometre.
         val encoded = (0..10).joinToString(";") { index ->
@@ -257,6 +299,22 @@ class ScreenRenderTest {
         ActiveRoute.clear()
         runBlocking { app.tripRepository.deleteRoute(routeId) }
     }
+}
+
+/**
+ * Renders its content at the largest font scale Android's settings offer.
+ *
+ * A screen that only ever runs at 1x looks finished and is not: the person
+ * most likely to have text at 2x is the one least able to work around a
+ * layout that breaks.
+ */
+@Composable
+private fun HugeText(content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(
+        LocalDensity provides Density(density.density, fontScale = 2f),
+        content = content,
+    )
 }
 
 /**

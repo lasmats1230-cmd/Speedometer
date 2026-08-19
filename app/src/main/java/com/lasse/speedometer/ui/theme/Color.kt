@@ -1,6 +1,8 @@
 package com.lasse.speedometer.ui.theme
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import com.lasse.speedometer.R
 
 /**
  * Error colours, shared by every scheme.
@@ -29,19 +31,27 @@ object TrackColors {
     val Paused = Color(0xFFFFB020)
 }
 
-/** The palette offered when colouring a waypoint. */
+/**
+ * The palette offered when colouring a waypoint.
+ *
+ * Each colour carries its name, because a row of nine circles is nine
+ * unlabelled buttons to anyone using a screen reader.
+ */
 object WaypointColors {
     val options = listOf(
-        Color(0xFFE0402F),
-        Color(0xFFF07316),
-        Color(0xFFD5A400),
-        Color(0xFF19E68C),
-        Color(0xFF009FA8),
-        Color(0xFF2F7BFF),
-        Color(0xFF7C5CFF),
-        Color(0xFFE0459B),
-        Color(0xFFB0B7B3),
+        WaypointColor(Color(0xFFE0402F), R.string.colour_red),
+        WaypointColor(Color(0xFFF07316), R.string.colour_orange),
+        WaypointColor(Color(0xFFD5A400), R.string.colour_yellow),
+        WaypointColor(Color(0xFF19E68C), R.string.colour_green),
+        WaypointColor(Color(0xFF009FA8), R.string.colour_teal),
+        WaypointColor(Color(0xFF2F7BFF), R.string.colour_blue),
+        WaypointColor(Color(0xFF7C5CFF), R.string.colour_purple),
+        WaypointColor(Color(0xFFE0459B), R.string.colour_pink),
+        WaypointColor(Color(0xFFB0B7B3), R.string.colour_grey),
     )
 
-    val default = options[5]
+    val default = options[5].color
 }
+
+/** One choice in the waypoint palette. */
+data class WaypointColor(val color: Color, @param:StringRes val nameRes: Int)

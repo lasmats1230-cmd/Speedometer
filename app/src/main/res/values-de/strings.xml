@@ -51,6 +51,7 @@
     <string name="descent">Abstieg</string>
     <string name="altitude">Höhe</string>
     <string name="elevation_profile">Höhenprofil</string>
+    <string name="chart_spoken">Diagramm, %1$s bis %2$s, über %3$s</string>
     <string name="speed_profile">Geschwindigkeitsprofil</string>
     <string name="lowest">Tiefster %1$s</string>
     <string name="highest">Höchster %1$s</string>
@@ -434,6 +435,17 @@
     <string name="settings_exported_csv">Tabelle gespeichert als %1$s</string>
     <string name="route_remaining_eta">Noch %1$s · etwa %2$s</string>
 
+    <!-- Die Wegpunkt-Palette, damit neun Kreise nicht neun namenlose Knöpfe sind -->
+    <string name="colour_red">Rot</string>
+    <string name="colour_orange">Orange</string>
+    <string name="colour_yellow">Gelb</string>
+    <string name="colour_green">Grün</string>
+    <string name="colour_teal">Petrol</string>
+    <string name="colour_blue">Blau</string>
+    <string name="colour_purple">Violett</string>
+    <string name="colour_pink">Pink</string>
+    <string name="colour_grey">Grau</string>
+
     <!-- Einmal gesagt, wenn eine gespeicherte Fahrt einen Rekord gebrochen hat -->
     <string name="best_distance">Deine bisher längste</string>
     <string name="best_duration">Deine bisher längste Zeit</string>
@@ -457,6 +469,7 @@
     <string name="photos">Fotos</string>
     <string name="photos_empty">Füge ein Bild von der Fahrt hinzu.</string>
     <string name="photos_remove_hint">Zum Entfernen lange auf ein Bild tippen.</string>
+    <string name="photo_remove">Bild entfernen</string>
     <string name="photo_add">Foto hinzufügen</string>
     <string name="photo_of_trip">Foto von dieser Fahrt</string>
     <string name="photo_missing">Dieses Foto ist nicht mehr auf dem Gerät</string>

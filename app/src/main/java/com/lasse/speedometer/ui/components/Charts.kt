@@ -25,6 +25,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -32,6 +35,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lasse.speedometer.R
 import com.lasse.speedometer.ui.theme.TrackColors
 import kotlin.math.max
 
@@ -98,10 +102,20 @@ fun ProfileChart(
             fallbackHigh = describeHigh?.invoke(maxY) ?: formatY(maxY),
         )
 
+        // Scrubbing is a finger on a canvas, which is nothing at all to a
+        // screen reader. The shape of the curve will not survive being read
+        // out, but its range and length will, and that is most of the answer.
+        val spoken = stringResource(
+            R.string.chart_spoken,
+            formatY(minY),
+            formatY(maxY),
+            formatX(maxX),
+        )
         Canvas(
             Modifier
                 .fillMaxWidth()
                 .height(height)
+                .semantics { contentDescription = spoken }
                 .pointerInput(plotted) {
                     // Press and drag both scrub; releasing clears the marker.
                     awaitEachGesture {

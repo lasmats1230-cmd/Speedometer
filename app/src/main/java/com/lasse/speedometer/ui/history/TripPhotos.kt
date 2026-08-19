@@ -82,8 +82,13 @@ fun PhotoStrip(
                 modifier = Modifier
                     .size(THUMBNAIL)
                     .combinedClickable(
-                        onClick = {},
+                        // Long press is the only way to remove one, so it has
+                        // to be announced: a screen reader offers labelled
+                        // long-presses as an action, and an unlabelled one
+                        // does not exist as far as the user is concerned.
+                        onLongClickLabel = stringResource(R.string.photo_remove),
                         onLongClick = { onRemove(photo.id) },
+                        onClick = {},
                     ),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,

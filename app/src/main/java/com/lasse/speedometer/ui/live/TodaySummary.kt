@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
@@ -81,11 +82,17 @@ fun TodaySummary(
                     text = stringResource(R.string.today_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    // At the largest font scale the label is what gives way:
+                    // the figures are the point of the card.
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 Text(
                     text = headline,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
             Text(

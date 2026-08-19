@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
@@ -56,6 +57,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.BuildConfig
@@ -697,30 +701,46 @@ private fun AccentPicker(selected: AccentColor, onSelect: (AccentColor) -> Unit)
     ) {
         AccentColor.entries.forEach { accent ->
             val isSelected = accent == selected
+            val name = stringResource(accent.labelRes)
             Box(
+                // Named whether or not it is the current one, and tappable
+                // across the full 48dp even though the circle is smaller:
+                // before this, an unselected accent was an unlabelled button.
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(ACCENT_TOUCH_TARGET)
                     .clip(CircleShape)
-                    .background(accent.seed)
-                    .border(
-                        width = if (isSelected) 3.dp else 0.dp,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            Color.Transparent
-                        },
-                        shape = CircleShape,
+                    .selectable(
+                        selected = isSelected,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(accent) },
                     )
-                    .clickable { onSelect(accent) },
+                    .semantics { contentDescription = name },
                 contentAlignment = Alignment.Center,
             ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = stringResource(accent.labelRes),
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp),
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(ACCENT_SWATCH)
+                        .clip(CircleShape)
+                        .background(accent.seed)
+                        .border(
+                            width = if (isSelected) 3.dp else 0.dp,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
         }
@@ -821,3 +841,9 @@ private fun NavigationRow(title: String, subtitle: String?, onClick: () -> Unit)
         )
     }
 }
+
+/** The circle you see. */
+private val ACCENT_SWATCH = 44.dp
+
+/** The circle you can hit, which Material puts at 48dp whatever it looks like. */
+private val ACCENT_TOUCH_TARGET = 48.dp
