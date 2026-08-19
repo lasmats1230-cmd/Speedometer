@@ -16,7 +16,6 @@
         android:maxSdkVersion="28" />
 
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
 
     <!-- Health Connect: read/write the workout data this app records. -->
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />

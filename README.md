@@ -27,9 +27,10 @@ few lines of text or as a rendered picture of the route. Each trip opens onto
 a detail view with the full track, an elevation profile, a speed profile, and
 per-kilometre splits.
 
-**Tools** — a magnetometer compass, a free-panning map, and GPX/TCX route
-import. An imported route can be followed on the live view, which then shows
-how much is left and warns when you leave it.
+**Tools** — a free-panning map, saved places, and GPX/TCX route import. An
+imported route opens onto its own map and elevation profile, and can be
+followed on the live view, which then shows how much is left, when you will
+arrive, and warns when you leave it.
 
 **Spoken updates** — distance, time and pace announced every kilometre or
 mile, in the app's language, ducking music rather than stopping it. The phone

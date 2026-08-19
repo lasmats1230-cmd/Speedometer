@@ -29,7 +29,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lasse.speedometer.R
 import com.lasse.speedometer.SpeedometerApp
-import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.ui.theme.TrackColors
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLngBounds

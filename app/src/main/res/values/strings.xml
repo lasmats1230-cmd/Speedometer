@@ -124,7 +124,6 @@
 
     <!-- Tools -->
     <string name="tools">Tools</string>
-    <string name="tab_compass">Compass</string>
     <string name="tab_map">Map</string>
     <string name="tab_routes">Routes</string>
     <string name="import_route">Import GPX or TCX</string>
@@ -133,8 +132,6 @@
     <string name="follow_route">Follow on live view</string>
     <string name="stop_following">Stop following</string>
     <string name="following">Following</string>
-    <string name="calibrate_compass">Move the phone in a figure eight to calibrate.</string>
-    <string name="no_compass">This device has no compass sensor.</string>
     <string name="heading">Heading</string>
     <string name="recenter">Recenter</string>
 
@@ -418,8 +415,6 @@
         <item quantity="one">Exported %1$d trip to Downloads</item>
         <item quantity="other">Exported %1$d trips to Downloads</item>
     </plurals>
-    <string name="compass_pick_place">Point at a place…</string>
-    <string name="compass_no_place">No place</string>
     <string name="empty_start_recording">Start a recording</string>
     <string name="clear_filters">Clear filters</string>
     <string name="trip_faster_than_usual">%1$d%% faster than your usual %2$s</string>

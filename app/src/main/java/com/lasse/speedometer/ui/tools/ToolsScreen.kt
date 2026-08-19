@@ -20,18 +20,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material3.Button
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -60,7 +54,6 @@ import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.ui.components.CenteredEmptyState
 import com.lasse.speedometer.ui.components.Dimens
-import com.lasse.speedometer.ui.components.EmptyState
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.ListCard
 import com.lasse.speedometer.ui.components.MenuAction
@@ -92,7 +85,6 @@ fun ToolsScreen(
 
         SegmentedTabs(
             options = listOf(
-                stringResource(R.string.tab_compass),
                 stringResource(R.string.tab_map),
                 stringResource(R.string.tab_places),
                 stringResource(R.string.tab_routes),
@@ -100,7 +92,6 @@ fun ToolsScreen(
             selectedIndex = selectedTab,
             onSelect = { selectedTab = it },
             icons = listOf(
-                Icons.Outlined.Explore,
                 Icons.Filled.Map,
                 Icons.Outlined.Place,
                 Icons.Outlined.Route,
@@ -111,13 +102,8 @@ fun ToolsScreen(
         Spacer(Modifier.height(12.dp))
 
         when (selectedTab) {
-            0 -> CompassTab(
-                settings = settings,
-                viewModel = viewModel,
-                modifier = Modifier.weight(1f),
-            )
-            1 -> MapPane(Modifier.weight(1f))
-            2 -> PlacesPane(
+            0 -> MapPane(Modifier.weight(1f))
+            1 -> PlacesPane(
                 settings = settings,
                 viewModel = viewModel,
                 modifier = Modifier.weight(1f),
@@ -131,89 +117,6 @@ fun ToolsScreen(
             )
         }
     }
-}
-
-/**
- * The compass, with an optional place to point it at.
- *
- * A bearing on its own tells you which way you are facing; a bearing towards
- * the water tap you saved last summer tells you which way to go, which is
- * what a compass is for on a walk.
- */
-@Composable
-private fun CompassTab(
-    settings: AppSettings,
-    viewModel: ToolsViewModel,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val waypoints by viewModel.waypoints.collectAsState()
-    val state by TrackingController.state.collectAsState()
-    var targetId by remember { mutableStateOf<Long?>(null) }
-    var pickerOpen by remember { mutableStateOf(false) }
-
-    DisposableEffect(Unit) {
-        TrackingController.observeIdleLocation(context)
-        onDispose { if (!state.isActive) TrackingController.stopIdleLocation(context) }
-    }
-
-    val target = remember(targetId, waypoints, state.latitude, state.longitude) {
-        val waypoint = waypoints.firstOrNull { it.id == targetId } ?: return@remember null
-        val latitude = state.latitude ?: return@remember null
-        val longitude = state.longitude ?: return@remember null
-        CompassTarget(
-            label = waypoint.label,
-            bearingDeg = GeoMath.bearingDegrees(
-                latitude,
-                longitude,
-                waypoint.latitude,
-                waypoint.longitude,
-            ),
-            distanceLabel = Formatters.distance(
-                GeoMath.distanceMeters(
-                    latitude,
-                    longitude,
-                    waypoint.latitude,
-                    waypoint.longitude,
-                ),
-                settings.units,
-            ),
-        )
-    }
-
-    CompassPane(
-        modifier = modifier,
-        target = target,
-        picker = {
-            if (waypoints.isEmpty()) return@CompassPane
-            Box {
-                TextButton(onClick = { pickerOpen = true }) {
-                    Text(
-                        text = waypoints.firstOrNull { it.id == targetId }?.label
-                            ?: stringResource(R.string.compass_pick_place),
-                    )
-                }
-                DropdownMenu(expanded = pickerOpen, onDismissRequest = { pickerOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.compass_no_place)) },
-                        onClick = {
-                            pickerOpen = false
-                            targetId = null
-                        },
-                    )
-                    waypoints.forEach { waypoint ->
-                        DropdownMenuItem(
-                            text = { Text(waypoint.label) },
-                            onClick = {
-                                pickerOpen = false
-                                targetId = waypoint.id
-                            },
-                        )
-                    }
-                }
-            }
-        },
-    )
 }
 
 @Composable

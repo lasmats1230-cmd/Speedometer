@@ -61,7 +61,6 @@
 
     <!-- Tools -->
     <string name="tools">Werkzeuge</string>
-    <string name="tab_compass">Kompass</string>
     <string name="tab_map">Karte</string>
     <string name="tab_routes">Routen</string>
     <string name="import_route">GPX oder TCX importieren</string>
@@ -70,8 +69,6 @@
     <string name="follow_route">In Live-Ansicht folgen</string>
     <string name="stop_following">Nicht mehr folgen</string>
     <string name="following">Wird verfolgt</string>
-    <string name="calibrate_compass">Bewege das Handy in einer Acht, um zu kalibrieren.</string>
-    <string name="no_compass">Dieses Gerät hat keinen Kompasssensor.</string>
     <string name="heading">Richtung</string>
     <string name="recenter">Zentrieren</string>
 
@@ -422,8 +419,6 @@
         <item quantity="one">%1$d Fahrt in die Downloads exportiert</item>
         <item quantity="other">%1$d Fahrten in die Downloads exportiert</item>
     </plurals>
-    <string name="compass_pick_place">Auf einen Ort ausrichten…</string>
-    <string name="compass_no_place">Kein Ort</string>
     <string name="empty_start_recording">Aufzeichnung starten</string>
     <string name="clear_filters">Filter zurücksetzen</string>
     <string name="trip_faster_than_usual">%1$d%% schneller als sonst (%2$s)</string>
