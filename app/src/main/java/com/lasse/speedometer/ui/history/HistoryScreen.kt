@@ -62,6 +62,7 @@ import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.repo.TourSummary
 import com.lasse.speedometer.data.repo.TripListItem
+import com.lasse.speedometer.ui.components.ActivityDialog
 import com.lasse.speedometer.ui.components.CenteredEmptyState
 import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.ListCard
@@ -698,48 +699,6 @@ internal fun TextFieldDialog(
             ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
-}
-
-/** Re-filing a recorded trip as a different kind of activity. */
-@Composable
-internal fun ActivityDialog(
-    selected: ActivityType,
-    onSelect: (ActivityType) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.change_activity)) },
-        text = {
-            Column {
-                ActivityType.entries.forEach { activity ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(activity) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = activity == selected, onClick = null)
-                        Icon(
-                            imageVector = activity.icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                        Text(
-                            text = stringResource(activity.labelRes),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 12.dp),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )

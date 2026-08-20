@@ -52,6 +52,7 @@ import com.lasse.speedometer.data.repo.Split
 import com.lasse.speedometer.data.repo.Splits
 import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.ui.components.ActivityBadge
+import com.lasse.speedometer.ui.components.ActivityDialog
 import com.lasse.speedometer.ui.components.ChartSample
 import com.lasse.speedometer.ui.components.DetailRow
 import com.lasse.speedometer.ui.components.DetailScaffold
@@ -62,7 +63,7 @@ import com.lasse.speedometer.ui.components.OverflowMenu
 import com.lasse.speedometer.ui.components.ProfileChart
 import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.StatTile
-import com.lasse.speedometer.ui.components.TrackMap
+import com.lasse.speedometer.ui.components.ExpandableTrackMap
 import com.lasse.speedometer.util.Formatters
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -405,20 +406,12 @@ private fun TripDetailContent(
         verticalArrangement = Arrangement.spacedBy(Dimens.Item),
     ) {
         item("map") {
-            Surface(
+            ExpandableTrackMap(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp),
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-            ) {
-                TrackMap(
-                    modifier = Modifier.fillMaxSize(),
-                    track = track,
-                    fitTrack = true,
-                    followPosition = false,
-                )
-            }
+                track = track,
+            )
         }
 
         item("heading") {

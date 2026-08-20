@@ -1,7 +1,14 @@
 package com.lasse.speedometer
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -16,7 +23,10 @@ import com.lasse.speedometer.data.repo.DaySummary
 import com.lasse.speedometer.data.repo.Totals
 import com.lasse.speedometer.tracking.TrackingState
 import com.lasse.speedometer.tracking.TrackingStatus
-import com.lasse.speedometer.ui.components.ActivityPicker
+import com.lasse.speedometer.ui.components.ActivityChip
+import com.lasse.speedometer.ui.components.ExpandableTrackMap
+import com.lasse.speedometer.ui.components.LatLng
+import com.lasse.speedometer.ui.components.ActivityDialog
 import com.lasse.speedometer.ui.components.BarChart
 import com.lasse.speedometer.ui.components.BarSample
 import com.lasse.speedometer.ui.components.MenuAction
@@ -130,17 +140,63 @@ class ComponentRenderTest {
     }
 
     @Test
-    fun `the activity picker reports the choice it was tapped on`() {
+    fun `the activity chip opens the picker and reports the choice`() {
         var chosen: ActivityType? = null
         compose.setContent {
             SpeedometerTheme {
-                ActivityPicker(selected = ActivityType.RIDE, onSelect = { chosen = it })
+                var open by remember { mutableStateOf(false) }
+                ActivityChip(activity = ActivityType.RIDE, onClick = { open = true })
+                if (open) {
+                    ActivityDialog(
+                        selected = ActivityType.RIDE,
+                        onSelect = { chosen = it },
+                        onDismiss = { open = false },
+                    )
+                }
             }
         }
 
+        // The chip says what is set without the other five taking up the row.
+        compose.onNodeWithText("Ride").assertIsDisplayed()
+        compose.onNodeWithText("Run").assertDoesNotExist()
+
+        compose.onNodeWithText("Ride").performClick()
         compose.onNodeWithText("Run").performClick()
 
         assertEquals(ActivityType.RUN, chosen)
+    }
+
+    @Test
+    fun `a finished track offers to open full screen`() {
+        val track = listOf(
+            LatLng(48.0, 11.6),
+            LatLng(48.001, 11.601),
+            LatLng(48.002, 11.602),
+        )
+
+        compose.setContent {
+            SpeedometerTheme {
+                ExpandableTrackMap(modifier = Modifier.size(200.dp), track = track)
+            }
+        }
+
+        compose.onNodeWithContentDescription("Enlarge map").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Close").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Enlarge map").performClick()
+
+        compose.onNodeWithContentDescription("Close").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a trip with no track has nothing to enlarge`() {
+        compose.setContent {
+            SpeedometerTheme {
+                ExpandableTrackMap(modifier = Modifier.size(200.dp), track = emptyList())
+            }
+        }
+
+        compose.onNodeWithContentDescription("Enlarge map").assertDoesNotExist()
     }
 
     @Test

@@ -176,6 +176,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setMinimapSize(value: MinimapSize) = update { settingsRepository.setMinimapSize(value) }
     fun setShowTimer(value: Boolean) = update { settingsRepository.setShowTimer(value) }
     fun setShowStatusChip(value: Boolean) = update { settingsRepository.setShowStatusChip(value) }
+    fun setShowTodaySummary(value: Boolean) = update {
+        settingsRepository.setShowTodaySummary(value)
+    }
     fun setStatColumns(value: Int) = update { settingsRepository.setStatColumns(value) }
     fun setHudMirror(value: Boolean) = update { settingsRepository.setHudMirror(value) }
     fun resetLayout() = update { settingsRepository.resetLayout() }

@@ -132,6 +132,12 @@ fun LayoutSettingsScreen(
                         checked = layout.showTimer,
                         onCheckedChange = viewModel::setShowTimer,
                     )
+                    SwitchRow(
+                        title = stringResource(R.string.layout_show_today),
+                        subtitle = stringResource(R.string.layout_show_today_summary),
+                        checked = layout.showTodaySummary,
+                        onCheckedChange = viewModel::setShowTodaySummary,
+                    )
                 }
             }
 

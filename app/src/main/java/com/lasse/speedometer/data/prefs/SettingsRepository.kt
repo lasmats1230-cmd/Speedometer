@@ -96,6 +96,12 @@ data class LayoutSettings(
     val stats: List<StatType> = listOf(StatType.MAX_SPEED, StatType.AVG_SPEED, StatType.DISTANCE),
     val showTimer: Boolean = true,
     val showStatusChip: Boolean = true,
+    /**
+     * Today's distance and streak, above the speed. Off by default: it is a
+     * figure you read afterwards, and on the live view it pushes the map —
+     * the one thing here that wants room — into a strip.
+     */
+    val showTodaySummary: Boolean = false,
     /** Tiles per row; fewer means larger, more readable numbers. */
     val statColumns: Int = 3,
     /**
@@ -169,6 +175,7 @@ class SettingsRepository(private val context: Context) {
         val STATS = stringPreferencesKey("stats")
         val SHOW_TIMER = booleanPreferencesKey("show_timer")
         val SHOW_STATUS_CHIP = booleanPreferencesKey("show_status_chip")
+        val SHOW_TODAY_SUMMARY = booleanPreferencesKey("show_today_summary")
         val STAT_COLUMNS = intPreferencesKey("stat_columns")
         val HUD_MIRROR = booleanPreferencesKey("hud_mirror")
         val BATTERY_SAVER = stringPreferencesKey("battery_saver")
@@ -210,6 +217,7 @@ class SettingsRepository(private val context: Context) {
                 stats = prefs[Keys.STATS]?.let(::decodeStats) ?: defaults.stats,
                 showTimer = prefs[Keys.SHOW_TIMER] ?: defaults.showTimer,
                 showStatusChip = prefs[Keys.SHOW_STATUS_CHIP] ?: defaults.showStatusChip,
+                showTodaySummary = prefs[Keys.SHOW_TODAY_SUMMARY] ?: defaults.showTodaySummary,
                 statColumns = prefs[Keys.STAT_COLUMNS] ?: defaults.statColumns,
                 hudMirror = prefs[Keys.HUD_MIRROR] ?: defaults.hudMirror,
             ),
@@ -255,6 +263,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setMinimapSize(value: MinimapSize) = edit { it[Keys.MINIMAP_SIZE] = value.name }
     suspend fun setShowTimer(value: Boolean) = edit { it[Keys.SHOW_TIMER] = value }
     suspend fun setShowStatusChip(value: Boolean) = edit { it[Keys.SHOW_STATUS_CHIP] = value }
+    suspend fun setShowTodaySummary(value: Boolean) = edit { it[Keys.SHOW_TODAY_SUMMARY] = value }
     suspend fun setStatColumns(value: Int) = edit { it[Keys.STAT_COLUMNS] = value.coerceIn(1, 4) }
     suspend fun setHudMirror(value: Boolean) = edit { it[Keys.HUD_MIRROR] = value }
     suspend fun setBatterySaver(value: BatterySaverMode) =
@@ -295,6 +304,7 @@ class SettingsRepository(private val context: Context) {
         it.remove(Keys.STATS)
         it.remove(Keys.SHOW_TIMER)
         it.remove(Keys.SHOW_STATUS_CHIP)
+        it.remove(Keys.SHOW_TODAY_SUMMARY)
         it.remove(Keys.STAT_COLUMNS)
         it.remove(Keys.HUD_MIRROR)
     }

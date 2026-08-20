@@ -82,7 +82,8 @@ import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.ImmersiveMode
-import com.lasse.speedometer.ui.components.ActivityPicker
+import com.lasse.speedometer.ui.components.ActivityChip
+import com.lasse.speedometer.ui.components.ActivityDialog
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.TrackMap
@@ -515,15 +516,47 @@ private fun ReadoutPane(
     ) {
         Spacer(Modifier.height(12.dp))
 
-        if (layout.showStatusChip) {
-            StatusChip(
-                status = state.status,
-                accuracyM = state.accuracyM,
-                hasPermission = hasLocationPermission,
-                settings = settings,
-                onRequestPermission = onRequestPermission,
-            )
+        // Status and activity share one row. Both are a word each, and stacked
+        // as two full-width blocks they used to cost the map sixty-odd dip
+        // before the speed had even started.
+        var pickingActivity by remember { mutableStateOf(false) }
+        if (layout.showStatusChip || idle) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (layout.showStatusChip) {
+                    StatusChip(
+                        status = state.status,
+                        accuracyM = state.accuracyM,
+                        hasPermission = hasLocationPermission,
+                        settings = settings,
+                        onRequestPermission = onRequestPermission,
+                    )
+                }
+                // Which activity this is only matters before the recording
+                // starts, and it is changeable afterwards from the trip's own
+                // menu. One chip that opens the list, rather than the list
+                // itself sitting on screen for the one tap a month it takes.
+                if (idle) {
+                    ActivityChip(
+                        activity = settings.activity,
+                        onClick = { pickingActivity = true },
+                    )
+                }
+            }
             Spacer(Modifier.height(12.dp))
+        }
+
+        if (pickingActivity) {
+            ActivityDialog(
+                selected = settings.activity,
+                onSelect = {
+                    onSelectActivity(it)
+                    pickingActivity = false
+                },
+                onDismiss = { pickingActivity = false },
+            )
         }
 
         if (routeProgress != null) {
@@ -531,25 +564,13 @@ private fun ReadoutPane(
             Spacer(Modifier.height(10.dp))
         }
 
-        // Which activity this is only matters before the recording starts;
-        // once it is running the row would just be one more thing between the
-        // speed and the stop button. It stays changeable afterwards from the
-        // trip's own menu.
-        if (idle) {
-            ActivityPicker(
-                selected = settings.activity,
-                onSelect = onSelectActivity,
+        if (idle && layout.showTodaySummary && daySummary != null) {
+            TodaySummary(
+                summary = daySummary,
+                settings = settings,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(12.dp))
-            if (daySummary != null) {
-                TodaySummary(
-                    summary = daySummary,
-                    settings = settings,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(12.dp))
-            }
         } else {
             Spacer(Modifier.height(4.dp))
         }

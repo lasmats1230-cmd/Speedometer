@@ -41,7 +41,7 @@ import com.lasse.speedometer.data.db.TourWithTrips
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.LatLng
-import com.lasse.speedometer.ui.components.TrackMap
+import com.lasse.speedometer.ui.components.ExpandableTrackMap
 import com.lasse.speedometer.ui.components.DetailScaffold
 import com.lasse.speedometer.ui.components.ListCard
 import com.lasse.speedometer.ui.components.MenuAction
@@ -150,20 +150,12 @@ fun TourDetailScreen(
         ) {
             if (tracks.any { it.size >= 2 }) {
                 item("map") {
-                    Surface(
+                    ExpandableTrackMap(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(240.dp),
-                        shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                    ) {
-                        TrackMap(
-                            modifier = Modifier.fillMaxSize(),
-                            tracks = tracks,
-                            fitTrack = true,
-                            followPosition = false,
-                        )
-                    }
+                        tracks = tracks,
+                    )
                 }
             }
 

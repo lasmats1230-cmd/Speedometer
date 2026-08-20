@@ -115,6 +115,8 @@
     <string name="layout_elements">Elemente</string>
     <string name="layout_show_status">Statusanzeige einblenden</string>
     <string name="layout_show_timer">Fahrtzeit einblenden</string>
+    <string name="layout_show_today">Heutige Summen</string>
+    <string name="layout_show_today_summary">Strecke und Serie über der Geschwindigkeit. Aus lässt der Karte mehr Platz.</string>
     <string name="layout_shown_stats">Angezeigte Werte</string>
     <string name="layout_available_stats">Verfügbare Werte</string>
     <string name="minimap_hidden">Aus</string>
@@ -425,6 +427,7 @@
     <string name="trip_slower_than_usual">%1$d%% langsamer als sonst (%2$s)</string>
     <string name="trip_typical">So schnell wie sonst (%1$s)</string>
     <string name="map_unavailable">Der Kartenrenderer ist auf diesem Gerät nicht verfügbar.</string>
+    <string name="map_expand">Karte vergrößern</string>
     <string name="settings_export_csv">Verlauf als Tabelle exportieren</string>
     <string name="settings_export_csv_summary">Eine CSV-Datei aller Fahrten in den Downloads, direkt in einer Tabellenkalkulation zu öffnen</string>
     <string name="settings_exported_csv">Tabelle gespeichert als %1$s</string>

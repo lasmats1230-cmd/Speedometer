@@ -194,6 +194,8 @@
     <string name="layout_elements">Elements</string>
     <string name="layout_show_status">Show status chip</string>
     <string name="layout_show_timer">Show trip timer</string>
+    <string name="layout_show_today">Today\'s totals</string>
+    <string name="layout_show_today_summary">Distance and streak above the speed. Off keeps the map larger.</string>
     <string name="layout_shown_stats">Shown statistics</string>
     <string name="layout_available_stats">Available statistics</string>
     <string name="minimap_hidden">Off</string>
@@ -421,6 +423,7 @@
     <string name="trip_slower_than_usual">%1$d%% slower than your usual %2$s</string>
     <string name="trip_typical">About the same as your usual %1$s</string>
     <string name="map_unavailable">The map renderer is not available on this device.</string>
+    <string name="map_expand">Enlarge map</string>
     <string name="settings_export_csv">Export history as a spreadsheet</string>
     <string name="settings_export_csv_summary">One CSV of every trip in Downloads, ready to open in a spreadsheet</string>
     <string name="settings_exported_csv">Spreadsheet saved as %1$s</string>
