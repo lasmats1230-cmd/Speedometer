@@ -99,6 +99,49 @@ class TrackImporterTest {
         assertEquals(200.0, imported.summary.distanceM, 5.0)
     }
 
+    /**
+     * Straight out of a ride that came back reading 134 km/h on a bicycle.
+     *
+     * The receiver stuck on one position for twenty-two seconds, writing it
+     * out once a second, and then caught up 148 m down the road. Timed from
+     * the last repeat that is 37 m/s; timed from when the rider was really
+     * there it is the 5.7 m/s it was.
+     */
+    @Test
+    fun `a receiver stuck on one position does not invent a sprint`() {
+        val stuckLat = 53.227162
+        val stuckLon = 10.386150
+        // The seconds the repeats actually landed on, then the fix that moved.
+        val repeats = listOf(0L, 1, 2, 3, 6, 7, 11, 12, 16, 17, 21, 22)
+        val points = repeats.map { second ->
+            ImportedPoint(second * 1000, stuckLat, stuckLon, 66.7, null)
+        } + ImportedPoint(26_000, 53.226685, 10.388232, 67.4, null)
+
+        val imported = TrackImporter.build(points)!!
+
+        assertTrue(
+            "148 m of road must not read as a sprint: " +
+                "${imported.summary.maxSpeedMps * 3.6} km/h",
+            imported.summary.maxSpeedMps < 11.0,
+        )
+        assertEquals(5.7, imported.summary.maxSpeedMps, 0.6)
+    }
+
+    @Test
+    fun `a position written out again is a standstill, not a step`() {
+        val points = listOf(
+            leg(0, 0),
+            leg(0, 1),
+            leg(0, 2),
+        )
+
+        val imported = TrackImporter.build(points)!!
+
+        assertEquals(0.0, imported.summary.distanceM, 0.001)
+        assertEquals(0.0, imported.summary.maxSpeedMps, 0.001)
+        assertEquals(0L, imported.summary.movingTimeMs)
+    }
+
     @Test
     fun `a file with a single fix is not a trip`() {
         assertNull(TrackImporter.build(listOf(leg(0, 0))))

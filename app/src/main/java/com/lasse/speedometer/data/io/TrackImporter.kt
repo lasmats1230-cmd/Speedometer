@@ -52,6 +52,19 @@ object TrackImporter {
     /** Anything faster came from a bad fix, not a bicycle. */
     private const val MAX_PLAUSIBLE_MPS = 150.0
 
+    /**
+     * How long a repeated position is read as a receiver that could not
+     * refresh rather than as a genuine standstill.
+     *
+     * The two look identical on paper — the same coordinates written out
+     * again — but they want opposite treatment, so the length of the run has
+     * to decide. Under a minute is a receiver losing its solution while you
+     * carry on riding, and the step out of it took the whole run. Longer than
+     * that and you were parked, so the step took only the time since you set
+     * off again.
+     */
+    private const val MAX_STALE_MS = 60_000L
+
     fun build(points: List<ImportedPoint>): ImportedTrip? {
         val ordered = points
             .filter { it.latitude != 0.0 || it.longitude != 0.0 }
@@ -68,25 +81,60 @@ object TrackImporter {
         var minAltitude: Double? = null
         var maxAltitude: Double? = null
 
-        ordered.forEachIndexed { index, point ->
-            val previous = ordered.getOrNull(index - 1)
+        /**
+         * The last fix that was somewhere else, and the last fix that was
+         * still at that same place.
+         *
+         * A receiver that cannot refresh its solution writes the old position
+         * out again, so the point before this one is frequently this same
+         * spot sampled a second later. Timing a step from the previous
+         * *sample* then divides a whole run of travel by the seconds since
+         * the last repeat — twenty-two seconds of repeats followed by a 148 m
+         * step reads as 134 km/h on a bicycle ride.
+         */
+        var anchor: ImportedPoint? = null
+        var lastAtAnchor: ImportedPoint? = null
+
+        ordered.forEach { point ->
+            val previous = anchor
             var speed = point.speedMps?.toDouble() ?: 0.0
 
-            if (previous != null) {
-                val gap = point.timestamp - previous.timestamp
+            if (previous == null) {
+                anchor = point
+                lastAtAnchor = point
+            } else {
                 val step = GeoMath.distanceMeters(
                     previous.latitude,
                     previous.longitude,
                     point.latitude,
                     point.longitude,
                 )
-                if (step >= MIN_STEP_M && gap in 1..MAX_GAP_MS) {
-                    val computed = step / (gap / 1000.0)
-                    if (computed <= MAX_PLAUSIBLE_MPS) {
-                        distance += step
-                        if (point.speedMps == null) speed = computed
-                        if (computed >= MOVING_THRESHOLD_MPS) movingTimeMs += gap
+                if (step < MIN_STEP_M) {
+                    // The same place again: no displacement to credit. Hold
+                    // the anchor, but note that we were still here, so a long
+                    // stop can be told from a receiver that briefly stuck.
+                    lastAtAnchor = point
+                    if (point.speedMps == null) speed = 0.0
+                } else {
+                    val held = point.timestamp - previous.timestamp
+                    val gap = if (held <= MAX_STALE_MS) {
+                        // Short run of repeats: the ride carried on through
+                        // them, so the step took the whole stretch.
+                        held
+                    } else {
+                        // A long one was a stop. The step began when it ended.
+                        point.timestamp - (lastAtAnchor ?: previous).timestamp
                     }
+                    if (gap in 1..MAX_GAP_MS) {
+                        val computed = step / (gap / 1000.0)
+                        if (computed <= MAX_PLAUSIBLE_MPS) {
+                            distance += step
+                            if (point.speedMps == null) speed = computed
+                            if (computed >= MOVING_THRESHOLD_MPS) movingTimeMs += gap
+                        }
+                    }
+                    anchor = point
+                    lastAtAnchor = point
                 }
             }
 

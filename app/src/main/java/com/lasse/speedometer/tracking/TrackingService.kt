@@ -296,11 +296,19 @@ class TrackingService : Service(), LocationListener {
         val intervalMs = if (fast) RECORDING_INTERVAL_MS else IDLE_INTERVAL_MS
         val minDistanceM = if (fast) 0f else 5f
 
+        val gpsAvailable = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
         val providers = buildList {
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                add(LocationManager.GPS_PROVIDER)
-            }
-            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            if (gpsAvailable) add(LocationManager.GPS_PROVIDER)
+            // Network fixes are worth having while idle — they put the map
+            // somewhere before the first satellite lands. Mixed into a
+            // recording they are poison: the position comes from whichever
+            // cell or access point answered, it repeats unchanged for as long
+            // as that stays true, and it arrives interleaved with real fixes
+            // wearing an accuracy good enough to pass the gate. The recorder
+            // then sees the ride stop and restart. Satellites only, whenever
+            // there are satellites to be had.
+            val wantNetwork = !fast || !gpsAvailable
+            if (wantNetwork && locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 add(LocationManager.NETWORK_PROVIDER)
             }
         }
