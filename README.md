@@ -94,6 +94,13 @@ Location (fine and background) for tracking, notifications for the recording
 notification, and the Health Connect write permissions, which are only
 requested if you choose to connect it.
 
+Unrestricted background usage is asked for when the app opens without it,
+through Android's own dialog rather than a settings row that would only hand
+you off to the device settings. Doze is what puts gaps in a track recorded
+with the screen off, so the exemption is what keeps extreme mode honest. The
+dialog stops appearing as soon as the exemption is granted; declining it
+leaves the app working, with that risk.
+
 ## Licensing
 
 Settings → About → Legal & licensing lists every dependency with its licence,

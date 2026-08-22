@@ -6,6 +6,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,12 +21,22 @@ import com.lasse.speedometer.ui.ImmersiveMode
 import com.lasse.speedometer.ui.nav.SpeedometerNavHost
 import com.lasse.speedometer.ui.theme.SpeedometerTheme
 import com.lasse.speedometer.util.AppLocale
+import com.lasse.speedometer.util.BackgroundUsage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private val settingsState = MutableStateFlow(AppSettings())
+
+    /**
+     * Nothing to do with the result: the dialog either granted the exemption
+     * or it did not, and both are the user's call. Registering a launcher is
+     * simply how an activity is started from here without going through
+     * `startActivity`, which would leave the back stack to sort itself out.
+     */
+    private val backgroundUsageDialog =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
 
     /** Applies the in-app language before any resource is resolved. */
     override fun attachBaseContext(newBase: Context) {
@@ -81,5 +92,33 @@ class MainActivity : ComponentActivity() {
                 SpeedometerNavHost(settings = settings)
             }
         }
+
+        // After the content is set, so the dialog lands over the app rather
+        // than over a blank window.
+        askForUnrestrictedBackground()
+    }
+
+    /**
+     * Puts Android's own unrestricted-background dialog up when the app opens
+     * without the exemption.
+     *
+     * It is asked here rather than offered as a settings row, because the row
+     * would only be able to hand the user off to the device settings; this
+     * dialog decides it in place. Asking stops for good the moment the
+     * exemption is held, and once per process keeps a language change — which
+     * recreates the activity — from putting it up a second time.
+     */
+    private fun askForUnrestrictedBackground() {
+        if (askedThisProcess) return
+        if (BackgroundUsage.isUnrestricted(this)) return
+        askedThisProcess = true
+        // A build without the dialog activity would otherwise take the app
+        // down on launch, which is a steep price for an optional permission.
+        runCatching { backgroundUsageDialog.launch(BackgroundUsage.requestIntent(this)) }
+    }
+
+    private companion object {
+        /** Survives activity recreation, dies with the process. */
+        var askedThisProcess = false
     }
 }

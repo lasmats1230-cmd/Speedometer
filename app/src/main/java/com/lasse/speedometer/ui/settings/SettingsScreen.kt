@@ -221,26 +221,22 @@ fun SettingsScreen(
 
                 if (settings.batterySaver == BatterySaverMode.CYCLING) {
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = pluralStringResource(
-                            R.plurals.settings_dim_delay,
-                            settings.dimDelaySeconds,
-                            settings.dimDelaySeconds,
-                        ),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    var delay by remember(settings.dimDelaySeconds) {
-                        mutableFloatStateOf(settings.dimDelaySeconds.toFloat())
-                    }
-                    Slider(
-                        value = delay,
-                        onValueChange = { delay = it },
-                        onValueChangeFinished = {
-                            viewModel.setDimDelaySeconds(delay.roundToInt())
-                        },
+                    LabelledSlider(
+                        value = settings.dimDelaySeconds.toFloat(),
+                        onValueSettled = { viewModel.setDimDelaySeconds(it.roundToInt()) },
                         valueRange = 3f..60f,
                         steps = 18,
-                    )
+                    ) { current ->
+                        val seconds = current.roundToInt()
+                        Text(
+                            text = pluralStringResource(
+                                R.plurals.settings_dim_delay,
+                                seconds,
+                                seconds,
+                            ),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
                 }
             }
         }
@@ -255,23 +251,21 @@ fun SettingsScreen(
                 )
 
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.settings_min_accuracy) + "  " +
-                        Formatters.elevation(settings.minAccuracyM.toDouble(), settings.units),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                var accuracy by remember(settings.minAccuracyM) {
-                    mutableFloatStateOf(settings.minAccuracyM)
-                }
-                Slider(
-                    value = accuracy,
-                    onValueChange = { accuracy = it },
-                    onValueChangeFinished = {
-                        viewModel.setMinAccuracy(accuracy.roundToInt().toFloat())
-                    },
+                LabelledSlider(
+                    value = settings.minAccuracyM,
+                    onValueSettled = { viewModel.setMinAccuracy(it.roundToInt().toFloat()) },
                     valueRange = 10f..150f,
                     steps = 13,
-                )
+                ) { current ->
+                    Text(
+                        text = stringResource(R.string.settings_min_accuracy) + "  " +
+                            Formatters.elevation(
+                                current.roundToInt().toDouble(),
+                                settings.units,
+                            ),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
 
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -392,6 +386,45 @@ private fun Context.findActivity(): Activity? {
         current = current.baseContext
     }
     return null
+}
+
+/**
+ * A slider whose label follows the handle instead of the stored value.
+ *
+ * The number above the track is the whole point of dragging, so it has to
+ * update on every frame of the gesture; the preference is only written once
+ * the finger lifts, which keeps one drag from firing twenty DataStore writes.
+ * That write comes back asynchronously, and a value landing mid-gesture would
+ * yank the handle back under the finger, so the stored value is only followed
+ * again once the drag is over.
+ */
+@Composable
+private fun LabelledSlider(
+    value: Float,
+    onValueSettled: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    label: @Composable (Float) -> Unit,
+) {
+    var current by remember { mutableFloatStateOf(value) }
+    var dragging by remember { mutableStateOf(false) }
+
+    LaunchedEffect(value) { if (!dragging) current = value }
+
+    label(current)
+    Slider(
+        value = current,
+        onValueChange = {
+            dragging = true
+            current = it
+        },
+        onValueChangeFinished = {
+            dragging = false
+            onValueSettled(current)
+        },
+        valueRange = valueRange,
+        steps = steps,
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
