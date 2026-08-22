@@ -1,0 +1,65 @@
+name: Build
+
+# Everything this project checks, on every push and pull request. The point is
+# that a change which breaks the build, the tests or lint says so here rather
+# than on the next person's machine.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew lintDebug
+
+      - name: Assemble
+        run: ./gradlew assembleDebug
+
+      # The debug build never runs R8, so a shrinker that cannot read the
+      # compiler's output stays invisible until release day. This step is here
+      # because exactly that happened: R8 could not parse Kotlin 2.2 metadata
+      # and logged a failure for every class in the app.
+      - name: Assemble release
+        run: ./gradlew assembleRelease
+
+      # Uploaded whether or not the run passed: a failing lint or test is
+      # exactly when the report is worth reading.
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 14
+
+      - name: Upload APKs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14

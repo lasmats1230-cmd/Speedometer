@@ -5,9 +5,22 @@ import android.util.Xml
 import com.lasse.speedometer.data.db.RouteEntity
 import org.xmlpull.v1.XmlPullParser
 import java.io.InputStream
+import java.time.Instant
+import java.time.OffsetDateTime
 import kotlin.math.abs
 
-data class RoutePoint(val latitude: Double, val longitude: Double, val altitudeM: Double?)
+data class RoutePoint(
+    val latitude: Double,
+    val longitude: Double,
+    val altitudeM: Double?,
+    /**
+     * When the fix was taken, where the file says. Null for a planned route,
+     * which is the difference between a route to follow and a trip that
+     * happened.
+     */
+    val timeMs: Long? = null,
+    val speedMps: Float? = null,
+)
 
 /**
  * Reads GPX and TCX into a common list of points.
@@ -62,6 +75,32 @@ object RouteParser {
         )
     }
 
+    /**
+     * The same walk, kept as fixes with their timestamps, for importing a
+     * recording somebody else made rather than a route to follow.
+     */
+    fun readTrack(input: InputStream): List<ImportedPoint> =
+        readPoints(input).mapNotNull { point ->
+            val time = point.timeMs ?: return@mapNotNull null
+            ImportedPoint(
+                timestamp = time,
+                latitude = point.latitude,
+                longitude = point.longitude,
+                altitudeM = point.altitudeM,
+                speedMps = point.speedMps,
+            )
+        }
+
+    /**
+     * Parses one of the several shapes a timestamp takes in these files:
+     * a plain UTC instant, one with fractional seconds, or one with an offset.
+     */
+    internal fun parseTimestamp(text: String): Long? = runCatching {
+        Instant.parse(text).toEpochMilli()
+    }.recoverCatching {
+        OffsetDateTime.parse(text).toInstant().toEpochMilli()
+    }.getOrNull()
+
     private fun readPoints(input: InputStream): List<RoutePoint> {
         val parser = Xml.newPullParser()
         parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
@@ -73,6 +112,8 @@ object RouteParser {
         var tcxLat: Double? = null
         var tcxLon: Double? = null
         var pendingElevation: Double? = null
+        var pendingTime: Long? = null
+        var pendingSpeed: Float? = null
         var currentTag: String? = null
         var inTcxPosition = false
 
@@ -105,6 +146,10 @@ object RouteParser {
                             "LatitudeDegrees" -> if (inTcxPosition) tcxLat = text.toDoubleOrNull()
                             "LongitudeDegrees" -> if (inTcxPosition) tcxLon = text.toDoubleOrNull()
                             "ele", "AltitudeMeters" -> pendingElevation = text.toDoubleOrNull()
+                            "time", "Time" -> pendingTime = parseTimestamp(text)
+                            // Garmin's TrackPointExtension and TCX both carry
+                            // speed, under different names.
+                            "speed", "Speed" -> pendingSpeed = text.toFloatOrNull()
                         }
                     }
                 }
@@ -119,12 +164,16 @@ object RouteParser {
                             if (lat != null && lon != null) points += RoutePoint(lat, lon, null)
                         }
                         tag in GPX_POINT_TAGS || tag == "Trackpoint" -> {
-                            val elevation = pendingElevation
-                            if (elevation != null && points.isNotEmpty()) {
-                                points[points.lastIndex] =
-                                    points.last().copy(altitudeM = elevation)
+                            if (points.isNotEmpty()) {
+                                points[points.lastIndex] = points.last().copy(
+                                    altitudeM = pendingElevation ?: points.last().altitudeM,
+                                    timeMs = pendingTime ?: points.last().timeMs,
+                                    speedMps = pendingSpeed ?: points.last().speedMps,
+                                )
                             }
                             pendingElevation = null
+                            pendingTime = null
+                            pendingSpeed = null
                         }
                     }
                     currentTag = null

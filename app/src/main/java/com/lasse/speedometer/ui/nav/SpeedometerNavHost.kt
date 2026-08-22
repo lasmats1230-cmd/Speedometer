@@ -18,6 +18,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.ui.ImmersiveMode
+import com.lasse.speedometer.ui.components.LocalMapStyle
 import com.lasse.speedometer.ui.history.HistoryScreen
 import com.lasse.speedometer.ui.history.TourDetailScreen
 import com.lasse.speedometer.ui.history.TripDetailScreen
@@ -40,10 +43,19 @@ import com.lasse.speedometer.ui.live.LiveScreen
 import com.lasse.speedometer.ui.settings.LayoutSettingsScreen
 import com.lasse.speedometer.ui.settings.LicensesScreen
 import com.lasse.speedometer.ui.settings.SettingsScreen
+import com.lasse.speedometer.ui.stats.StatsScreen
+import com.lasse.speedometer.ui.tools.RouteDetailScreen
 import com.lasse.speedometer.ui.tools.ToolsScreen
 
 @Composable
 fun SpeedometerNavHost(settings: AppSettings) {
+    CompositionLocalProvider(LocalMapStyle provides settings.mapStyle) {
+        NavigationScaffold(settings)
+    }
+}
+
+@Composable
+private fun NavigationScaffold(settings: AppSettings) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -65,17 +77,7 @@ fun SpeedometerNavHost(settings: AppSettings) {
                         val selected = currentRoute == destination.route
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                if (!selected) {
-                                    navController.navigate(destination.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
+                            onClick = { if (!selected) navController.switchTab(destination.route) },
                             icon = {
                                 Icon(
                                     imageVector = if (selected) {
@@ -117,10 +119,22 @@ fun SpeedometerNavHost(settings: AppSettings) {
                         snackbarHostState = snackbarHostState,
                         onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
                         onOpenTour = { navController.navigate(Routes.tourDetail(it)) },
+                        onStartRecording = { navController.switchTab(Routes.LIVE) },
+                    )
+                }
+                composable(Routes.STATS) {
+                    StatsScreen(
+                        settings = settings,
+                        onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
+                        onStartRecording = { navController.switchTab(Routes.LIVE) },
                     )
                 }
                 composable(Routes.TOOLS) {
-                    ToolsScreen(settings = settings, snackbarHostState = snackbarHostState)
+                    ToolsScreen(
+                        settings = settings,
+                        snackbarHostState = snackbarHostState,
+                        onOpenRoute = { navController.navigate(Routes.routeDetail(it)) },
+                    )
                 }
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
@@ -189,7 +203,39 @@ fun SpeedometerNavHost(settings: AppSettings) {
                         onOpenTrip = { navController.navigate(Routes.tripDetail(it)) },
                     )
                 }
+                composable(
+                    route = Routes.ROUTE_DETAIL,
+                    arguments = listOf(navArgument("routeId") { type = NavType.LongType }),
+                    enterTransition = {
+                        slideInHorizontally(tween(260)) { it / 3 } + fadeIn(tween(260))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(tween(260)) { it / 3 } + fadeOut(tween(260))
+                    },
+                ) { entry ->
+                    RouteDetailScreen(
+                        routeId = entry.arguments?.getLong("routeId") ?: 0L,
+                        settings = settings,
+                        onBack = { navController.popBackStack() },
+                        // Following a route is something you do on the live
+                        // view, so choosing it here goes there.
+                        onFollow = { navController.switchTab(Routes.LIVE) },
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * Moves between tabs the way the navigation bar does — one entry deep, each
+ * tab's own back stack preserved — so a button that sends you to another tab
+ * behaves like tapping that tab.
+ */
+private fun NavHostController.switchTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }

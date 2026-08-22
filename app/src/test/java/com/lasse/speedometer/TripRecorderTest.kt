@@ -58,6 +58,95 @@ class TripRecorderTest {
     }
 
     @Test
+    fun `the same fix handed in twice is only recorded once`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+        val arrival = fix(1_000L, speed = 5f)
+
+        assertTrue(recorder.onFix(arrival, 1_000L))
+        // A provider replaying what it could not refresh, or a second
+        // provider passing on the same underlying solution.
+        assertFalse(recorder.onFix(arrival, 2_000L))
+        assertEquals(1, recorder.points.size)
+    }
+
+    @Test
+    fun `a position repeated verbatim is not a second point`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+
+        // Same coordinates, fresh timestamp each time: the shape a receiver
+        // makes when it is handing back a solution it cannot update.
+        repeat(12) { index ->
+            recorder.onFix(fix(index * 1_000L), index * 1_000L)
+        }
+
+        assertEquals(1, recorder.points.size)
+    }
+
+    /**
+     * The sequence that made a bicycle ride report 134 km/h.
+     *
+     * Twenty-two seconds of one position written out once a second, then the
+     * receiver catching up 148 m along. Divided by the four seconds since the
+     * last repeat that is 37 m/s; over the twenty-six seconds the rider was
+     * really covering it, it is 5.7.
+     */
+    @Test
+    fun `catching up after a stuck receiver is timed over the whole stretch`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+
+        val stuck = Fix(
+            timestamp = 0L,
+            latitude = 53.227162,
+            longitude = 10.386150,
+            accuracyM = 6f,
+        )
+        recorder.onFix(stuck, 0L)
+        for (second in 1..22) {
+            recorder.onFix(stuck.copy(timestamp = second * 1_000L), second * 1_000L)
+        }
+        recorder.onFix(
+            Fix(
+                timestamp = 26_000L,
+                latitude = 53.226685,
+                longitude = 10.388232,
+                accuracyM = 6f,
+            ),
+            26_000L,
+        )
+
+        assertEquals(5.7, recorder.state.maxSpeedMps, 0.6)
+        assertTrue(
+            "a stuck receiver must not set the trip maximum: " +
+                "${recorder.state.maxSpeedMps * 3.6} km/h",
+            recorder.state.maxSpeedMps < 11.0,
+        )
+        // The stop is one point, not twenty-three.
+        assertEquals(2, recorder.points.size)
+    }
+
+    @Test
+    fun `standing still for a long while does not time the next step`() {
+        val recorder = TripRecorder()
+        recorder.start(0L)
+
+        // Parked for twenty minutes, the receiver wandering a little.
+        recorder.onFix(fix(0L, latOffset = 0.0), 0L)
+        for (minute in 1..20) {
+            val now = minute * 60_000L
+            recorder.onFix(fix(now, latOffset = 0.0000018 * (minute % 2)), now)
+        }
+        // Then away, 100 m in ten seconds.
+        val off = 20 * 60_000L + 10_000L
+        recorder.onFix(fix(off, latOffset = hundredMetresLat), off)
+
+        // 10 m/s, not 100 m spread across the whole twenty minutes.
+        assertEquals(10.0, recorder.state.maxSpeedMps, 1.0)
+    }
+
+    @Test
     fun `distance accumulates across accepted fixes`() {
         val recorder = TripRecorder()
         recorder.start(0L)

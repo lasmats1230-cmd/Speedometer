@@ -2,34 +2,27 @@ package com.lasse.speedometer.ui.history
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,15 +41,31 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.R
 import com.lasse.speedometer.app
+import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.data.db.TrackPointEntity
 import com.lasse.speedometer.data.db.TripEntity
+import com.lasse.speedometer.data.db.TripPhotoEntity
 import com.lasse.speedometer.data.prefs.AppSettings
+import com.lasse.speedometer.data.io.TripCardText
+import com.lasse.speedometer.data.prefs.UnitSystem
+import com.lasse.speedometer.data.repo.Split
+import com.lasse.speedometer.data.repo.Splits
+import com.lasse.speedometer.data.repo.StatsCalculator
+import com.lasse.speedometer.ui.components.ActivityBadge
+import com.lasse.speedometer.ui.components.ActivityDialog
 import com.lasse.speedometer.ui.components.ChartSample
+import com.lasse.speedometer.ui.components.DetailRow
+import com.lasse.speedometer.ui.components.DetailScaffold
+import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.LatLng
+import com.lasse.speedometer.ui.components.MenuAction
+import com.lasse.speedometer.ui.components.OverflowMenu
 import com.lasse.speedometer.ui.components.ProfileChart
+import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.StatTile
-import com.lasse.speedometer.ui.components.TrackMap
+import com.lasse.speedometer.ui.components.ExpandableTrackMap
 import com.lasse.speedometer.util.Formatters
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +88,32 @@ class TripDetailViewModel(
     val points: StateFlow<List<TrackPointEntity>> = repository.observePoints(tripId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val photos: StateFlow<List<TripPhotoEntity>> = repository.observePhotos(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Attaches a picture, keeping the right to read it.
+     *
+     * The document picker hands over a temporary grant; without persisting it
+     * the photo would show today and be a broken thumbnail after the next
+     * restart.
+     */
+    fun addPhoto(uri: Uri) = viewModelScope.launch {
+        runCatching {
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        repository.addPhoto(tripId, uri.toString())
+    }
+
+    fun removePhoto(id: Long) = viewModelScope.launch { repository.deletePhoto(id) }
+
+    /** Every other trip, for the "faster than usual" line. */
+    val allTrips: StateFlow<List<TripEntity>> = repository.trips
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private val _events = MutableSharedFlow<HistoryEvent>(extraBufferCapacity = 4)
     val events = _events.asSharedFlow()
 
@@ -97,6 +132,24 @@ class TripDetailViewModel(
             .onSuccess { _events.emit(HistoryEvent.Share(it)) }
             .onFailure { _events.emit(HistoryEvent.Message(failure)) }
     }
+
+    fun shareSummary(text: String) = viewModelScope.launch {
+        _events.emit(HistoryEvent.Share(TripExporterIntents.text(text)))
+    }
+
+    fun shareCard(text: TripCardText, failure: String) = viewModelScope.launch {
+        val current = trip.value ?: return@launch
+        exporter.shareCard(current, repository.getPoints(tripId), text)
+            .onSuccess { _events.emit(HistoryEvent.Share(it)) }
+            .onFailure { _events.emit(HistoryEvent.Message(failure)) }
+    }
+
+    fun rename(title: String) = viewModelScope.launch { repository.renameTrip(tripId, title) }
+
+    fun setNote(note: String) = viewModelScope.launch { repository.setTripNote(tripId, note) }
+
+    fun setActivity(activity: ActivityType) =
+        viewModelScope.launch { repository.setTripActivity(tripId, activity) }
 
     fun syncToHealth(success: String, unavailable: String) = viewModelScope.launch {
         if (!health.isAvailable) {
@@ -123,7 +176,6 @@ class TripDetailViewModel(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripDetailScreen(
     tripId: Long,
@@ -138,7 +190,19 @@ fun TripDetailScreen(
     )
     val trip by viewModel.trip.collectAsState()
     val points by viewModel.points.collectAsState()
-    var menuOpen by remember { mutableStateOf(false) }
+    val allTrips by viewModel.allTrips.collectAsState()
+    val photos by viewModel.photos.collectAsState()
+
+    // The system document picker rather than the photo picker: only this one
+    // grants access that survives a restart, which is what a picture attached
+    // to a ride from three years ago needs.
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) viewModel.addPhoto(uri) }
+    var renaming by remember { mutableStateOf(false) }
+    var editingNote by remember { mutableStateOf(false) }
+    var changingActivity by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -156,73 +220,64 @@ fun TripDetailScreen(
     val syncedMessage = stringResource(R.string.synced)
     val healthUnavailable = stringResource(R.string.health_unavailable)
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
+    val current = trip
+    val summary = current?.let { tripSummaryText(it, settings) }.orEmpty()
+    val cardText = tripCardText(current, settings)
+
+    DetailScaffold(
+        title = current?.let { entry ->
+            entry.title?.takeIf { it.isNotBlank() } ?: formatTripDate(entry.startedAt)
+        }.orEmpty(),
+        onBack = onBack,
+        actions = {
+            OverflowMenu(
+                actions = buildList {
+                    add(MenuAction(stringResource(R.string.rename_trip)) { renaming = true })
+                    add(MenuAction(stringResource(R.string.edit_note)) { editingNote = true })
+                    add(
+                        MenuAction(stringResource(R.string.change_activity)) {
+                            changingActivity = true
+                        }
+                    )
+                    add(
+                        MenuAction(stringResource(R.string.share_summary)) {
+                            viewModel.shareSummary(summary)
+                        }
+                    )
+                    add(
+                        MenuAction(stringResource(R.string.share_image)) {
+                            viewModel.shareCard(cardText, exportFailed)
+                        }
+                    )
+                    add(
+                        MenuAction(stringResource(R.string.share_gpx)) {
+                            viewModel.shareGpx(exportFailed)
+                        }
+                    )
+                    add(
+                        MenuAction(stringResource(R.string.download_gpx)) {
+                            viewModel.downloadGpx(downloadTemplate, exportFailed)
+                        }
+                    )
+                    if (viewModel.healthAvailable) {
+                        add(
+                            MenuAction(stringResource(R.string.sync_health_connect)) {
+                                viewModel.syncToHealth(syncedMessage, healthUnavailable)
+                            }
                         )
                     }
-                },
-                title = {
-                    Text(
-                        text = trip?.let { current ->
-                            current.title?.takeIf { it.isNotBlank() }
-                                ?: formatTripDate(current.startedAt)
-                        }.orEmpty(),
-                        style = MaterialTheme.typography.titleLarge,
+                    add(
+                        MenuAction(
+                            label = stringResource(R.string.delete),
+                            destructive = true,
+                            onClick = { confirmDelete = true },
+                        )
                     )
                 },
-                actions = {
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.MoreVert,
-                                contentDescription = stringResource(R.string.more),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.download_gpx)) },
-                                onClick = {
-                                    menuOpen = false
-                                    viewModel.downloadGpx(downloadTemplate, exportFailed)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.share_gpx)) },
-                                onClick = { menuOpen = false; viewModel.shareGpx(exportFailed) },
-                            )
-                            if (viewModel.healthAvailable) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.sync_health_connect)) },
-                                    onClick = {
-                                        menuOpen = false
-                                        viewModel.syncToHealth(syncedMessage, healthUnavailable)
-                                    },
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.delete)) },
-                                onClick = { menuOpen = false; viewModel.delete(onBack) },
-                            )
-                        }
-                    }
-                },
+                contentDescription = stringResource(R.string.more),
             )
         },
     ) { padding ->
-        val current = trip
         if (current == null) {
             Box(
                 Modifier
@@ -230,14 +285,70 @@ fun TripDetailScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center,
             ) { CircularProgressIndicator() }
-            return@Scaffold
+            return@DetailScaffold
         }
 
         TripDetailContent(
             trip = current,
             points = points,
+            allTrips = allTrips,
+            photos = photos,
             settings = settings,
             contentPadding = padding,
+            onAddPhoto = { photoPicker.launch(arrayOf("image/*")) },
+            onRemovePhoto = viewModel::removePhoto,
+        )
+    }
+
+    if (renaming && current != null) {
+        TextFieldDialog(
+            title = stringResource(R.string.rename_trip),
+            label = stringResource(R.string.trip_name),
+            initial = current.title.orEmpty(),
+            onDismiss = { renaming = false },
+            onConfirm = {
+                viewModel.rename(it)
+                renaming = false
+            },
+        )
+    }
+
+    if (editingNote && current != null) {
+        TextFieldDialog(
+            title = stringResource(R.string.edit_note),
+            label = stringResource(R.string.note),
+            initial = current.note.orEmpty(),
+            allowEmpty = true,
+            onDismiss = { editingNote = false },
+            onConfirm = {
+                viewModel.setNote(it)
+                editingNote = false
+            },
+        )
+    }
+
+    if (changingActivity && current != null) {
+        ActivityDialog(
+            selected = current.activityType,
+            onDismiss = { changingActivity = false },
+            onSelect = {
+                viewModel.setActivity(it)
+                changingActivity = false
+            },
+        )
+    }
+
+    if (confirmDelete) {
+        ConfirmDialog(
+            title = stringResource(R.string.delete_trip_title),
+            message = stringResource(R.string.delete_trip_message),
+            confirmLabel = stringResource(R.string.delete),
+            destructive = true,
+            onConfirm = {
+                confirmDelete = false
+                viewModel.delete(onBack)
+            },
+            onDismiss = { confirmDelete = false },
         )
     }
 }
@@ -246,8 +357,12 @@ fun TripDetailScreen(
 private fun TripDetailContent(
     trip: TripEntity,
     points: List<TrackPointEntity>,
+    allTrips: List<TripEntity>,
+    photos: List<TripPhotoEntity>,
     settings: AppSettings,
     contentPadding: PaddingValues,
+    onAddPhoto: () -> Unit,
+    onRemovePhoto: (Long) -> Unit,
 ) {
     val track = remember(points) { points.map { LatLng(it.latitude, it.longitude) } }
 
@@ -267,109 +382,146 @@ private fun TripDetailContent(
         }
     }
     val elevations = remember(elevationSamples) { elevationSamples.map { it.y } }
+    val splitUnit = if (settings.units == UnitSystem.METRIC) {
+        Splits.KILOMETRE_M
+    } else {
+        Splits.MILE_M
+    }
+    val splits = remember(points, splitUnit) { Splits.compute(points, splitUnit) }
+
+    // How this one sat against the others of its kind, which is what you
+    // actually want to know when you open a ride you have just finished.
+    val comparison = remember(trip, allTrips) {
+        StatsCalculator.comparedWithUsual(trip, allTrips)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
+            start = Dimens.Screen,
+            end = Dimens.Screen,
             top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 24.dp,
+            bottom = contentPadding.calculateBottomPadding() + Dimens.BottomGap,
         ),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(Dimens.Item),
     ) {
         item("map") {
-            Surface(
+            ExpandableTrackMap(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp),
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                track = track,
+            )
+        }
+
+        item("heading") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                TrackMap(
-                    modifier = Modifier.fillMaxSize(),
-                    track = track,
-                    fitTrack = true,
-                    followPosition = false,
+                ActivityBadge(activity = trip.activityType)
+                Text(
+                    text = formatTripDate(trip.startedAt),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        item("photos") {
+            SectionCard(
+                title = stringResource(R.string.photos),
+                subtitle = if (photos.isEmpty()) {
+                    stringResource(R.string.photos_empty)
+                } else {
+                    stringResource(R.string.photos_remove_hint)
+                },
+                contentPadding = PaddingValues(16.dp),
+            ) {
+                PhotoStrip(photos = photos, onAdd = onAddPhoto, onRemove = onRemovePhoto)
+            }
+        }
+
+        if (!trip.note.isNullOrBlank()) {
+            item("note") {
+                SectionCard {
+                    Text(
+                        text = trip.note,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+
+        if (comparison != null) {
+            item("comparison") {
+                val percent = (comparison * 100).roundToInt()
+                Text(
+                    text = when {
+                        percent >= 3 -> stringResource(
+                            R.string.trip_faster_than_usual,
+                            percent,
+                            stringResource(trip.activityType.labelRes),
+                        )
+
+                        percent <= -3 -> stringResource(
+                            R.string.trip_slower_than_usual,
+                            -percent,
+                            stringResource(trip.activityType.labelRes),
+                        )
+
+                        else -> stringResource(
+                            R.string.trip_typical,
+                            stringResource(trip.activityType.labelRes),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (percent >= 3) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
         }
 
         item("summary") {
-            Row(
-                modifier = Modifier.height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                StatTile(
-                    label = stringResource(R.string.stat_avg),
-                    value = Formatters.speed(trip.avgSpeedMps, settings.units),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
+            TileRow(
+                tiles = listOf(
+                    stringResource(R.string.stat_avg) to
+                        Formatters.speed(trip.avgSpeedMps, settings.units),
+                    stringResource(R.string.stat_max) to
+                        Formatters.speed(trip.maxSpeedMps, settings.units),
+                    stringResource(R.string.stat_distance) to
+                        Formatters.distance(trip.distanceM, settings.units),
+                    stringResource(R.string.stat_time) to
+                        Formatters.durationLong(trip.durationMs),
                 )
-                StatTile(
-                    label = stringResource(R.string.stat_max),
-                    value = Formatters.speed(trip.maxSpeedMps, settings.units),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                )
-                StatTile(
-                    label = stringResource(R.string.stat_distance),
-                    value = Formatters.distance(trip.distanceM, settings.units),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                )
-                StatTile(
-                    label = stringResource(R.string.stat_time),
-                    value = Formatters.durationLong(trip.durationMs),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                )
-            }
+            )
         }
 
         if (elevations.isNotEmpty()) {
-            item("elevation-header") {
-                Text(
-                    text = stringResource(R.string.elevation),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-
             item("elevation-stats") {
-                Row(
-                modifier = Modifier.height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                    StatTile(
-                        label = stringResource(R.string.ascent),
-                        value = Formatters.elevation(trip.ascentM, settings.units),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatTile(
-                        label = stringResource(R.string.descent),
-                        value = Formatters.elevation(trip.descentM, settings.units),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatTile(
-                        label = stringResource(R.string.altitude),
-                        value = Formatters.elevation(
+                TileRow(
+                    tiles = listOf(
+                        stringResource(R.string.ascent) to
+                            Formatters.elevation(trip.ascentM, settings.units),
+                        stringResource(R.string.descent) to
+                            Formatters.elevation(trip.descentM, settings.units),
+                        stringResource(R.string.altitude) to Formatters.elevation(
                             trip.maxAltitudeM ?: elevations.max().toDouble(),
                             settings.units,
                         ),
-                        modifier = Modifier.weight(1f),
                     )
-                }
+                )
             }
 
             item("elevation-profile") {
-                ChartCard(
+                SectionCard(
                     title = stringResource(R.string.elevation_profile),
                     subtitle = stringResource(R.string.axis_distance_altitude),
+                    contentPadding = PaddingValues(16.dp),
                 ) {
                     val lowest = stringResource(R.string.lowest, "%s")
                     val highest = stringResource(R.string.highest, "%s")
@@ -390,9 +542,10 @@ private fun TripDetailContent(
 
         if (speedSamples.size >= 2) {
             item("speed-profile") {
-                ChartCard(
+                SectionCard(
                     title = stringResource(R.string.speed_profile),
                     subtitle = stringResource(R.string.axis_time_speed),
+                    contentPadding = PaddingValues(16.dp),
                 ) {
                     ProfileChart(
                         samples = speedSamples,
@@ -404,8 +557,108 @@ private fun TripDetailContent(
             }
         }
 
+        if (splits.size >= 2) {
+            item("splits") {
+                SplitsCard(splits = splits, trip = trip, settings = settings)
+            }
+        }
+
         item("details") {
             DetailTable(trip = trip, points = points, settings = settings)
+        }
+    }
+}
+
+/** A row of equally sized tiles, matched in height whatever the values. */
+@Composable
+private fun TileRow(tiles: List<Pair<String, String>>) {
+    Row(
+        modifier = Modifier.height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.Tile),
+    ) {
+        tiles.forEach { (label, value) ->
+            StatTile(
+                label = label,
+                value = value,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            )
+        }
+    }
+}
+
+/**
+ * Each kilometre or mile as its own line, with a bar showing how it compared
+ * to the fastest one — which is the whole point: the eye finds the slow
+ * stretch long before it reads the numbers.
+ */
+@Composable
+private fun SplitsCard(splits: List<Split>, trip: TripEntity, settings: AppSettings) {
+    val units = settings.units
+    val fastest = remember(splits) { splits.maxOf { it.speedMps } }
+    val unitLabel = Formatters.distanceUnit(units)
+
+    SectionCard(
+        title = stringResource(R.string.splits),
+        subtitle = stringResource(R.string.splits_subtitle, unitLabel),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        splits.forEach { split ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (split.partial) {
+                        Formatters.distanceValue(split.distanceM, units)
+                    } else {
+                        split.index.toString()
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(44.dp),
+                )
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp),
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth(
+                                if (fastest > 0) {
+                                    (split.speedMps / fastest).toFloat().coerceIn(0.06f, 1f)
+                                } else {
+                                    0.06f
+                                }
+                            )
+                            .height(20.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = if (split.partial) {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        } else {
+                            MaterialTheme.colorScheme.primaryContainer
+                        },
+                    ) {}
+                }
+                Text(
+                    text = if (trip.activityType.prefersPace) {
+                        Formatters.pace(split.speedMps, units)
+                    } else {
+                        Formatters.speed(split.speedMps, units)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = Formatters.duration(split.durationMs),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
         }
     }
 }
@@ -432,6 +685,7 @@ private fun DetailTable(
     }
 
     val rows = buildList {
+        add(stringResource(R.string.activity) to stringResource(trip.activityType.labelRes))
         add(stringResource(R.string.detail_started) to formatTripTime(trip.startedAt))
         add(stringResource(R.string.detail_ended) to formatTripTime(trip.endedAt))
         add(stringResource(R.string.stat_time) to Formatters.durationLong(trip.durationMs))
@@ -468,59 +722,12 @@ private fun DetailTable(
         )
     }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+    SectionCard(
+        title = stringResource(R.string.detail_all_statistics),
+        contentPadding = PaddingValues(20.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.detail_all_statistics),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            rows.forEach { (label, value) ->
-                Row(Modifier.fillMaxWidth()) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = value,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChartCard(
-    title: String,
-    subtitle: String,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column {
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            content()
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            rows.forEach { (label, value) -> DetailRow(label = label, value = value) }
         }
     }
 }

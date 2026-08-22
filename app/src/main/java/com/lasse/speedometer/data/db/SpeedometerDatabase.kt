@@ -14,8 +14,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TourEntity::class,
         RouteEntity::class,
         WaypointEntity::class,
+        TripPhotoEntity::class,
     ],
-    version = 2,
+    version = 6,
     exportSchema = true,
 )
 abstract class SpeedometerDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class SpeedometerDatabase : RoomDatabase() {
     abstract fun tourDao(): TourDao
     abstract fun routeDao(): RouteDao
     abstract fun waypointDao(): WaypointDao
+    abstract fun tripPhotoDao(): TripPhotoDao
 
     companion object {
         @Volatile
@@ -54,13 +56,91 @@ abstract class SpeedometerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the activity a trip was recorded as, and a free-text note.
+         *
+         * Existing trips become rides: this app was written for a bike, and a
+         * wrong guess is one tap to correct where a null would need handling
+         * in every screen that reads the column.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                ADD_TRIP_COLUMNS.forEach(db::execSQL)
+            }
+        }
+
+        /**
+         * The column definitions have to read exactly as Room writes them in
+         * `schemas/…/3.json`, down to the default value, or Room rejects the
+         * migrated database. `MigrationSchemaTest` compares the two.
+         */
+        val ADD_TRIP_COLUMNS = listOf(
+            "ALTER TABLE `trips` ADD COLUMN `activity` TEXT NOT NULL DEFAULT 'RIDE'",
+            "ALTER TABLE `trips` ADD COLUMN `note` TEXT",
+        )
+
+        /**
+         * Marks trips that are still being recorded, so a recording written as
+         * it happens is not mistaken for a finished one.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(ADD_IN_PROGRESS)
+            }
+        }
+
+        const val ADD_IN_PROGRESS =
+            "ALTER TABLE `trips` ADD COLUMN `inProgress` INTEGER NOT NULL DEFAULT 0"
+
+        /**
+         * Adds the thumbnail sketch. Existing trips get an empty one and are
+         * filled in on first read, since deriving thousands of them inside a
+         * migration would stall the first launch after an update.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(ADD_SKETCH)
+            }
+        }
+
+        const val ADD_SKETCH =
+            "ALTER TABLE `trips` ADD COLUMN `sketch` TEXT NOT NULL DEFAULT ''"
+
+        /**
+         * Adds the photos table. Written out by hand to match what Room
+         * exports, index included — `MigrationSchemaTest` compares them.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(CREATE_TRIP_PHOTOS)
+                db.execSQL(INDEX_TRIP_PHOTOS)
+            }
+        }
+
+        const val CREATE_TRIP_PHOTOS = "CREATE TABLE IF NOT EXISTS `trip_photos` (" +
+            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`tripId` INTEGER NOT NULL, " +
+            "`uri` TEXT NOT NULL, " +
+            "`addedAt` INTEGER NOT NULL, " +
+            "FOREIGN KEY(`tripId`) REFERENCES `trips`(`id`) " +
+            "ON UPDATE NO ACTION ON DELETE CASCADE )"
+
+        const val INDEX_TRIP_PHOTOS =
+            "CREATE INDEX IF NOT EXISTS `index_trip_photos_tripId` ON `trip_photos` (`tripId`)"
+
         fun get(context: Context): SpeedometerDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     SpeedometerDatabase::class.java,
                     "speedometer.db",
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
                     .build()
                     .also { instance = it }
             }

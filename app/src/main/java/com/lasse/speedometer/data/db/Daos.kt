@@ -23,11 +23,25 @@ data class TrackPointLite(
     val longitude: Double,
 )
 
+/** Big enough to be one statement, small enough not to be a huge one. */
+private const val POINT_CHUNK = 500
+
 @Dao
 interface TripDao {
 
-    @Query("SELECT * FROM trips ORDER BY startedAt DESC")
+    /** Finished trips only — a recording in progress is not history yet. */
+    @Query("SELECT * FROM trips WHERE inProgress = 0 ORDER BY startedAt DESC")
     fun observeTrips(): Flow<List<TripEntity>>
+
+    /** The row a recording is being written into, if there is one. */
+    @Query("SELECT * FROM trips WHERE inProgress = 1 ORDER BY startedAt DESC LIMIT 1")
+    fun observeInProgress(): Flow<TripEntity?>
+
+    @Query("SELECT * FROM trips WHERE inProgress = 1")
+    suspend fun getInProgress(): List<TripEntity>
+
+    @Query("UPDATE trips SET inProgress = 0 WHERE id = :tripId")
+    suspend fun finishTrip(tripId: Long)
 
     @Query("SELECT * FROM trips WHERE id = :id")
     fun observeTrip(id: Long): Flow<TripEntity?>
@@ -37,6 +51,10 @@ interface TripDao {
 
     @Query("SELECT * FROM trips WHERE tourId = :tourId ORDER BY startedAt ASC")
     suspend fun getTripsForTour(tourId: Long): List<TripEntity>
+
+    /** Every finished trip in one read, for a backup. */
+    @Query("SELECT * FROM trips WHERE inProgress = 0 ORDER BY startedAt ASC")
+    suspend fun getAllTrips(): List<TripEntity>
 
     @Insert
     suspend fun insertTrip(trip: TripEntity): Long
@@ -50,17 +68,80 @@ interface TripDao {
     @Query("UPDATE trips SET title = :title WHERE id = :tripId")
     suspend fun setTripTitle(tripId: Long, title: String?)
 
+    @Query("UPDATE trips SET note = :note WHERE id = :tripId")
+    suspend fun setTripNote(tripId: Long, note: String?)
+
+    @Query("UPDATE trips SET activity = :activity WHERE id = :tripId")
+    suspend fun setTripActivity(tripId: Long, activity: String)
+
+    @Query("UPDATE trips SET sketch = :sketch WHERE id = :tripId")
+    suspend fun setTripSketch(tripId: Long, sketch: String)
+
+    /** The ids of trips saved before sketches existed, to fill in. */
+    @Query("SELECT id FROM trips WHERE sketch = '' AND inProgress = 0")
+    suspend fun tripsWithoutSketch(): List<Long>
+
     @Query("UPDATE trips SET syncedToHealth = 1 WHERE id = :tripId")
     suspend fun markSynced(tripId: Long)
 
     @Query("DELETE FROM trips WHERE id = :id")
     suspend fun deleteTrip(id: Long)
 
-    @Query("DELETE FROM trips")
+    @Query("DELETE FROM trips WHERE inProgress = 0")
     suspend fun deleteAllTrips()
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPoints(points: List<TrackPointEntity>)
+
+    /**
+     * A trip and its track, all or nothing.
+     *
+     * Importing a GPX runs on a view model's scope, and leaving that screen
+     * cancels it. Without a transaction, a cancellation between the trip row
+     * and its points left a trip in history with an empty track — a ride that
+     * opens onto nothing.
+     */
+    @Transaction
+    suspend fun insertTripWithTrack(
+        trip: TripEntity,
+        points: List<TrackPointEntity>,
+        sketch: String,
+    ): Long {
+        val tripId = insertTrip(trip)
+        // Chunked so a long ride does not build one enormous statement.
+        points.map { it.copy(tripId = tripId) }.chunked(POINT_CHUNK).forEach { insertPoints(it) }
+        setTripSketch(tripId, sketch)
+        return tripId
+    }
+
+    /**
+     * Appends the rest of a recording's track and closes the row, in one go,
+     * so a trip is never left half finished.
+     */
+    @Transaction
+    suspend fun finishTripWithTrack(
+        tripId: Long,
+        summary: TripEntity,
+        points: List<TrackPointEntity>,
+        sketch: String,
+    ) {
+        appendTrack(tripId, summary, points)
+        setTripSketch(tripId, sketch)
+        finishTrip(tripId)
+    }
+
+    /** Writes whatever part of the track is not stored yet, and the totals. */
+    @Transaction
+    suspend fun appendTrack(tripId: Long, summary: TripEntity, points: List<TrackPointEntity>) {
+        val stored = countPoints(tripId)
+        if (points.size > stored) {
+            points.drop(stored)
+                .map { it.copy(tripId = tripId) }
+                .chunked(POINT_CHUNK)
+                .forEach { insertPoints(it) }
+        }
+        updateTrip(summary)
+    }
 
     @Query("SELECT * FROM track_points WHERE tripId = :tripId ORDER BY timestamp ASC")
     suspend fun getPoints(tripId: Long): List<TrackPointEntity>
@@ -68,18 +149,38 @@ interface TripDao {
     @Query("SELECT * FROM track_points WHERE tripId = :tripId ORDER BY timestamp ASC")
     fun observePoints(tripId: Long): Flow<List<TrackPointEntity>>
 
-    /**
-     * Every fourth point of every trip — enough resolution for the list
-     * thumbnails, a fraction of the rows.
-     */
+    /** Decimated tracks for a set of trips, for drawing a tour on one map. */
     @Query(
         """
         SELECT tripId, latitude, longitude FROM track_points
-        WHERE id % 4 = 0
+        WHERE tripId IN (:tripIds) AND id % 4 = 0
         ORDER BY tripId ASC, timestamp ASC
         """
     )
-    fun observeThumbnailPoints(): Flow<List<TrackPointLite>>
+    suspend fun getThumbnailPointsFor(tripIds: List<Long>): List<TrackPointLite>
+
+    /** How much of a trip is already written, so appending can carry on. */
+    @Query("SELECT COUNT(*) FROM track_points WHERE tripId = :tripId")
+    suspend fun countPoints(tripId: Long): Int
+}
+
+@Dao
+interface TripPhotoDao {
+
+    @Query("SELECT * FROM trip_photos WHERE tripId = :tripId ORDER BY addedAt ASC")
+    fun observePhotos(tripId: Long): Flow<List<TripPhotoEntity>>
+
+    @Query("SELECT * FROM trip_photos ORDER BY addedAt ASC")
+    suspend fun getAllPhotos(): List<TripPhotoEntity>
+
+    @Query("SELECT * FROM trip_photos WHERE tripId = :tripId ORDER BY addedAt ASC")
+    suspend fun getPhotos(tripId: Long): List<TripPhotoEntity>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPhoto(photo: TripPhotoEntity): Long
+
+    @Query("DELETE FROM trip_photos WHERE id = :id")
+    suspend fun deletePhoto(id: Long)
 }
 
 @Dao
@@ -95,6 +196,9 @@ interface TourDao {
     @Transaction
     @Query("SELECT * FROM tours WHERE id = :id")
     fun observeTourWithTrips(id: Long): Flow<TourWithTrips?>
+
+    @Query("SELECT * FROM tours ORDER BY createdAt ASC")
+    suspend fun getAllTours(): List<TourEntity>
 
     @Insert
     suspend fun insertTour(tour: TourEntity): Long
@@ -115,11 +219,17 @@ interface RouteDao {
     @Query("SELECT * FROM routes WHERE id = :id")
     suspend fun getRoute(id: Long): RouteEntity?
 
+    @Query("SELECT * FROM routes ORDER BY importedAt ASC")
+    suspend fun getAllRoutes(): List<RouteEntity>
+
     @Query("SELECT * FROM routes WHERE id = :id")
     fun observeRoute(id: Long): Flow<RouteEntity?>
 
     @Insert
     suspend fun insertRoute(route: RouteEntity): Long
+
+    @Query("UPDATE routes SET name = :name WHERE id = :id")
+    suspend fun renameRoute(id: Long, name: String)
 
     @Query("DELETE FROM routes WHERE id = :id")
     suspend fun deleteRoute(id: Long)
@@ -133,6 +243,9 @@ interface WaypointDao {
 
     @Query("SELECT * FROM waypoints WHERE id = :id")
     suspend fun getWaypoint(id: Long): WaypointEntity?
+
+    @Query("SELECT * FROM waypoints ORDER BY createdAt ASC")
+    suspend fun getAllWaypoints(): List<WaypointEntity>
 
     @Insert
     suspend fun insertWaypoint(waypoint: WaypointEntity): Long

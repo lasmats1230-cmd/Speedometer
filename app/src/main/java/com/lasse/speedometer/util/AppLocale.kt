@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.LocaleList
 import androidx.annotation.StringRes
+import androidx.core.content.edit
 import com.lasse.speedometer.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,12 +45,13 @@ object AppLocale {
      * recreates the activity for us; doing it as well would be a second,
      * redundant restart.
      */
+    // commit, not apply: the activity is recreated immediately afterwards and
+    // attachBaseContext reads this synchronously. An asynchronous write can
+    // lose that race and rebuild the activity in the language just left.
     fun set(context: Context, language: AppLanguage): Boolean {
         context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_LANGUAGE, language.name)
-            .commit()
+            .edit(commit = true) { putString(KEY_LANGUAGE, language.name) }
         _language.value = language
         return !applyToSystem(context, language)
     }
@@ -61,6 +63,13 @@ object AppLocale {
             ?: return AppLanguage.SYSTEM
         return runCatching { AppLanguage.valueOf(stored) }.getOrDefault(AppLanguage.SYSTEM)
     }
+
+    /**
+     * The locale the app is running in, or null when it follows the system.
+     * Used where a locale has to be handed to something outside the resource
+     * system — the speech engine, for one.
+     */
+    fun currentLocale(): Locale? = _language.value.tag?.let(Locale::forLanguageTag)
 
     /**
      * Wraps a context so resource lookups resolve in the chosen language.

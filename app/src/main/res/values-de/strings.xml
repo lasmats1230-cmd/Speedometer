@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Navigation -->
     <string name="nav_live">Live</string>
     <string name="nav_history">Verlauf</string>
@@ -47,11 +47,11 @@
     <string name="create">Erstellen</string>
 
     <!-- Detail -->
-    <string name="elevation">Höhe</string>
     <string name="ascent">Aufstieg</string>
     <string name="descent">Abstieg</string>
     <string name="altitude">Höhe</string>
     <string name="elevation_profile">Höhenprofil</string>
+    <string name="chart_spoken">Diagramm, %1$s bis %2$s, über %3$s</string>
     <string name="speed_profile">Geschwindigkeitsprofil</string>
     <string name="lowest">Tiefster %1$s</string>
     <string name="highest">Höchster %1$s</string>
@@ -61,7 +61,6 @@
 
     <!-- Tools -->
     <string name="tools">Werkzeuge</string>
-    <string name="tab_compass">Kompass</string>
     <string name="tab_map">Karte</string>
     <string name="tab_routes">Routen</string>
     <string name="import_route">GPX oder TCX importieren</string>
@@ -70,8 +69,6 @@
     <string name="follow_route">In Live-Ansicht folgen</string>
     <string name="stop_following">Nicht mehr folgen</string>
     <string name="following">Wird verfolgt</string>
-    <string name="calibrate_compass">Bewege das Handy in einer Acht, um zu kalibrieren.</string>
-    <string name="no_compass">Dieses Gerät hat keinen Kompasssensor.</string>
     <string name="heading">Richtung</string>
     <string name="recenter">Zentrieren</string>
 
@@ -98,7 +95,6 @@
     <!-- Notification -->
     <string name="notif_channel_name">Fahrtaufzeichnung</string>
     <string name="notif_channel_desc">Zeigt Geschwindigkeit und Strecke während einer Aufzeichnung.</string>
-    <string name="notif_title">Fahrt wird aufgezeichnet</string>
 
     <!-- Misc -->
     <string name="saved">Fahrt gespeichert</string>
@@ -119,6 +115,8 @@
     <string name="layout_elements">Elemente</string>
     <string name="layout_show_status">Statusanzeige einblenden</string>
     <string name="layout_show_timer">Fahrtzeit einblenden</string>
+    <string name="layout_show_today">Heutige Summen</string>
+    <string name="layout_show_today_summary">Strecke und Serie über der Geschwindigkeit. Aus lässt der Karte mehr Platz.</string>
     <string name="layout_shown_stats">Angezeigte Werte</string>
     <string name="layout_available_stats">Verfügbare Werte</string>
     <string name="minimap_hidden">Aus</string>
@@ -224,4 +222,255 @@
     <string name="battery_extreme_map_off">Karte aus — extremes Energiesparen</string>
     <string name="axis_distance_altitude">Strecke · Höhe — zum Ablesen ziehen</string>
     <string name="axis_time_speed">Zeit · Geschwindigkeit — zum Ablesen ziehen</string>
+    <!-- Navigation -->
+    <string name="nav_stats">Statistik</string>
+
+    <!-- Aktivitäten -->
+    <string name="activity">Aktivität</string>
+    <string name="activity_ride">Radfahrt</string>
+    <string name="activity_run">Lauf</string>
+    <string name="activity_walk">Spaziergang</string>
+    <string name="activity_hike">Wanderung</string>
+    <string name="activity_drive">Autofahrt</string>
+    <string name="activity_other">Sonstiges</string>
+
+    <!-- Statistik -->
+    <string name="stats">Statistik</string>
+    <string name="period_week">Woche</string>
+    <string name="period_month">Monat</string>
+    <string name="period_year">Jahr</string>
+    <string name="period_all">Gesamt</string>
+    <string name="stats_trend">Strecke im Zeitverlauf</string>
+    <string name="stats_total">Gesamt</string>
+    <string name="stats_by_activity">Nach Aktivität</string>
+    <string name="stats_records">Rekorde</string>
+    <string name="stats_lifetime">Insgesamt</string>
+    <string name="stats_streak">Serie</string>
+    <string name="stats_active_days">Aktive Tage</string>
+    <string name="stats_recording_for">Aufzeichnung seit</string>
+    <string name="stats_period_empty">In diesem Zeitraum ist noch nichts aufgezeichnet.</string>
+    <string name="record_longest">Längste Fahrt</string>
+    <string name="record_longest_time">Längste Dauer</string>
+    <string name="record_fastest">Höchstgeschwindigkeit</string>
+    <string name="record_climb">Meiste Höhenmeter</string>
+    <string name="no_stats_title">Noch nichts zu rechnen.</string>
+    <string name="no_stats_body">Zeichne eine Fahrt auf, dann erscheinen hier Summen, Rekorde und Verläufe.</string>
+
+    <!-- Live -->
+    <string name="speed_over_limit">über %1$s</string>
+
+    <!-- Verlauf -->
+    <string name="delete_tour_title">Tour löschen?</string>
+    <string name="delete_tour_message">Die Tour wird entfernt. Die Fahrten darin bleiben erhalten.</string>
+    <string name="remove_from_tour">Aus Tour entfernen</string>
+    <string name="trip_name">Name der Fahrt</string>
+    <string name="rename_trip">Fahrt umbenennen</string>
+    <string name="rename_tour">Tour umbenennen</string>
+    <string name="rename_route">Route umbenennen</string>
+    <string name="route_name">Routenname</string>
+    <string name="delete_route_title">Route löschen?</string>
+    <string name="delete_route_message">Die importierte Route wird entfernt. Aufgezeichnete Fahrten bleiben erhalten.</string>
+    <string name="change_activity">Aktivität ändern</string>
+    <string name="share_summary">Zusammenfassung teilen</string>
+    <string name="search_trips">Fahrten durchsuchen</string>
+    <string name="clear">Löschen</string>
+    <string name="filter_all">Alle</string>
+    <string name="sort_by">Sortieren</string>
+    <string name="sort_newest">Neueste zuerst</string>
+    <string name="sort_oldest">Älteste zuerst</string>
+    <string name="sort_distance">Längste Strecke</string>
+    <string name="sort_duration">Längste Dauer</string>
+    <string name="sort_speed">Höchste Geschwindigkeit</string>
+    <string name="no_matches_title">Keine Treffer.</string>
+    <string name="no_matches_body">Versuche eine andere Suche oder hebe den Aktivitätsfilter auf.</string>
+
+    <!-- Detail -->
+    <string name="splits">Abschnitte</string>
+    <string name="splits_subtitle">Eine Zeile je %1$s — der Balken zeigt die Geschwindigkeit im Vergleich zum schnellsten Abschnitt</string>
+    <string name="edit_note">Notiz bearbeiten</string>
+    <string name="note">Notiz</string>
+
+    <!-- Warnungen -->
+    <string name="settings_alerts">Warnungen</string>
+    <string name="settings_speed_alert">Geschwindigkeitswarnung</string>
+    <string name="settings_speed_alert_summary">Die Anzeige wird oberhalb einer Grenze rot</string>
+    <string name="settings_speed_alert_at">Warnung über %1$s</string>
+    <string name="settings_speed_alert_vibrate">Bei Überschreitung vibrieren</string>
+
+    <!-- Sicherung -->
+    <string name="settings_data">Daten</string>
+    <string name="settings_backup_summary">Fahrten liegen nur auf diesem Gerät. Eine Sicherung schreibt alles — Fahrten, Touren, Routen und Wegpunkte — als eine Datei in den Downloads-Ordner.</string>
+    <string name="settings_backup_export">Sichern</string>
+    <string name="settings_backup_restore">Wiederherstellen</string>
+    <string name="settings_backup_saved">Sicherung gespeichert als %1$s</string>
+    <string name="settings_backup_failed">Sicherung konnte nicht geschrieben werden</string>
+    <string name="settings_restore_failed">Diese Datei ist keine Speedometer-Sicherung</string>
+
+    <plurals name="settings_backup_restored">
+        <item quantity="one">%1$d Fahrt wiederhergestellt, %2$d bereits vorhandene übersprungen</item>
+        <item quantity="other">%1$d Fahrten wiederhergestellt, %2$d bereits vorhandene übersprungen</item>
+    </plurals>
+    <plurals name="days_count">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <plurals name="active_days_count">
+        <item quantity="one">%1$d aktiver Tag</item>
+        <item quantity="other">%1$d aktive Tage</item>
+    </plurals>
+    <!-- Karte -->
+    <string name="settings_map">Karte</string>
+    <string name="settings_map_style">Kartenstil</string>
+    <string name="map_style_auto">Wie das Design</string>
+    <string name="map_style_liberty">Standard</string>
+    <string name="map_style_bright">Hell</string>
+    <string name="map_style_positron">Gedämpft</string>
+    <string name="map_style_dark">Dunkel</string>
+
+    <!-- Sprachansagen -->
+    <string name="settings_voice">Sprachansagen</string>
+    <string name="settings_voice_summary">Sagt Strecke, Zeit und Tempo an, damit das Telefon in der Tasche bleiben kann.</string>
+    <string name="voice_off">Aus</string>
+    <string name="voice_started">Aufzeichnung gestartet</string>
+    <string name="voice_paused">Aufzeichnung pausiert</string>
+    <string name="voice_resumed">Aufzeichnung fortgesetzt</string>
+    <string name="voice_finished">Fahrt gespeichert</string>
+    <string name="voice_update">%1$s. Zeit %2$s. Durchschnitt %3$s.</string>
+    <string name="voice_test">Ansage testen</string>
+
+    <!-- Wochenziel -->
+    <string name="settings_goal">Wochenziel</string>
+    <string name="settings_goal_summary">Eine Strecke, die du dir pro Woche vornimmst — sie erscheint in der Statistik.</string>
+    <string name="goal_none">Kein Ziel</string>
+    <string name="goal_title">Ziel dieser Woche</string>
+    <string name="goal_progress">%1$s von %2$s</string>
+    <string name="goal_reached">Ziel erreicht — %1$s darüber</string>
+    <string name="goal_remaining">Noch %1$s</string>
+    <string name="goal_pace_ahead">Vor dem Plan</string>
+    <string name="goal_pace_behind">%1$s hinter dem Plan</string>
+
+    <!-- Automatische Fahrtnamen -->
+    <string name="trip_title_morning">%1$s am Morgen</string>
+    <string name="trip_title_midday">%1$s am Mittag</string>
+    <string name="trip_title_afternoon">%1$s am Nachmittag</string>
+    <string name="trip_title_evening">%1$s am Abend</string>
+    <string name="trip_title_night">%1$s in der Nacht</string>
+
+    <plurals name="hours_count">
+        <item quantity="one">%1$d Stunde</item>
+        <item quantity="other">%1$d Stunden</item>
+    </plurals>
+    <plurals name="minutes_count">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
+    <!-- Schnelleinstellungen, Verknüpfung und Widget -->
+    <string name="tile_start">Fahrt aufzeichnen</string>
+    <string name="tile_stop">Aufzeichnung beenden</string>
+    <string name="tile_subtitle_recording">Zeichnet auf</string>
+    <string name="shortcut_start_short">Aufzeichnen</string>
+    <string name="shortcut_start_long">Aufzeichnung einer Fahrt starten</string>
+    <string name="widget_this_week">Diese Woche</string>
+    <string name="widget_lifetime">Insgesamt</string>
+    <string name="widget_goal">von %1$s</string>
+    <string name="widget_open">Speedometer öffnen</string>
+    <string name="widget_description">Strecke dieser Woche und insgesamt, mit einem Tipp zum Öffnen.</string>
+    <string name="import_trip">Fahrt importieren (GPX)</string>
+    <string name="imported_trip">„%1$s“ importiert</string>
+    <string name="import_no_times">Diese Datei hat keine Zeitstempel und ist damit eine Route, keine Fahrt. Importiere sie unter Werkzeuge.</string>
+    <string name="layout_hud">Tempo spiegeln (Head-up-Display)</string>
+    <string name="layout_hud_summary">Dreht die Zahl um, damit sie sich in der Windschutzscheibe richtig herum spiegelt.</string>
+    <!-- Erster Start -->
+    <string name="onboarding_title">Willkommen bei Speedometer</string>
+    <string name="onboarding_intro">Ein Tacho und Fahrtenschreiber, der ohne Konto auskommt.</string>
+    <string name="onboarding_location">Der Standort dient dazu, Geschwindigkeit, Strecke und den gefahrenen Weg zu messen.</string>
+    <string name="onboarding_background">Die Aufzeichnung läuft bei ausgeschaltetem Bildschirm weiter; die Energiesparmodi sparen an Pixeln, nicht an Genauigkeit.</string>
+    <string name="onboarding_privacy">Alles bleibt auf diesem Gerät. Nichts wird hochgeladen, es gibt weder Analyse noch Werbung.</string>
+    <string name="onboarding_grant">Standort erlauben</string>
+    <string name="onboarding_later">Jetzt nicht</string>
+
+    <!-- Zuverlässigkeit im Hintergrund -->
+    <string name="settings_background">Zuverlässigkeit im Hintergrund</string>
+    <string name="settings_background_unrestricted">Nicht eingeschränkt — lange Aufzeichnungen werden nicht abgebrochen</string>
+    <string name="settings_background_restricted">Die Akku-Optimierung kann lange Aufzeichnungen beenden</string>
+    <string name="period_last_week">letzte Woche</string>
+    <string name="period_last_month">letzten Monat</string>
+    <string name="period_last_year">letztes Jahr</string>
+    <string name="stats_up_on_previous">%1$d%% weiter als %2$s</string>
+    <string name="stats_down_on_previous">%1$d%% weniger als %2$s</string>
+    <string name="share_image">Als Bild teilen</string>
+    <string name="speed_spoken">Aktuelle Geschwindigkeit %1$s</string>
+    <string name="settings_waypoint_alerts">Wegpunkt-Hinweise</string>
+    <string name="settings_waypoint_alerts_summary">Vibriert, wenn du einem gespeicherten Wegpunkt auf 60 m nahe kommst, und nennt ihn bei eingeschalteten Sprachansagen.</string>
+    <string name="waypoint_nearby">%1$s in der Nähe</string>
+    <!-- Wiederherstellung -->
+    <string name="recover_title">Unterbrochene Aufzeichnung wiederherstellen?</string>
+    <string name="recover_message">Eine Aufzeichnung wurde unterbrochen — %1$s in %2$s waren bereits gespeichert. Als Fahrt behalten oder verwerfen.</string>
+    <string name="recover_keep">Behalten</string>
+    <string name="route_remaining">Noch %1$s auf der Route</string>
+    <string name="route_off">%1$s neben der Route</string>
+    <string name="notif_title_activity">Aufzeichnung · %1$s</string>
+    <string name="tab_places">Orte</string>
+    <string name="place_distance">%1$s entfernt</string>
+    <string name="place_no_fix">Warten auf eine Position zum Messen</string>
+    <string name="no_places_title">Noch keine Orte gespeichert.</string>
+    <string name="no_places_body">Lange auf die Karte tippen, um einen Wegpunkt zu setzen — einen Wasserhahn, ein Tor, eine leicht zu übersehende Abzweigung.</string>
+    <string name="settings_export_all_gpx">Alle Fahrten als GPX exportieren</string>
+    <string name="settings_export_all_gpx_summary">Eine Datei je Fahrt in den Downloads, für andere Apps</string>
+    <plurals name="settings_exported_all">
+        <item quantity="one">%1$d Fahrt in die Downloads exportiert</item>
+        <item quantity="other">%1$d Fahrten in die Downloads exportiert</item>
+    </plurals>
+    <string name="empty_start_recording">Aufzeichnung starten</string>
+    <string name="clear_filters">Filter zurücksetzen</string>
+    <string name="trip_faster_than_usual">%1$d%% schneller als sonst (%2$s)</string>
+    <string name="trip_slower_than_usual">%1$d%% langsamer als sonst (%2$s)</string>
+    <string name="trip_typical">So schnell wie sonst (%1$s)</string>
+    <string name="map_unavailable">Der Kartenrenderer ist auf diesem Gerät nicht verfügbar.</string>
+    <string name="map_expand">Karte vergrößern</string>
+    <string name="settings_export_csv">Verlauf als Tabelle exportieren</string>
+    <string name="settings_export_csv_summary">Eine CSV-Datei aller Fahrten in den Downloads, direkt in einer Tabellenkalkulation zu öffnen</string>
+    <string name="settings_exported_csv">Tabelle gespeichert als %1$s</string>
+    <string name="route_remaining_eta">Noch %1$s · etwa %2$s</string>
+
+    <!-- Die Wegpunkt-Palette, damit neun Kreise nicht neun namenlose Knöpfe sind -->
+    <string name="colour_red">Rot</string>
+    <string name="colour_orange">Orange</string>
+    <string name="colour_yellow">Gelb</string>
+    <string name="colour_green">Grün</string>
+    <string name="colour_teal">Petrol</string>
+    <string name="colour_blue">Blau</string>
+    <string name="colour_purple">Violett</string>
+    <string name="colour_pink">Pink</string>
+    <string name="colour_grey">Grau</string>
+
+    <!-- Einmal gesagt, wenn eine gespeicherte Fahrt einen Rekord gebrochen hat -->
+    <string name="best_distance">Deine bisher längste</string>
+    <string name="best_duration">Deine bisher längste Zeit</string>
+    <string name="best_speed">Deine bisher schnellste</string>
+    <string name="best_climb">Dein größter Anstieg</string>
+
+    <!-- Was heute schon zusammengekommen ist, über dem Startknopf -->
+    <string name="today_label">Heute</string>
+    <string name="today_nothing">Noch nichts</string>
+    <string name="today_week">%1$s diese Woche</string>
+    <string name="today_goal_left">Noch %1$s diese Woche</string>
+    <string name="today_goal_done">Wochenziel erreicht</string>
+    <!--
+      "in Folge" is right here — lint's German dictionary confuses it with
+      "infolge", which means "as a result of" and is a different word.
+    -->
+    <plurals name="today_streak" tools:ignore="Typos">
+        <item quantity="one">%1$d Tag in Folge</item>
+        <item quantity="other">%1$d Tage in Folge</item>
+    </plurals>
+    <string name="photos">Fotos</string>
+    <string name="photos_empty">Füge ein Bild von der Fahrt hinzu.</string>
+    <string name="photos_remove_hint">Zum Entfernen lange auf ein Bild tippen.</string>
+    <string name="photo_remove">Bild entfernen</string>
+    <string name="photo_add">Foto hinzufügen</string>
+    <string name="photo_of_trip">Foto von dieser Fahrt</string>
+    <string name="photo_missing">Dieses Foto ist nicht mehr auf dem Gerät</string>
+    <string name="waypoint_mark">Ort merken</string>
+    <string name="waypoint_marked">Gemerkt um %1$s</string>
 </resources>

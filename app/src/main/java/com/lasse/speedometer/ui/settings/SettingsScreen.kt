@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,20 +25,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,15 +56,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.BuildConfig
 import com.lasse.speedometer.R
+import com.lasse.speedometer.data.db.ActivityType
+import com.lasse.speedometer.data.io.CsvHeadings
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
+import com.lasse.speedometer.data.prefs.MapStyle
 import com.lasse.speedometer.data.prefs.SpeedSource
 import com.lasse.speedometer.data.prefs.ThemeMode
 import com.lasse.speedometer.data.prefs.UnitSystem
+import com.lasse.speedometer.tracking.VoiceCoach
+import com.lasse.speedometer.ui.components.Dimens
+import com.lasse.speedometer.ui.components.ScreenTitle
+import com.lasse.speedometer.ui.components.SectionCard
 import com.lasse.speedometer.ui.components.SegmentedTabs
 import com.lasse.speedometer.ui.theme.AccentColor
 import com.lasse.speedometer.util.AppLanguage
@@ -77,11 +91,60 @@ fun SettingsScreen(
 ) {
     val healthGranted by viewModel.healthPermissionsGranted.collectAsState()
     val language by viewModel.language.collectAsState()
+    val busy by viewModel.busy.collectAsState()
     var showLanguagePicker by remember { mutableStateOf(false) }
     val activity = LocalContext.current.findActivity()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
+    }
+
+    // A restore reports in words the composition can pluralise.
+    val lastRestore by viewModel.lastRestore.collectAsState()
+    val restoreMessage = lastRestore?.let { result ->
+        pluralStringResource(
+            R.plurals.settings_backup_restored,
+            result.trips,
+            result.trips,
+            result.skipped,
+        )
+    }
+    LaunchedEffect(restoreMessage) {
+        val message = restoreMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeRestoreResult()
+    }
+
+    val backupSaved = stringResource(R.string.settings_backup_saved)
+    val backupFailed = stringResource(R.string.settings_backup_failed)
+    val exportedCsv = stringResource(R.string.settings_exported_csv)
+
+    // The spreadsheet's headings and activity names are interface text, so
+    // they are resolved here and handed down rather than looked up in a
+    // writer that has no business knowing about resources.
+    val csvHeadings = CsvHeadings(
+        date = stringResource(R.string.detail_started),
+        title = stringResource(R.string.trip_name),
+        activity = stringResource(R.string.activity),
+        distance = stringResource(R.string.stat_distance),
+        duration = stringResource(R.string.stat_time),
+        movingTime = stringResource(R.string.moving_time),
+        avgSpeed = stringResource(R.string.stat_avg),
+        maxSpeed = stringResource(R.string.stat_max),
+        ascent = stringResource(R.string.ascent),
+        descent = stringResource(R.string.descent),
+        note = stringResource(R.string.note),
+    )
+    val activityNames = ActivityType.entries.associateWith { stringResource(it.labelRes) }
+
+    val restoreFailed = stringResource(R.string.settings_restore_failed)
+
+    // Backups are JSON, but file pickers disagree about what that means often
+    // enough that anything is accepted and the parser decides.
+    val backupPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) viewModel.restoreBackup(uri, restoreFailed)
     }
 
     val healthLauncher = rememberLauncherForActivityResult(
@@ -92,19 +155,17 @@ fun SettingsScreen(
     val dynamicSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val showAccentPicker = !settings.dynamicColor || !dynamicSupported
 
+    Column(Modifier.fillMaxSize()) {
+    ScreenTitle(title = stringResource(R.string.settings))
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        contentPadding = PaddingValues(
+            start = Dimens.Screen,
+            end = Dimens.Screen,
+            bottom = Dimens.BottomGap,
+        ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item("title") {
-            Text(
-                text = stringResource(R.string.settings),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 8.dp, top = 16.dp, bottom = 12.dp),
-            )
-        }
-
         item("layout") {
             SettingsSection(stringResource(R.string.settings_layout)) {
                 NavigationRow(
@@ -243,6 +304,34 @@ fun SettingsScreen(
 
         item("recording") {
             SettingsSection(stringResource(R.string.settings_recording)) {
+                // Aggressive battery optimisation is the single most common
+                // reason a long recording stops early, and the fix is two taps
+                // away in a screen nobody knows exists.
+                val powerManager = LocalContext.current
+                    .getSystemService(android.os.PowerManager::class.java)
+                val unrestricted = powerManager
+                    ?.isIgnoringBatteryOptimizations(LocalContext.current.packageName) == true
+                val batterySettingsContext = LocalContext.current
+                NavigationRow(
+                    title = stringResource(R.string.settings_background),
+                    subtitle = stringResource(
+                        if (unrestricted) {
+                            R.string.settings_background_unrestricted
+                        } else {
+                            R.string.settings_background_restricted
+                        }
+                    ),
+                    onClick = {
+                        runCatching {
+                            batterySettingsContext.startActivity(
+                                android.content.Intent(
+                                    android.provider.Settings
+                                        .ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+                                )
+                            )
+                        }
+                    },
+                )
                 SwitchRow(
                     title = stringResource(R.string.settings_auto_pause),
                     subtitle = stringResource(R.string.settings_auto_pause_summary),
@@ -282,6 +371,193 @@ fun SettingsScreen(
                     onSelect = {
                         viewModel.setSpeedSource(
                             if (it == 0) SpeedSource.GNSS else SpeedSource.COMPUTED
+                        )
+                    },
+                )
+            }
+        }
+
+        item("map") {
+            SettingsSection(stringResource(R.string.settings_map)) {
+                Text(
+                    text = stringResource(R.string.settings_map_style),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                MapStyle.entries.forEach { style ->
+                    RadioRow(
+                        title = stringResource(style.labelRes),
+                        selected = style == settings.mapStyle,
+                        onClick = { viewModel.setMapStyle(style) },
+                    )
+                }
+            }
+        }
+
+        item("voice") {
+            SettingsSection(stringResource(R.string.settings_voice)) {
+                Text(
+                    text = stringResource(R.string.settings_voice_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                // Whole units only: "every 1.6 km" is not a milestone anyone
+                // is waiting to hear.
+                val unitM = if (settings.units == UnitSystem.METRIC) 1000.0 else 1609.344
+                val choices = listOf(0.0, unitM, 2 * unitM, 5 * unitM)
+                val labels = listOf(stringResource(R.string.voice_off)) +
+                    listOf(1, 2, 5).map { multiple ->
+                        Formatters.distanceUnitCount(multiple, settings.units)
+                    }
+                SegmentedTabs(
+                    options = labels,
+                    selectedIndex = choices
+                        .indexOfFirst { kotlin.math.abs(it - settings.voiceIntervalM) < 1.0 }
+                        .coerceAtLeast(0),
+                    onSelect = { viewModel.setVoiceInterval(choices[it]) },
+                )
+
+                if (settings.voiceIntervalM > 0) {
+                    Spacer(Modifier.height(12.dp))
+                    // Whether a device can actually speak depends on engines
+                    // and downloaded voices, neither of which this app
+                    // controls — so let the user hear it rather than find out
+                    // ten kilometres into a ride.
+                    val voiceContext = LocalContext.current
+                    val coach = remember { VoiceCoach(voiceContext) }
+                    DisposableEffect(coach) { onDispose { coach.shutdown() } }
+                    val sample = stringResource(
+                        R.string.voice_update,
+                        Formatters.distance(
+                            if (settings.units == UnitSystem.METRIC) 5_000.0 else 8_046.72,
+                            settings.units,
+                        ),
+                        coach.spokenDuration(18 * 60 * 1000L),
+                        Formatters.speed(6.4, settings.units),
+                    )
+                    OutlinedButton(onClick = { coach.say(sample) }) {
+                        Text(stringResource(R.string.voice_test))
+                    }
+                }
+            }
+        }
+
+        item("goal") {
+            SettingsSection(stringResource(R.string.settings_goal)) {
+                Text(
+                    text = stringResource(R.string.settings_goal_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                LabelledSlider(
+                    value = Formatters.distanceIn(settings.weeklyGoalM, settings.units).toFloat(),
+                    onValueSettled = { viewModel.setWeeklyGoal(goalMetres(it, settings.units)) },
+                    valueRange = 0f..500f,
+                ) { current ->
+                    val metres = goalMetres(current, settings.units)
+                    Text(
+                        text = if (metres <= 0.0) {
+                            stringResource(R.string.goal_none)
+                        } else {
+                            Formatters.distance(metres, settings.units)
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+
+        item("alerts") {
+            SettingsSection(stringResource(R.string.settings_alerts)) {
+                val alertOn = settings.speedAlertMps > 0f
+                SwitchRow(
+                    title = stringResource(R.string.settings_speed_alert),
+                    subtitle = stringResource(R.string.settings_speed_alert_summary),
+                    checked = alertOn,
+                    onCheckedChange = { enabled ->
+                        viewModel.setSpeedAlert(if (enabled) DEFAULT_ALERT_MPS else 0f)
+                    },
+                )
+
+                if (alertOn) {
+                    Spacer(Modifier.height(8.dp))
+                    // The slider works in whatever the user reads speeds in;
+                    // what is stored stays metres per second either way.
+                    val range = if (settings.units == UnitSystem.METRIC) 10f..200f else 5f..125f
+                    LabelledSlider(
+                        value = Formatters.speedIn(
+                            settings.speedAlertMps.toDouble(),
+                            settings.units,
+                        ).toFloat(),
+                        onValueSettled = { viewModel.setSpeedAlert(alertMps(it, settings.units)) },
+                        valueRange = range,
+                    ) { current ->
+                        Text(
+                            text = stringResource(
+                                R.string.settings_speed_alert_at,
+                                Formatters.speed(
+                                    alertMps(current, settings.units).toDouble(),
+                                    settings.units,
+                                ),
+                            ),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    SwitchRow(
+                        title = stringResource(R.string.settings_speed_alert_vibrate),
+                        checked = settings.speedAlertVibrate,
+                        onCheckedChange = viewModel::setSpeedAlertVibrate,
+                    )
+                }
+
+                SwitchRow(
+                    title = stringResource(R.string.settings_waypoint_alerts),
+                    subtitle = stringResource(R.string.settings_waypoint_alerts_summary),
+                    checked = settings.waypointAlerts,
+                    onCheckedChange = viewModel::setWaypointAlerts,
+                )
+            }
+        }
+
+        item("data") {
+            SettingsSection(stringResource(R.string.settings_data)) {
+                Text(
+                    text = stringResource(R.string.settings_backup_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = {
+                            viewModel.exportBackup(backupSaved, backupFailed)
+                        },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.settings_backup_export)) }
+                    OutlinedButton(
+                        onClick = { backupPicker.launch(arrayOf("*/*")) },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.settings_backup_restore)) }
+                }
+                Spacer(Modifier.height(8.dp))
+                NavigationRow(
+                    title = stringResource(R.string.settings_export_all_gpx),
+                    subtitle = stringResource(R.string.settings_export_all_gpx_summary),
+                    onClick = { viewModel.exportAllGpx(backupFailed) },
+                )
+                NavigationRow(
+                    title = stringResource(R.string.settings_export_csv),
+                    subtitle = stringResource(R.string.settings_export_csv_summary),
+                    onClick = {
+                        viewModel.exportCsv(
+                            headings = csvHeadings,
+                            activityName = { activityNames[it.activityType] ?: it.activity },
+                            successTemplate = exportedCsv,
+                            failure = backupFailed,
                         )
                     },
                 )
@@ -347,7 +623,7 @@ fun SettingsScreen(
             }
         }
 
-        item("spacer") { Spacer(Modifier.height(24.dp)) }
+    }
     }
 
     if (showLanguagePicker) {
@@ -403,7 +679,7 @@ private fun LabelledSlider(
     value: Float,
     onValueSettled: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
+    steps: Int = 0,
     label: @Composable (Float) -> Unit,
 ) {
     var current by remember { mutableFloatStateOf(value) }
@@ -411,9 +687,12 @@ private fun LabelledSlider(
 
     LaunchedEffect(value) { if (!dragging) current = value }
 
-    label(current)
+    // Switching units narrows the range under a position remembered in the old
+    // one, and the effect above only catches up after this frame.
+    val shown = current.coerceIn(valueRange)
+    label(shown)
     Slider(
-        value = current,
+        value = shown,
         onValueChange = {
             dragging = true
             current = it
@@ -427,6 +706,28 @@ private fun LabelledSlider(
     )
 }
 
+/**
+ * Slider position to stored weekly goal, rounded to fives: nobody aims for 63
+ * kilometres. The label runs through this too, so the number under the finger
+ * is the number that gets stored.
+ */
+private fun goalMetres(displayed: Float, units: UnitSystem): Double {
+    val rounded = (displayed / 5f).roundToInt() * 5.0
+    return when (units) {
+        UnitSystem.METRIC -> rounded * 1000.0
+        UnitSystem.IMPERIAL -> rounded * 1609.344
+    }
+}
+
+/** Slider position to stored alert speed — whole units in either system. */
+private fun alertMps(displayed: Float, units: UnitSystem): Float {
+    val rounded = displayed.roundToInt().toDouble()
+    return when (units) {
+        UnitSystem.METRIC -> rounded / 3.6
+        UnitSystem.IMPERIAL -> rounded / 2.2369362920544
+    }.toFloat()
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AccentPicker(selected: AccentColor, onSelect: (AccentColor) -> Unit) {
@@ -437,54 +738,63 @@ private fun AccentPicker(selected: AccentColor, onSelect: (AccentColor) -> Unit)
     ) {
         AccentColor.entries.forEach { accent ->
             val isSelected = accent == selected
+            val name = stringResource(accent.labelRes)
             Box(
+                // Named whether or not it is the current one, and tappable
+                // across the full 48dp even though the circle is smaller:
+                // before this, an unselected accent was an unlabelled button.
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(ACCENT_TOUCH_TARGET)
                     .clip(CircleShape)
-                    .background(accent.seed)
-                    .border(
-                        width = if (isSelected) 3.dp else 0.dp,
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            Color.Transparent
-                        },
-                        shape = CircleShape,
+                    .selectable(
+                        selected = isSelected,
+                        role = Role.RadioButton,
+                        onClick = { onSelect(accent) },
                     )
-                    .clickable { onSelect(accent) },
+                    .semantics { contentDescription = name },
                 contentAlignment = Alignment.Center,
             ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = stringResource(accent.labelRes),
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp),
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(ACCENT_SWATCH)
+                        .clip(CircleShape)
+                        .background(accent.seed)
+                        .border(
+                            width = if (isSelected) 3.dp else 0.dp,
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * A titled settings group. Thin wrapper over the app-wide [SectionCard] so
+ * settings, statistics and trip details all use the same card.
+ */
 @Composable
 internal fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-        ) {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), content = content)
-        }
-    }
+    SectionCard(title = title, content = content)
 }
+
+/** 50 km/h — the usual urban limit, and a sane place for the slider to start. */
+private const val DEFAULT_ALERT_MPS = 13.9f
 
 @Composable
 internal fun SwitchRow(
@@ -568,3 +878,9 @@ private fun NavigationRow(title: String, subtitle: String?, onClick: () -> Unit)
         )
     }
 }
+
+/** The circle you see. */
+private val ACCENT_SWATCH = 44.dp
+
+/** The circle you can hit, which Material puts at 48dp whatever it looks like. */
+private val ACCENT_TOUCH_TARGET = 48.dp

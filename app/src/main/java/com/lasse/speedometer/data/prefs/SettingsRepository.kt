@@ -3,17 +3,22 @@ package com.lasse.speedometer.data.prefs
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.lasse.speedometer.R
+import com.lasse.speedometer.data.db.ActivityType
 import com.lasse.speedometer.ui.theme.AccentColor
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 enum class UnitSystem { METRIC, IMPERIAL }
 
@@ -26,6 +31,21 @@ enum class SpeedSource {
 
     /** Distance between fixes over elapsed time — steadier when standing still. */
     COMPUTED,
+}
+
+/**
+ * Which basemap the maps draw.
+ *
+ * The URLs live in `ui/components/MapStyles.kt`; this enum only names the
+ * choice, so the preference layer needs no opinion about tile providers.
+ */
+enum class MapStyle(@param:StringRes val labelRes: Int) {
+    /** Light or dark to match the app's own theme. */
+    AUTOMATIC(R.string.map_style_auto),
+    LIBERTY(R.string.map_style_liberty),
+    BRIGHT(R.string.map_style_bright),
+    POSITRON(R.string.map_style_positron),
+    DARK(R.string.map_style_dark),
 }
 
 /** How much of the live view the map is allowed to take. */
@@ -76,12 +96,33 @@ data class LayoutSettings(
     val stats: List<StatType> = listOf(StatType.MAX_SPEED, StatType.AVG_SPEED, StatType.DISTANCE),
     val showTimer: Boolean = true,
     val showStatusChip: Boolean = true,
+    /**
+     * Today's distance and streak, above the speed. Off by default: it is a
+     * figure you read afterwards, and on the live view it pushes the map —
+     * the one thing here that wants room — into a strip.
+     */
+    val showTodaySummary: Boolean = false,
     /** Tiles per row; fewer means larger, more readable numbers. */
     val statColumns: Int = 3,
+    /**
+     * Mirrors the speed readout so it reads the right way round reflected in
+     * a windscreen. Off by default, because on a handlebar it is nonsense.
+     */
+    val hudMirror: Boolean = false,
 )
 
 data class AppSettings(
     val units: UnitSystem = UnitSystem.METRIC,
+    /** What the next recording will be filed as. */
+    val activity: ActivityType = ActivityType.RIDE,
+    /**
+     * Speed above which the readout turns red, in metres per second. Zero is
+     * off, which is also where it starts: an alert nobody asked for is noise.
+     */
+    val speedAlertMps: Float = 0f,
+    val speedAlertVibrate: Boolean = true,
+    /** Buzz and, with voice on, name a saved waypoint as you reach it. */
+    val waypointAlerts: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val accentColor: AccentColor = AccentColor.GREEN,
@@ -95,9 +136,27 @@ data class AppSettings(
     val batterySaver: BatterySaverMode = BatterySaverMode.OFF,
     /** Seconds of stillness before cycling mode dims down. */
     val dimDelaySeconds: Int = 10,
+    val mapStyle: MapStyle = MapStyle.AUTOMATIC,
+    /** Metres between spoken updates; zero keeps the app quiet. */
+    val voiceIntervalM: Double = 0.0,
+    /** Metres per week the user is aiming for; zero is no goal. */
+    val weeklyGoalM: Double = 0.0,
+    /** Whether the first-run introduction has been shown. */
+    val onboarded: Boolean = false,
 )
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
+/**
+ * The preferences file, with a way back from a broken one.
+ *
+ * Without the corruption handler a settings file damaged by a crash mid-write
+ * makes every read throw for the life of the install — and the activity
+ * collects this flow, so that is a crash loop on launch over a set of
+ * preferences that could simply have been reset.
+ */
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 class SettingsRepository(private val context: Context) {
 
@@ -116,15 +175,34 @@ class SettingsRepository(private val context: Context) {
         val STATS = stringPreferencesKey("stats")
         val SHOW_TIMER = booleanPreferencesKey("show_timer")
         val SHOW_STATUS_CHIP = booleanPreferencesKey("show_status_chip")
+        val SHOW_TODAY_SUMMARY = booleanPreferencesKey("show_today_summary")
         val STAT_COLUMNS = intPreferencesKey("stat_columns")
+        val HUD_MIRROR = booleanPreferencesKey("hud_mirror")
         val BATTERY_SAVER = stringPreferencesKey("battery_saver")
         val DIM_DELAY = intPreferencesKey("dim_delay")
+        val ACTIVITY = stringPreferencesKey("activity")
+        val SPEED_ALERT = floatPreferencesKey("speed_alert_mps")
+        val SPEED_ALERT_VIBRATE = booleanPreferencesKey("speed_alert_vibrate")
+        val WAYPOINT_ALERTS = booleanPreferencesKey("waypoint_alerts")
+        val MAP_STYLE = stringPreferencesKey("map_style")
+        val VOICE_INTERVAL = floatPreferencesKey("voice_interval_m")
+        val WEEKLY_GOAL = floatPreferencesKey("weekly_goal_m")
+        val ONBOARDED = booleanPreferencesKey("onboarded")
     }
 
-    val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
+    val settings: Flow<AppSettings> = context.dataStore.data
+        // A read that fails is a read that would otherwise take the collector
+        // down with it. Defaults are a worse answer than the stored ones and a
+        // far better one than no app.
+        .catch { failure -> if (failure is IOException) emit(emptyPreferences()) else throw failure }
+        .map { prefs ->
         val defaults = LayoutSettings()
         AppSettings(
             units = prefs[Keys.UNITS].toEnum(UnitSystem.METRIC),
+            activity = prefs[Keys.ACTIVITY].toEnum(ActivityType.RIDE),
+            speedAlertMps = prefs[Keys.SPEED_ALERT] ?: 0f,
+            speedAlertVibrate = prefs[Keys.SPEED_ALERT_VIBRATE] ?: true,
+            waypointAlerts = prefs[Keys.WAYPOINT_ALERTS] ?: false,
             themeMode = prefs[Keys.THEME].toEnum(ThemeMode.SYSTEM),
             dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: true,
             accentColor = prefs[Keys.ACCENT_COLOR].toEnum(AccentColor.GREEN),
@@ -139,14 +217,39 @@ class SettingsRepository(private val context: Context) {
                 stats = prefs[Keys.STATS]?.let(::decodeStats) ?: defaults.stats,
                 showTimer = prefs[Keys.SHOW_TIMER] ?: defaults.showTimer,
                 showStatusChip = prefs[Keys.SHOW_STATUS_CHIP] ?: defaults.showStatusChip,
+                showTodaySummary = prefs[Keys.SHOW_TODAY_SUMMARY] ?: defaults.showTodaySummary,
                 statColumns = prefs[Keys.STAT_COLUMNS] ?: defaults.statColumns,
+                hudMirror = prefs[Keys.HUD_MIRROR] ?: defaults.hudMirror,
             ),
             batterySaver = prefs[Keys.BATTERY_SAVER].toEnum(BatterySaverMode.OFF),
             dimDelaySeconds = prefs[Keys.DIM_DELAY] ?: 10,
+            mapStyle = prefs[Keys.MAP_STYLE].toEnum(MapStyle.AUTOMATIC),
+            voiceIntervalM = (prefs[Keys.VOICE_INTERVAL] ?: 0f).toDouble(),
+            weeklyGoalM = (prefs[Keys.WEEKLY_GOAL] ?: 0f).toDouble(),
+            onboarded = prefs[Keys.ONBOARDED] ?: false,
         )
     }
 
     suspend fun setUnits(value: UnitSystem) = edit { it[Keys.UNITS] = value.name }
+    suspend fun setActivity(value: ActivityType) = edit { it[Keys.ACTIVITY] = value.name }
+    suspend fun setSpeedAlert(mps: Float) =
+        edit { it[Keys.SPEED_ALERT] = mps.coerceAtLeast(0f) }
+
+    suspend fun setSpeedAlertVibrate(value: Boolean) =
+        edit { it[Keys.SPEED_ALERT_VIBRATE] = value }
+
+    suspend fun setWaypointAlerts(value: Boolean) = edit { it[Keys.WAYPOINT_ALERTS] = value }
+
+    suspend fun setMapStyle(value: MapStyle) = edit { it[Keys.MAP_STYLE] = value.name }
+
+    suspend fun setVoiceInterval(metres: Double) =
+        edit { it[Keys.VOICE_INTERVAL] = metres.coerceAtLeast(0.0).toFloat() }
+
+    suspend fun setWeeklyGoal(metres: Double) =
+        edit { it[Keys.WEEKLY_GOAL] = metres.coerceAtLeast(0.0).toFloat() }
+
+    suspend fun setOnboarded(value: Boolean) = edit { it[Keys.ONBOARDED] = value }
+
     suspend fun setThemeMode(value: ThemeMode) = edit { it[Keys.THEME] = value.name }
     suspend fun setDynamicColor(value: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = value }
     suspend fun setAccentColor(value: AccentColor) = edit { it[Keys.ACCENT_COLOR] = value.name }
@@ -160,7 +263,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun setMinimapSize(value: MinimapSize) = edit { it[Keys.MINIMAP_SIZE] = value.name }
     suspend fun setShowTimer(value: Boolean) = edit { it[Keys.SHOW_TIMER] = value }
     suspend fun setShowStatusChip(value: Boolean) = edit { it[Keys.SHOW_STATUS_CHIP] = value }
+    suspend fun setShowTodaySummary(value: Boolean) = edit { it[Keys.SHOW_TODAY_SUMMARY] = value }
     suspend fun setStatColumns(value: Int) = edit { it[Keys.STAT_COLUMNS] = value.coerceIn(1, 4) }
+    suspend fun setHudMirror(value: Boolean) = edit { it[Keys.HUD_MIRROR] = value }
     suspend fun setBatterySaver(value: BatterySaverMode) =
         edit { it[Keys.BATTERY_SAVER] = value.name }
 
@@ -199,7 +304,9 @@ class SettingsRepository(private val context: Context) {
         it.remove(Keys.STATS)
         it.remove(Keys.SHOW_TIMER)
         it.remove(Keys.SHOW_STATUS_CHIP)
+        it.remove(Keys.SHOW_TODAY_SUMMARY)
         it.remove(Keys.STAT_COLUMNS)
+        it.remove(Keys.HUD_MIRROR)
     }
 
     private fun decodeStats(raw: String): List<StatType> = raw

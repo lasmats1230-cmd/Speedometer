@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Long-press the launcher icon to start recording without waiting for the app
+  to draw a map first.
+
+  The intent names an action rather than a package, because the debug build
+  carries an application id suffix and a hard-coded package would send the
+  shortcut to an app that is not installed.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="start_recording"
+        android:enabled="true"
+        android:icon="@drawable/ic_tile_recording"
+        android:shortcutShortLabel="@string/shortcut_start_short"
+        android:shortcutLongLabel="@string/shortcut_start_long">
+        <intent android:action="com.lasse.speedometer.SHORTCUT_START" />
+    </shortcut>
+</shortcuts>

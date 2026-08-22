@@ -4,8 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
+import com.lasse.speedometer.data.db.ActivityType
+import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.io.RouteParser
+import com.lasse.speedometer.data.io.RoutePoint
+import com.lasse.speedometer.data.repo.RecordKind
+import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.MapWaypoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -40,19 +46,71 @@ object ActiveRoute {
 class LiveViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = application.app.tripRepository
+    private val settingsRepository = application.app.settingsRepository
+
+    /**
+     * The activity the next recording is filed as. Kept in settings rather
+     * than in this view model so the tracking service can read it when the
+     * trip is saved, with the screen long gone.
+     */
+    fun setActivity(activity: ActivityType) =
+        viewModelScope.launch { settingsRepository.setActivity(activity) }
+
+    fun markOnboarded() = viewModelScope.launch { settingsRepository.setOnboarded(true) }
+
+    /**
+     * Every saved trip, for the summary shown before a recording starts.
+     *
+     * The figures are derived in the composition rather than here, the same
+     * way the statistics screen does it: they need the user's units to be
+     * readable, and totalling a few hundred rows costs less than the
+     * recomposition that draws them.
+     */
+    val trips: StateFlow<List<TripEntity>> = repository.trips
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * A recording that was still open when the app last stopped.
+     *
+     * Only interesting while nothing is being recorded — during a recording
+     * this is the row currently being written, which is not something to
+     * offer back to the user.
+     */
+    val interruptedTrip: StateFlow<TripEntity?> = repository.inProgressTrip
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Which personal bests a just-saved trip beat.
+     *
+     * Read straight from the repository rather than from [trips]: the snackbar
+     * fires the moment the service reports a saved id, which can be before the
+     * list flow has caught up with the row.
+     */
+    suspend fun personalBests(tripId: Long): List<RecordKind> {
+        val all = repository.trips.first()
+        val trip = all.firstOrNull { it.id == tripId } ?: return emptyList()
+        return StatsCalculator.personalBests(trip, all.filter { it.id != tripId })
+    }
+
+    fun recoverInterrupted(tripId: Long) = viewModelScope.launch {
+        repository.recoverRecording(tripId)
+    }
+
+    fun discardInterrupted(tripId: Long) = viewModelScope.launch {
+        repository.discardRecording(tripId)
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val followedRoute: StateFlow<List<LatLng>> = ActiveRoute.routeId
+    val followedRoutePoints: StateFlow<List<RoutePoint>> = ActiveRoute.routeId
         .flatMapLatest { id ->
             if (id == null) flowOf(null) else repository.observeRoute(id)
         }
-        .map { route ->
-            route?.let {
-                RouteParser.decode(it.encodedPoints).map { point ->
-                    LatLng(point.latitude, point.longitude)
-                }
-            }.orEmpty()
-        }
+        .map { route -> route?.let { RouteParser.decode(it.encodedPoints) }.orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The same route as map coordinates. */
+    val followedRoute: StateFlow<List<LatLng>> = followedRoutePoints
+        .map { points -> points.map { LatLng(it.latitude, it.longitude) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val waypoints: StateFlow<List<MapWaypoint>> = repository.waypoints

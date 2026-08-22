@@ -39,7 +39,33 @@ data class TripEntity(
     val title: String? = null,
     val tourId: Long? = null,
     @ColumnInfo(defaultValue = "0") val syncedToHealth: Boolean = false,
-)
+    /**
+     * Stored as the enum's name rather than the enum itself: a column written
+     * by a build that knew about an activity this one does not must not stop
+     * the trip from loading.
+     */
+    @ColumnInfo(defaultValue = "RIDE") val activity: String = ActivityType.RIDE.name,
+    val note: String? = null,
+    /**
+     * True while the trip is still being recorded.
+     *
+     * A recording is written to the database as it happens rather than held in
+     * memory until the user presses save, so a phone that kills the service
+     * loses seconds rather than the whole ride. Rows with this set are hidden
+     * from history and statistics until they are finished or recovered.
+     */
+    @ColumnInfo(defaultValue = "0") val inProgress: Boolean = false,
+    /**
+     * A few dozen points of the track, encoded, for the list thumbnail.
+     *
+     * Kept on the trip so drawing history does not mean reading its track
+     * points back out of the database — see
+     * [com.lasse.speedometer.data.repo.TrackSketch].
+     */
+    @ColumnInfo(defaultValue = "''") val sketch: String = "",
+) {
+    val activityType: ActivityType get() = ActivityType.fromName(activity)
+}
 
 @Entity(
     tableName = "track_points",
@@ -66,6 +92,33 @@ data class TrackPointEntity(
     val accuracyM: Float,
     /** Cumulative distance from the start of the trip, in metres. */
     val cumulativeDistanceM: Double,
+)
+
+/**
+ * A picture taken on a trip.
+ *
+ * Only the content URI is kept, never a copy: the photo already exists in the
+ * gallery, and duplicating it would double the storage a ride costs and leave
+ * two versions to delete. The permission to read it is persisted when the
+ * picture is attached.
+ */
+@Entity(
+    tableName = "trip_photos",
+    foreignKeys = [
+        ForeignKey(
+            entity = TripEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tripId"],
+            onDelete = ForeignKey.CASCADE,
+        )
+    ],
+    indices = [Index("tripId")],
+)
+data class TripPhotoEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val tripId: Long,
+    val uri: String,
+    val addedAt: Long,
 )
 
 @Entity(tableName = "tours")

@@ -30,8 +30,22 @@ class TripRecorder(
      */
     private var running = false
 
-    private var lastFix: Fix? = null
-    private var lastAcceptedAt: Long = 0L
+    /**
+     * The last fix that was somewhere else, and the clock reading when it was
+     * accepted.
+     *
+     * Not simply the previous fix: a receiver that cannot refresh its
+     * solution hands the old position back unchanged, so the previous fix is
+     * often this same spot a second later. Anchoring on the last place we
+     * were genuinely at means the next real step is divided by the time we
+     * were really there — twenty-two seconds parked and then a 148 m step is
+     * 20 km/h, not the 134 km/h that dividing by the last repeat produces.
+     */
+    private var anchorFix: Fix? = null
+    private var anchorAcceptedAt: Long = 0L
+
+    /** The last fix handed in at all, to recognise one delivered twice. */
+    private var previousDelivery: Fix? = null
 
     /** Altitude the ascent/descent totals are measured against. */
     private var altitudeReference: Double? = null
@@ -81,8 +95,9 @@ class TripRecorder(
         _points.clear()
         running = false
         startedAt = 0L
-        lastFix = null
-        lastAcceptedAt = 0L
+        anchorFix = null
+        anchorAcceptedAt = 0L
+        previousDelivery = null
         altitudeReference = null
         smoothedAltitude = null
         distanceM = 0.0
@@ -109,7 +124,7 @@ class TripRecorder(
         paused = false
         stillSinceMs = null
         lastTickAt = now
-        lastFix = null // don't bridge the gap we sat out
+        anchorFix = null // don't bridge the gap we sat out
         state = state.copy(
             status = if (state.hasFix) TrackingStatus.RECORDING else TrackingStatus.ACQUIRING,
         )
@@ -136,6 +151,18 @@ class TripRecorder(
      * was rejected as too inaccurate or too close to the previous one.
      */
     fun onFix(fix: Fix, now: Long = fix.timestamp): Boolean {
+        // The same solution handed in twice — a provider replaying a fix it
+        // could not refresh, or two providers passing on one underlying
+        // reading. Nothing about it is new, and left in it lands as a second
+        // point in the same place a second later.
+        val replay = previousDelivery?.let {
+            it.timestamp == fix.timestamp &&
+                it.latitude == fix.latitude &&
+                it.longitude == fix.longitude
+        } ?: false
+        previousDelivery = fix
+        if (replay) return false
+
         val accuracy = fix.accuracyM ?: Float.MAX_VALUE
         if (accuracy > minAccuracyM) {
             // Still worth showing the user that a fix exists, just not recording it.
@@ -145,11 +172,11 @@ class TripRecorder(
 
         tick(now)
 
-        val previous = lastFix
+        val previous = anchorFix
         val segmentM = previous?.let {
             GeoMath.distanceMeters(it.latitude, it.longitude, fix.latitude, fix.longitude)
         } ?: 0.0
-        val segmentMs = if (previous != null) (now - lastAcceptedAt).coerceAtLeast(0L) else 0L
+        val segmentMs = if (previous != null) (now - anchorAcceptedAt).coerceAtLeast(0L) else 0L
 
         // A fix that teleports faster than any vehicle we care about is noise.
         val implausible = previous != null && segmentMs > 0 &&
@@ -214,10 +241,27 @@ class TripRecorder(
         }
         lastSpeedMps = speed
 
-        lastFix = fix
-        lastAcceptedAt = now
+        // The anchor moves only when the position did — a fix repeating a
+        // place the receiver could not refresh leaves it where it was, so the
+        // step out of it is timed over the stretch it really took. Held past
+        // the stale limit it stops being a stuck receiver and becomes a stop,
+        // and then the clock has to come forward or setting off again is
+        // timed from whenever you arrived.
+        val stale = previous != null && now - anchorAcceptedAt > MAX_STALE_MS
+        if (previous == null || movedFarEnough || stale) {
+            anchorFix = fix
+            anchorAcceptedAt = now
+        }
 
-        if (!paused) {
+        // A position repeated verbatim is not a new place to draw. Runs of
+        // them turn a stop into a pile of identical points, and make the step
+        // that follows look instantaneous to anything reading the track back.
+        val samePlace = _points.lastOrNull()
+            ?.let { it.latitude == fix.latitude && it.longitude == fix.longitude }
+            ?: false
+
+        val recorded = !paused && !samePlace
+        if (recorded) {
             _points += TrackPoint(
                 timestamp = now,
                 latitude = fix.latitude,
@@ -246,7 +290,7 @@ class TripRecorder(
             hasFix = true,
             track = if (paused) state.track else _points.toList(),
         )
-        return !paused
+        return recorded
     }
 
     /** Position updates while idle, so the map is already where you are. */
@@ -355,6 +399,16 @@ class TripRecorder(
 
         /** ~1080 km/h — beyond this the fix is a glitch, not a journey. */
         const val MAX_PLAUSIBLE_MPS = 300.0
+
+        /**
+         * How long the anchor holds on a position that will not move.
+         *
+         * A receiver losing its solution for a few seconds while you ride on
+         * and a bicycle propped against a wall look the same from here, so
+         * the length of the stretch decides between them. Under a minute the
+         * ride carried on through it; longer and you had stopped.
+         */
+        const val MAX_STALE_MS = 60_000L
 
         /**
          * Roughly 0-100 km/h in three and a half seconds; quicker than any

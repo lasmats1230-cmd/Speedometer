@@ -4,15 +4,11 @@ import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.StatType
 import com.lasse.speedometer.tracking.TrackingState
 import com.lasse.speedometer.util.Formatters
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.lasse.speedometer.util.LocaleFormats
 import kotlin.math.roundToInt
 
 /** Renders a [StatType] from the live tracking state. */
 object LiveStats {
-
-    private val clockFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     private val CARDINALS =
         listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
@@ -37,7 +33,7 @@ object LiveStats {
                 ?: PLACEHOLDER
 
             StatType.HEADING -> state.bearingDeg?.let { heading(it) } ?: PLACEHOLDER
-            StatType.CLOCK -> clockFormat.format(Date(now))
+            StatType.CLOCK -> LocaleFormats.format("HH:mm", now)
         }
     }
 
