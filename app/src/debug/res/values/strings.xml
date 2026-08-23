@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A debug build installs beside a release one rather than replacing it, so
+  without this there are two identical icons on the home screen and no way to
+  tell which is which. Debug variant only; the released app keeps its name.
+-->
+<resources>
+    <string name="app_name" translatable="false">Speedometer (debug)</string>
+</resources>

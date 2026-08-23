@@ -92,11 +92,33 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    bundle {
+        language {
+            // The language switch in settings changes the locale while the app
+            // is running. Play's per-language splits would have left the other
+            // translation undownloaded, so the switch would land on English.
+            enableSplit = false
+        }
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric renders the Compose screens in these tests, which
+            // means it needs the real resources rather than stubs.
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
+
+// Room's migration tests load the exported schemas as assets at runtime.
+// They ride along in the debug build only: a release APK has no use for them,
+// and the unit tests run against debug.
+android.sourceSets.getByName("debug").assets.srcDir("$projectDir/schemas")
 
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
@@ -128,5 +150,11 @@ dependencies {
     implementation(libs.maplibre.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.androidx.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
 }

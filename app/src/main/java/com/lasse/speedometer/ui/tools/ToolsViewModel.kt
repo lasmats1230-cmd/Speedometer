@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lasse.speedometer.app
 import com.lasse.speedometer.data.db.RouteEntity
+import com.lasse.speedometer.data.db.WaypointEntity
 import com.lasse.speedometer.data.io.RouteParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,6 +24,24 @@ class ToolsViewModel(application: Application) : AndroidViewModel(application) {
 
     val routes: StateFlow<List<RouteEntity>> = repository.routes
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val waypoints: StateFlow<List<WaypointEntity>> = repository.waypoints
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun deleteWaypoint(id: Long) = viewModelScope.launch { repository.deleteWaypoint(id) }
+
+    fun deleteAllWaypoints() = viewModelScope.launch { repository.deleteAllWaypoints() }
+
+    fun updateWaypoint(waypoint: WaypointEntity, label: String, note: String, color: Int) =
+        viewModelScope.launch {
+            repository.updateWaypoint(
+                waypoint.copy(
+                    label = label.ifBlank { waypoint.label },
+                    note = note.ifBlank { null },
+                    colorArgb = color,
+                )
+            )
+        }
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
     val messages = _messages.asSharedFlow()

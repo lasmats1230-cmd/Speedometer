@@ -1,0 +1,126 @@
+package com.lasse.speedometer
+
+import com.lasse.speedometer.data.io.RoutePoint
+import com.lasse.speedometer.data.repo.RouteTracker
+import com.lasse.speedometer.ui.tools.elevationProfile
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class RouteTrackerTest {
+
+    /** Eleven points, about 100 m apart, running north. */
+    private val route = List(11) { index ->
+        RoutePoint(50.0 + index * 0.0008993, 8.0, null)
+    }
+
+    @Test
+    fun `at the start the whole route is still ahead`() {
+        val progress = RouteTracker.progress(route, 50.0, 8.0)!!
+
+        assertEquals(1000.0, progress.remainingM, 15.0)
+        assertEquals(0f, progress.fraction, 0.01f)
+        assertFalse(progress.offRoute)
+    }
+
+    @Test
+    fun `halfway along, half the route is left`() {
+        val progress = RouteTracker.progress(route, route[5].latitude, 8.0)!!
+
+        assertEquals(500.0, progress.remainingM, 15.0)
+        assertEquals(0.5f, progress.fraction, 0.02f)
+    }
+
+    @Test
+    fun `at the end nothing is left`() {
+        val progress = RouteTracker.progress(route, route.last().latitude, 8.0)!!
+
+        assertEquals(0.0, progress.remainingM, 0.001)
+        assertEquals(1f, progress.fraction, 0.01f)
+    }
+
+    @Test
+    fun `a wobble of a few metres is not being off route`() {
+        // About 20 m east of the line.
+        val progress = RouteTracker.progress(route, route[3].latitude, 8.00028)!!
+
+        assertFalse(progress.offRoute)
+        assertTrue(progress.offRouteM < 60.0)
+    }
+
+    @Test
+    fun `a few hundred metres away is being off route`() {
+        val progress = RouteTracker.progress(route, route[3].latitude, 8.005)!!
+
+        assertTrue(progress.offRoute)
+        assertEquals(357.0, progress.offRouteM, 40.0)
+    }
+
+    @Test
+    fun `a route needs at least two points to follow`() {
+        assertNull(RouteTracker.progress(emptyList(), 50.0, 8.0))
+        assertNull(RouteTracker.progress(listOf(route.first()), 50.0, 8.0))
+    }
+
+    @Test
+    fun `a prepared route measures itself once and answers the same`() {
+        val prepared = RouteTracker.prepare(route)!!
+
+        // Ten hops of about 100 m.
+        assertEquals(1000.0, prepared.totalM, 40.0)
+
+        val here = route[3]
+        val direct = RouteTracker.progress(route, here.latitude, here.longitude)!!
+        val fromPrepared = RouteTracker.progress(prepared, here.latitude, here.longitude)
+
+        assertEquals(direct.remainingM, fromPrepared.remainingM, 0.001)
+        assertEquals(direct.offRouteM, fromPrepared.offRouteM, 0.001)
+        assertEquals(direct.fraction, fromPrepared.fraction, 0.0001f)
+    }
+
+    @Test
+    fun `a route too short to follow cannot be prepared`() {
+        assertNull(RouteTracker.prepare(emptyList()))
+        assertNull(RouteTracker.prepare(listOf(route.first())))
+    }
+
+    @Test
+    fun `the elevation profile runs against distance travelled`() {
+        val climbing = List(11) { index ->
+            RoutePoint(50.0 + index * 0.0008993, 8.0, 100.0 + index * 10)
+        }
+
+        val samples = elevationProfile(climbing)
+
+        assertEquals(11, samples.size)
+        assertEquals(0f, samples.first().x, 0.001f)
+        assertEquals(100f, samples.first().y, 0.001f)
+        // Ten hops of about 100 m, so the axis ends near a kilometre.
+        assertEquals(1000f, samples.last().x, 40f)
+        assertEquals(200f, samples.last().y, 0.001f)
+    }
+
+    @Test
+    fun `points with no altitude are left out rather than drawn at zero`() {
+        val patchy = listOf(
+            RoutePoint(50.0, 8.0, 100.0),
+            RoutePoint(50.0008993, 8.0, null),
+            RoutePoint(50.0017986, 8.0, 140.0),
+        )
+
+        val samples = elevationProfile(patchy)
+
+        assertEquals(2, samples.size)
+        assertEquals(140f, samples.last().y, 0.001f)
+        // The gap still counts towards the distance axis: the rider covered it.
+        assertEquals(200f, samples.last().x, 20f)
+    }
+
+    @Test
+    fun `a route too short to draw produces no profile`() {
+        assertTrue(elevationProfile(emptyList()).isEmpty())
+        assertTrue(elevationProfile(listOf(RoutePoint(50.0, 8.0, 100.0))).isEmpty())
+    }
+}

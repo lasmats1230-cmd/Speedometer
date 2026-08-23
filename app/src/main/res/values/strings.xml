@@ -5,8 +5,40 @@
     <!-- Navigation -->
     <string name="nav_live">Live</string>
     <string name="nav_history">History</string>
+    <string name="nav_stats">Stats</string>
     <string name="nav_tools">Tools</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- Activities -->
+    <string name="activity">Activity</string>
+    <string name="activity_ride">Ride</string>
+    <string name="activity_run">Run</string>
+    <string name="activity_walk">Walk</string>
+    <string name="activity_hike">Hike</string>
+    <string name="activity_drive">Drive</string>
+    <string name="activity_other">Other</string>
+
+    <!-- Statistics -->
+    <string name="stats">Statistics</string>
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="period_year">Year</string>
+    <string name="period_all">All time</string>
+    <string name="stats_trend">Distance over time</string>
+    <string name="stats_total">Total</string>
+    <string name="stats_by_activity">By activity</string>
+    <string name="stats_records">Records</string>
+    <string name="stats_lifetime">Lifetime</string>
+    <string name="stats_streak">Day streak</string>
+    <string name="stats_active_days">Active days</string>
+    <string name="stats_recording_for">Recording for</string>
+    <string name="stats_period_empty">Nothing recorded in this period yet.</string>
+    <string name="record_longest">Longest trip</string>
+    <string name="record_longest_time">Longest time</string>
+    <string name="record_fastest">Top speed</string>
+    <string name="record_climb">Biggest climb</string>
+    <string name="no_stats_title">Nothing to add up yet.</string>
+    <string name="no_stats_body">Record a trip and your totals, records and trends appear here.</string>
 
     <!-- Live -->
     <string name="status_ready">Ready</string>
@@ -14,6 +46,7 @@
     <string name="status_paused">Paused</string>
     <string name="status_tracking">GPS tracking (%1$s)</string>
     <string name="status_no_permission">Location permission needed</string>
+    <string name="speed_over_limit">over %1$s</string>
     <string name="stat_max">Max</string>
     <string name="stat_avg">Avg</string>
     <string name="stat_distance">Distance</string>
@@ -44,26 +77,53 @@
     <string name="delete_trip_message">This recording will be removed permanently.</string>
     <string name="delete_all_title">Delete all trips?</string>
     <string name="delete_all_message">Every recording will be removed permanently.</string>
+    <string name="delete_tour_title">Delete tour?</string>
+    <string name="delete_tour_message">The tour is removed. The trips in it are kept.</string>
+    <string name="remove_from_tour">Remove from tour</string>
     <string name="new_tour">New tour…</string>
     <string name="tour_name">Tour name</string>
+    <string name="trip_name">Trip name</string>
     <string name="create">Create</string>
+    <string name="rename_trip">Rename trip</string>
+    <string name="rename_tour">Rename tour</string>
+    <string name="rename_route">Rename route</string>
+    <string name="route_name">Route name</string>
+    <string name="delete_route_title">Delete route?</string>
+    <string name="delete_route_message">The imported route is removed. Recorded trips are kept.</string>
+    <string name="change_activity">Change activity</string>
+    <string name="share_summary">Share summary</string>
+    <string name="share_footer" translatable="false">Recorded with Speedometer</string>
+    <string name="search_trips">Search trips</string>
+    <string name="clear">Clear</string>
+    <string name="filter_all">All</string>
+    <string name="sort_by">Sort</string>
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_distance">Longest distance</string>
+    <string name="sort_duration">Longest time</string>
+    <string name="sort_speed">Highest top speed</string>
+    <string name="no_matches_title">Nothing matches.</string>
+    <string name="no_matches_body">Try a different search, or clear the activity filter.</string>
 
     <!-- Detail -->
-    <string name="elevation">Elevation</string>
     <string name="ascent">Ascent</string>
     <string name="descent">Descent</string>
     <string name="altitude">Altitude</string>
     <string name="elevation_profile">Elevation profile</string>
+    <string name="chart_spoken">Chart, %1$s to %2$s, over %3$s</string>
     <string name="speed_profile">Speed profile</string>
     <string name="lowest">Lowest %1$s</string>
     <string name="highest">Highest %1$s</string>
     <string name="moving_time">Moving time</string>
     <string name="back">Back</string>
     <string name="more">More</string>
+    <string name="splits">Splits</string>
+    <string name="splits_subtitle">One line per %1$s — the bar is speed against the fastest one</string>
+    <string name="edit_note">Edit note</string>
+    <string name="note">Note</string>
 
     <!-- Tools -->
     <string name="tools">Tools</string>
-    <string name="tab_compass">Compass</string>
     <string name="tab_map">Map</string>
     <string name="tab_routes">Routes</string>
     <string name="import_route">Import GPX or TCX</string>
@@ -72,8 +132,6 @@
     <string name="follow_route">Follow on live view</string>
     <string name="stop_following">Stop following</string>
     <string name="following">Following</string>
-    <string name="calibrate_compass">Move the phone in a figure eight to calibrate.</string>
-    <string name="no_compass">This device has no compass sensor.</string>
     <string name="heading">Heading</string>
     <string name="recenter">Recenter</string>
 
@@ -97,10 +155,25 @@
     <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
 
+    <!-- Alerts -->
+    <string name="settings_alerts">Alerts</string>
+    <string name="settings_speed_alert">Speed alert</string>
+    <string name="settings_speed_alert_summary">Turn the readout red above a set speed</string>
+    <string name="settings_speed_alert_at">Alert above %1$s</string>
+    <string name="settings_speed_alert_vibrate">Vibrate when exceeded</string>
+
+    <!-- Backup -->
+    <string name="settings_data">Data</string>
+    <string name="settings_backup_summary">Trips live only on this device. A backup writes everything — trips, tours, routes and waypoints — into your Downloads folder as one file.</string>
+    <string name="settings_backup_export">Back up</string>
+    <string name="settings_backup_restore">Restore</string>
+    <string name="settings_backup_saved">Backup saved as %1$s</string>
+    <string name="settings_backup_failed">Could not write the backup</string>
+    <string name="settings_restore_failed">That file is not a Speedometer backup</string>
+
     <!-- Notification -->
     <string name="notif_channel_name">Trip recording</string>
     <string name="notif_channel_desc">Shows speed and distance while a trip is recording.</string>
-    <string name="notif_title">Recording trip</string>
 
     <!-- Misc -->
     <string name="saved">Trip saved</string>
@@ -121,6 +194,8 @@
     <string name="layout_elements">Elements</string>
     <string name="layout_show_status">Show status chip</string>
     <string name="layout_show_timer">Show trip timer</string>
+    <string name="layout_show_today">Today\'s totals</string>
+    <string name="layout_show_today_summary">Distance and streak above the speed. Off keeps the map larger.</string>
     <string name="layout_shown_stats">Shown statistics</string>
     <string name="layout_available_stats">Available statistics</string>
     <string name="minimap_hidden">Off</string>
@@ -211,6 +286,18 @@
         <item quantity="one">%1$d trip</item>
         <item quantity="other">%1$d trips</item>
     </plurals>
+    <plurals name="settings_backup_restored">
+        <item quantity="one">Restored %1$d trip, skipped %2$d already here</item>
+        <item quantity="other">Restored %1$d trips, skipped %2$d already here</item>
+    </plurals>
+    <plurals name="days_count">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="active_days_count">
+        <item quantity="one">%1$d active day</item>
+        <item quantity="other">%1$d active days</item>
+    </plurals>
     <plurals name="settings_dim_delay">
         <item quantity="one">Dim after %1$d second</item>
         <item quantity="other">Dim after %1$d seconds</item>
@@ -227,4 +314,155 @@
     <string name="battery_extreme_map_off">Map off — extreme battery saving</string>
     <string name="axis_distance_altitude">Distance · altitude — drag to read a point</string>
     <string name="axis_time_speed">Time · speed — drag to read a point</string>
+    <!-- Map -->
+    <string name="settings_map">Map</string>
+    <string name="settings_map_style">Basemap</string>
+    <string name="map_style_auto">Match theme</string>
+    <string name="map_style_liberty">Standard</string>
+    <string name="map_style_bright">Bright</string>
+    <string name="map_style_positron">Muted</string>
+    <string name="map_style_dark">Dark</string>
+
+    <!-- Spoken updates -->
+    <string name="settings_voice">Spoken updates</string>
+    <string name="settings_voice_summary">Announce distance, time and pace while you ride, so you can leave the phone in a pocket.</string>
+    <string name="voice_off">Off</string>
+    <string name="voice_started">Recording started</string>
+    <string name="voice_paused">Recording paused</string>
+    <string name="voice_resumed">Recording resumed</string>
+    <string name="voice_finished">Trip saved</string>
+    <string name="voice_update">%1$s. Time %2$s. Average %3$s.</string>
+    <string name="voice_test">Speak a test</string>
+
+    <!-- Weekly goal -->
+    <string name="settings_goal">Weekly goal</string>
+    <string name="settings_goal_summary">A distance to aim for each week, shown on the statistics screen.</string>
+    <string name="goal_none">No goal</string>
+    <string name="goal_title">This week\'s goal</string>
+    <string name="goal_progress">%1$s of %2$s</string>
+    <string name="goal_reached">Goal reached — %1$s over</string>
+    <string name="goal_remaining">%1$s to go</string>
+    <string name="goal_pace_ahead">Ahead of pace</string>
+    <string name="goal_pace_behind">%1$s behind pace</string>
+
+    <!-- Automatic trip names -->
+    <string name="trip_title_morning">Morning %1$s</string>
+    <string name="trip_title_midday">Midday %1$s</string>
+    <string name="trip_title_afternoon">Afternoon %1$s</string>
+    <string name="trip_title_evening">Evening %1$s</string>
+    <string name="trip_title_night">Night %1$s</string>
+
+    <plurals name="hours_count">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="minutes_count">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <!-- Quick settings, shortcut and widget -->
+    <string name="tile_start">Record a trip</string>
+    <string name="tile_stop">Stop recording</string>
+    <string name="tile_subtitle_recording">Recording</string>
+    <string name="shortcut_start_short">Record</string>
+    <string name="shortcut_start_long">Start recording a trip</string>
+    <string name="widget_this_week">This week</string>
+    <string name="widget_lifetime">Lifetime</string>
+    <string name="widget_goal">of %1$s</string>
+    <string name="widget_open">Open Speedometer</string>
+    <string name="widget_description">This week and all-time distance, with a tap to open the app.</string>
+    <string name="import_trip">Import a trip (GPX)</string>
+    <string name="imported_trip">Imported “%1$s”</string>
+    <string name="import_no_times">That file has no timestamps, so it is a route rather than a trip. Import it under Tools.</string>
+    <string name="layout_hud">Mirror the speed (head-up display)</string>
+    <string name="layout_hud_summary">Flips the number so it reads correctly reflected in a windscreen.</string>
+    <!-- First run -->
+    <string name="onboarding_title">Welcome to Speedometer</string>
+    <string name="onboarding_intro">A speedometer and trip tracker that works without an account.</string>
+    <string name="onboarding_location">Location is used to measure speed, distance and the route you took.</string>
+    <string name="onboarding_background">Recording carries on with the screen off, and the battery modes trade pixels rather than accuracy.</string>
+    <string name="onboarding_privacy">Everything stays on this device. Nothing is uploaded, and there is no analytics or advertising.</string>
+    <string name="onboarding_grant">Allow location</string>
+    <string name="onboarding_later">Not now</string>
+
+    <!-- Background reliability -->
+    <string name="settings_background">Background reliability</string>
+    <string name="settings_background_unrestricted">Unrestricted — long recordings will not be cut short</string>
+    <string name="settings_background_restricted">Battery optimisation may stop long recordings</string>
+    <string name="period_last_week">last week</string>
+    <string name="period_last_month">last month</string>
+    <string name="period_last_year">last year</string>
+    <string name="stats_up_on_previous">%1$d%% further than %2$s</string>
+    <string name="stats_down_on_previous">%1$d%% less than %2$s</string>
+    <string name="share_image">Share as picture</string>
+    <string name="speed_spoken">Current speed %1$s</string>
+    <string name="settings_waypoint_alerts">Waypoint alerts</string>
+    <string name="settings_waypoint_alerts_summary">Buzz when you come within 60 m of a saved waypoint, and name it if spoken updates are on.</string>
+    <string name="waypoint_nearby">%1$s nearby</string>
+    <!-- Recovery -->
+    <string name="recover_title">Recover the interrupted recording?</string>
+    <string name="recover_message">A recording was cut short — %1$s over %2$s was written before it stopped. Keep it as a trip, or throw it away.</string>
+    <string name="recover_keep">Keep it</string>
+    <string name="route_remaining">%1$s left on the route</string>
+    <string name="route_off">Off route by %1$s</string>
+    <string name="notif_title_activity">Recording · %1$s</string>
+    <string name="tab_places">Places</string>
+    <string name="place_distance">%1$s away</string>
+    <string name="place_no_fix">Waiting for a fix to measure from</string>
+    <string name="no_places_title">No places saved yet.</string>
+    <string name="no_places_body">Long-press the map to drop a waypoint — a water tap, a gate, a turning that is easy to miss.</string>
+    <string name="settings_export_all_gpx">Export every trip as GPX</string>
+    <string name="settings_export_all_gpx_summary">One file per trip in Downloads, for another app to read</string>
+    <plurals name="settings_exported_all">
+        <item quantity="one">Exported %1$d trip to Downloads</item>
+        <item quantity="other">Exported %1$d trips to Downloads</item>
+    </plurals>
+    <string name="empty_start_recording">Start a recording</string>
+    <string name="clear_filters">Clear filters</string>
+    <string name="trip_faster_than_usual">%1$d%% faster than your usual %2$s</string>
+    <string name="trip_slower_than_usual">%1$d%% slower than your usual %2$s</string>
+    <string name="trip_typical">About the same as your usual %1$s</string>
+    <string name="map_unavailable">The map renderer is not available on this device.</string>
+    <string name="map_expand">Enlarge map</string>
+    <string name="settings_export_csv">Export history as a spreadsheet</string>
+    <string name="settings_export_csv_summary">One CSV of every trip in Downloads, ready to open in a spreadsheet</string>
+    <string name="settings_exported_csv">Spreadsheet saved as %1$s</string>
+    <string name="route_remaining_eta">%1$s left · about %2$s</string>
+
+    <!-- The waypoint palette, so nine circles are not nine unnamed buttons -->
+    <string name="colour_red">Red</string>
+    <string name="colour_orange">Orange</string>
+    <string name="colour_yellow">Yellow</string>
+    <string name="colour_green">Green</string>
+    <string name="colour_teal">Teal</string>
+    <string name="colour_blue">Blue</string>
+    <string name="colour_purple">Purple</string>
+    <string name="colour_pink">Pink</string>
+    <string name="colour_grey">Grey</string>
+
+    <!-- Said once, when a saved trip turns out to have beaten something -->
+    <string name="best_distance">Your longest yet</string>
+    <string name="best_duration">Your longest time out</string>
+    <string name="best_speed">Your fastest yet</string>
+    <string name="best_climb">Your biggest climb</string>
+
+    <!-- What today already amounts to, above the start button -->
+    <string name="today_label">Today</string>
+    <string name="today_nothing">Nothing yet</string>
+    <string name="today_week">%1$s this week</string>
+    <string name="today_goal_left">%1$s to go this week</string>
+    <string name="today_goal_done">Weekly goal reached</string>
+    <plurals name="today_streak">
+        <item quantity="one">%1$d day in a row</item>
+        <item quantity="other">%1$d days in a row</item>
+    </plurals>
+    <string name="photos">Photos</string>
+    <string name="photos_empty">Add a picture from the ride.</string>
+    <string name="photos_remove_hint">Long-press a picture to remove it.</string>
+    <string name="photo_remove">Remove picture</string>
+    <string name="photo_add">Add a photo</string>
+    <string name="photo_of_trip">Photo from this trip</string>
+    <string name="photo_missing">This photo is no longer on the device</string>
+    <string name="waypoint_mark">Mark spot</string>
+    <string name="waypoint_marked">Marked at %1$s</string>
 </resources>

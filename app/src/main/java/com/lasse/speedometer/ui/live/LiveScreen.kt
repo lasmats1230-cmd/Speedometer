@@ -2,6 +2,7 @@ package com.lasse.speedometer.ui.live
 
 import android.Manifest
 import android.content.Context
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,9 +59,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -68,9 +74,16 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.BatterySaverMode
 import com.lasse.speedometer.data.prefs.MinimapSize
+import com.lasse.speedometer.data.repo.DaySummary
+import com.lasse.speedometer.data.repo.RecordKind
+import com.lasse.speedometer.data.repo.RouteProgress
+import com.lasse.speedometer.data.repo.RouteTracker
+import com.lasse.speedometer.data.repo.StatsCalculator
 import com.lasse.speedometer.tracking.TrackingController
 import com.lasse.speedometer.tracking.TrackingStatus
 import com.lasse.speedometer.ui.ImmersiveMode
+import com.lasse.speedometer.ui.components.ActivityChip
+import com.lasse.speedometer.ui.components.ActivityDialog
 import com.lasse.speedometer.ui.components.LatLng
 import com.lasse.speedometer.ui.components.StatTile
 import com.lasse.speedometer.ui.components.TrackMap
@@ -80,6 +93,8 @@ import com.lasse.speedometer.ui.theme.TimerStyle
 import com.lasse.speedometer.ui.theme.TrackColors
 import com.lasse.speedometer.util.Formatters
 import kotlinx.coroutines.delay
+import java.time.Instant
+import java.time.ZoneId
 
 @Composable
 fun LiveScreen(
@@ -91,6 +106,7 @@ fun LiveScreen(
     val state by TrackingController.state.collectAsState()
     val savedTripId by TrackingController.savedTripId.collectAsState()
     val followedRoute by viewModel.followedRoute.collectAsState()
+    val followedRoutePoints by viewModel.followedRoutePoints.collectAsState()
     val waypoints by viewModel.waypoints.collectAsState()
     val editingWaypoint by viewModel.editingWaypoint.collectAsState()
 
@@ -115,11 +131,24 @@ fun LiveScreen(
     }
 
     val savedMessage = stringResource(R.string.saved)
+    // Resolved here rather than in the effect: the effect is not a composition
+    // and cannot reach a resource, and there are only four of them.
+    val bestLabels = RecordKind.entries.associateWith { stringResource(it.beatenRes) }
     LaunchedEffect(savedTripId) {
-        if (savedTripId != null) {
-            snackbarHostState.showSnackbar(savedMessage)
-            TrackingController.consumeSavedTrip()
-        }
+        val id = savedTripId ?: return@LaunchedEffect
+        // Anything the trip just beat is worth saying instead of "Saved" —
+        // that is the one moment a personal best means something, and the
+        // statistics tab will still be there tomorrow.
+        val beaten = viewModel.personalBests(id).mapNotNull(bestLabels::get)
+        snackbarHostState.showSnackbar(
+            message = if (beaten.isEmpty()) {
+                savedMessage
+            } else {
+                (listOf(savedMessage) + beaten).joinToString(" · ")
+            },
+            duration = if (beaten.isEmpty()) SnackbarDuration.Short else SnackbarDuration.Long,
+        )
+        TrackingController.consumeSavedTrip()
     }
 
     // The always-on readout belongs to cycling mode alone. Extreme mode is
@@ -148,10 +177,16 @@ fun LiveScreen(
         onDispose { ImmersiveMode.set(false) }
     }
 
+    // Over the limit the readout turns red and the phone buzzes once. It is
+    // computed before the dim branch so the pared-back display warns too —
+    // that is the screen you are actually looking at while moving.
+    val overLimit = rememberSpeedAlert(state.speedMps, settings)
+
     if (dimmed) {
         DimDisplay(
             state = state,
             settings = settings,
+            overLimit = overLimit,
             onWake = {
                 dimmed = false
                 lastInteraction = System.currentTimeMillis()
@@ -160,130 +195,221 @@ fun LiveScreen(
         return
     }
 
+    // A row left open by a recording the system killed. Offered back only
+    // when nothing is recording now — mid-ride this is simply the trip being
+    // written.
+    val interrupted by viewModel.interruptedTrip.collectAsState()
+    // Also required to be stale: a row is still open for a moment after a
+    // recording stops, and offering to recover the trip just saved would be a
+    // dialog flashing past for no reason. A recording writes every ten
+    // seconds, so anything untouched for a minute was interrupted.
+    interrupted
+        ?.takeIf { idle && System.currentTimeMillis() - it.endedAt > RECOVERY_STALE_MS }
+        ?.let { trip ->
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.recover_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.recover_message,
+                        Formatters.distance(trip.distanceM, settings.units),
+                        Formatters.durationLong(trip.durationMs),
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.recoverInterrupted(trip.id) }) {
+                    Text(stringResource(R.string.recover_keep))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.discardInterrupted(trip.id) }) {
+                    Text(
+                        text = stringResource(R.string.discard),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+        )
+    }
+
+    // First run: say what the app does before asking for anything.
+    if (!settings.onboarded) {
+        OnboardingDialog(
+            onGrantLocation = {
+                viewModel.markOnboarded()
+                if (!hasLocationPermission) permissionLauncher.launch(locationPermissions())
+            },
+            onDismiss = viewModel::markOnboarded,
+        )
+    }
+
     val track = remember(state.pointCount) {
         state.track.map { LatLng(it.latitude, it.longitude) }
     }
     val now = System.currentTimeMillis()
     val layout = settings.layout
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        // With the map hidden there is nothing to stretch, so the column
-        // scrolls instead of leaving the controls floating in dead space.
-        val scrollable = layout.minimapSize == MinimapSize.HIDDEN && !extremeMode
+    // Today's figures, for the idle view. Keyed on the date rather than the
+    // clock: this screen recomposes every second while recording, and the
+    // answer only changes at midnight or when a trip is saved.
+    val savedTrips by viewModel.trips.collectAsState()
+    val zone = remember { ZoneId.systemDefault() }
+    val today = remember(now / DAY_CHECK_MS) {
+        Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    }
+    val daySummary = remember(savedTrips, today) {
+        StatsCalculator.daySummary(savedTrips, today, zone)
+    }
 
+    // Landscape is the car-mount and handlebar case: the readout and the map
+    // sit side by side rather than stacking, so neither is squeezed into a
+    // strip. Extreme mode and a hidden minimap have nothing to put beside the
+    // numbers, so they keep the single column.
+    val landscape = LocalConfiguration.current.orientation ==
+        Configuration.ORIENTATION_LANDSCAPE
+    val showMap = !extremeMode && layout.minimapSize != MinimapSize.HIDDEN
+
+    // Following a route: how much is left, and whether you are still on it.
+    // The route's own measurements are worked out once — this runs on every
+    // fix, during composition, and a long GPX is tens of thousands of points.
+    val preparedRoute = remember(followedRoutePoints) {
+        RouteTracker.prepare(followedRoutePoints)
+    }
+    val routeProgress = remember(preparedRoute, state.latitude, state.longitude) {
+        val latitude = state.latitude
+        val longitude = state.longitude
+        if (preparedRoute == null || latitude == null || longitude == null) {
+            null
+        } else {
+            RouteTracker.progress(preparedRoute, latitude, longitude)
+        }
+    }
+
+    val readout: @Composable (Modifier) -> Unit = { modifier ->
+        ReadoutPane(
+            modifier = modifier,
+            routeProgress = routeProgress,
+            // At the pace held so far, which is a better guess on a long
+            // climb than the speed at this instant.
+            routeEtaMs = routeProgress?.let { progress ->
+                val speed = state.avgSpeedMps
+                if (speed > 0.5) ((progress.remainingM / speed) * 1000).toLong() else null
+            },
+            state = state,
+            settings = settings,
+            idle = idle,
+            daySummary = daySummary,
+            overLimit = overLimit,
+            hasLocationPermission = hasLocationPermission,
+            now = now,
+            onRequestPermission = {
+                pendingStart = false
+                permissionLauncher.launch(locationPermissions())
+            },
+            onSelectActivity = viewModel::setActivity,
+            onStart = {
+                lastInteraction = System.currentTimeMillis()
+                if (hasLocationPermission) {
+                    TrackingController.start(context)
+                } else {
+                    pendingStart = true
+                    permissionLauncher.launch(locationPermissions())
+                }
+            },
+            onPause = { TrackingController.pause(context) },
+            onResume = { TrackingController.resume(context) },
+            onSave = { pendingFinish = FinishAction.SAVE },
+            onDiscard = { pendingFinish = FinishAction.DISCARD },
+        )
+    }
+
+    val map: @Composable (Modifier) -> Unit = { modifier ->
+        Surface(
+            modifier = modifier,
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+        ) {
+            TrackMap(
+                modifier = Modifier.fillMaxSize(),
+                track = track,
+                route = followedRoute,
+                waypoints = waypoints,
+                currentPosition = state.latitude?.let { latitude ->
+                    state.longitude?.let { longitude -> LatLng(latitude, longitude) }
+                },
+                bearingDeg = state.bearingDeg,
+                followPosition = true,
+                onMapLongPress = { newWaypointAt = it },
+                onWaypointClick = viewModel::openWaypoint,
+            )
+        }
+    }
+
+    if (landscape && showMap) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            readout(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+            )
+            map(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(top = 12.dp, bottom = 12.dp)
+            )
+        }
+    } else {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(12.dp))
+            // With the map hidden there is nothing to stretch, so the column
+            // scrolls instead of leaving the controls floating in dead space.
+            val scrollable = !showMap
 
-            if (layout.showStatusChip) {
-                StatusChip(
-                    status = state.status,
-                    accuracyM = state.accuracyM,
-                    hasPermission = hasLocationPermission,
-                    settings = settings,
-                    onRequestPermission = {
-                        pendingStart = false
-                        permissionLauncher.launch(locationPermissions())
-                    },
-                )
-                Spacer(Modifier.height(16.dp))
-            }
-
-            Text(
-                text = Formatters.bigSpeed(state.speedMps, settings.units),
-                style = SpeedDisplayStyle,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = Formatters.speedUnit(settings.units),
-                style = SpeedUnitStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (layout.stats.isNotEmpty()) {
-                Spacer(Modifier.height(20.dp))
-                StatGrid(
-                    settings = settings,
-                    state = state,
-                    now = now,
-                )
-            }
-
-            if (layout.showTimer) {
-                Spacer(Modifier.height(18.dp))
-                Text(
-                    text = Formatters.duration(state.elapsedMs),
-                    style = TimerStyle,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            TransportControls(
-                status = state.status,
-                onStart = {
-                    lastInteraction = System.currentTimeMillis()
-                    if (hasLocationPermission) {
-                        TrackingController.start(context)
-                    } else {
-                        pendingStart = true
-                        permissionLauncher.launch(locationPermissions())
-                    }
-                },
-                onPause = { TrackingController.pause(context) },
-                onResume = { TrackingController.resume(context) },
-                onSave = { pendingFinish = FinishAction.SAVE },
-                onDiscard = { pendingFinish = FinishAction.DISCARD },
-            )
-
-            Spacer(Modifier.height(18.dp))
-        }
-
-        if (extremeMode) {
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = stringResource(R.string.battery_extreme_map_off),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(bottom = 20.dp),
-            )
-        } else if (layout.minimapSize != MinimapSize.HIDDEN) {
-            val mapModifier = when (layout.minimapSize) {
-                MinimapSize.SMALL -> Modifier.height(150.dp)
-                MinimapSize.MEDIUM -> Modifier.height(260.dp)
-                else -> Modifier.weight(1f)
-            }
-            Surface(
-                modifier = Modifier
+            readout(
+                Modifier
                     .fillMaxWidth()
-                    .then(mapModifier)
-                    .padding(bottom = 12.dp),
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-            ) {
-                TrackMap(
-                    modifier = Modifier.fillMaxSize(),
-                    track = track,
-                    route = followedRoute,
-                    waypoints = waypoints,
-                    currentPosition = state.latitude?.let { latitude ->
-                        state.longitude?.let { longitude -> LatLng(latitude, longitude) }
-                    },
-                    bearingDeg = state.bearingDeg,
-                    followPosition = true,
-                    onMapLongPress = { newWaypointAt = it },
-                    onWaypointClick = viewModel::openWaypoint,
+                    .then(
+                        if (scrollable) {
+                            Modifier.verticalScroll(rememberScrollState())
+                        } else {
+                            Modifier
+                        }
+                    )
+            )
+
+            if (extremeMode) {
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = stringResource(R.string.battery_extreme_map_off),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 20.dp),
+                )
+            } else if (showMap) {
+                val mapModifier = when (layout.minimapSize) {
+                    MinimapSize.SMALL -> Modifier.height(150.dp)
+                    MinimapSize.MEDIUM -> Modifier.height(260.dp)
+                    else -> Modifier.weight(1f)
+                }
+                map(
+                    Modifier
+                        .fillMaxWidth()
+                        .then(mapModifier)
+                        .padding(bottom = 12.dp)
                 )
             }
         }
@@ -353,6 +479,209 @@ fun LiveScreen(
                     Text(stringResource(R.string.cancel))
                 }
             },
+        )
+    }
+}
+
+/**
+ * Everything above the map: status, activity, the speed, the tiles, the timer
+ * and the controls. Pulled out so portrait can stack it over the map and
+ * landscape can stand it beside one.
+ */
+@Composable
+private fun ReadoutPane(
+    modifier: Modifier,
+    routeProgress: RouteProgress?,
+    routeEtaMs: Long?,
+    state: com.lasse.speedometer.tracking.TrackingState,
+    settings: AppSettings,
+    idle: Boolean,
+    /** Today's figures, or null while there is nothing worth showing. */
+    daySummary: DaySummary?,
+    overLimit: Boolean,
+    hasLocationPermission: Boolean,
+    now: Long,
+    onRequestPermission: () -> Unit,
+    onSelectActivity: (com.lasse.speedometer.data.db.ActivityType) -> Unit,
+    onStart: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    val layout = settings.layout
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(12.dp))
+
+        // Status and activity share one row. Both are a word each, and stacked
+        // as two full-width blocks they used to cost the map sixty-odd dip
+        // before the speed had even started.
+        var pickingActivity by remember { mutableStateOf(false) }
+        if (layout.showStatusChip || idle) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (layout.showStatusChip) {
+                    StatusChip(
+                        status = state.status,
+                        accuracyM = state.accuracyM,
+                        hasPermission = hasLocationPermission,
+                        settings = settings,
+                        onRequestPermission = onRequestPermission,
+                    )
+                }
+                // Which activity this is only matters before the recording
+                // starts, and it is changeable afterwards from the trip's own
+                // menu. One chip that opens the list, rather than the list
+                // itself sitting on screen for the one tap a month it takes.
+                if (idle) {
+                    ActivityChip(
+                        activity = settings.activity,
+                        onClick = { pickingActivity = true },
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        if (pickingActivity) {
+            ActivityDialog(
+                selected = settings.activity,
+                onSelect = {
+                    onSelectActivity(it)
+                    pickingActivity = false
+                },
+                onDismiss = { pickingActivity = false },
+            )
+        }
+
+        if (routeProgress != null) {
+            RouteChip(progress = routeProgress, etaMs = routeEtaMs, settings = settings)
+            Spacer(Modifier.height(10.dp))
+        }
+
+        if (idle && layout.showTodaySummary && daySummary != null) {
+            TodaySummary(
+                summary = daySummary,
+                settings = settings,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Spacer(Modifier.height(4.dp))
+        }
+
+        val spokenSpeed = stringResource(
+            R.string.speed_spoken,
+            Formatters.speed(state.speedMps, settings.units),
+        )
+        Text(
+            text = Formatters.bigSpeed(state.speedMps, settings.units),
+            style = SpeedDisplayStyle,
+            color = if (overLimit) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            // Head-up display: the phone lies face up on the dashboard and the
+            // windscreen does the flipping back.
+            modifier = (if (layout.hudMirror) Modifier.mirrored() else Modifier)
+                // A screen reader gets the whole reading with its unit; the
+                // bare digits on their own would be meaningless aloud.
+                .semantics { contentDescription = spokenSpeed },
+        )
+        Text(
+            text = if (overLimit) {
+                stringResource(
+                    R.string.speed_over_limit,
+                    Formatters.speed(settings.speedAlertMps.toDouble(), settings.units),
+                )
+            } else {
+                Formatters.speedUnit(settings.units)
+            },
+            style = SpeedUnitStyle,
+            color = if (overLimit) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+
+        if (layout.stats.isNotEmpty()) {
+            Spacer(Modifier.height(20.dp))
+            StatGrid(settings = settings, state = state, now = now)
+        }
+
+        if (layout.showTimer) {
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = Formatters.duration(state.elapsedMs),
+                style = TimerStyle,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        TransportControls(
+            status = state.status,
+            onStart = onStart,
+            onPause = onPause,
+            onResume = onResume,
+            onSave = onSave,
+            onDiscard = onDiscard,
+        )
+
+        Spacer(Modifier.height(18.dp))
+    }
+}
+
+/**
+ * Progress along a followed route: what is left, or how far off it you are.
+ *
+ * The second case matters more than the first — a route you are no longer on
+ * has a remaining distance that means nothing.
+ */
+@Composable
+private fun RouteChip(progress: RouteProgress, etaMs: Long?, settings: AppSettings) {
+    val off = progress.offRoute
+    Surface(
+        shape = CircleShape,
+        color = if (off) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+    ) {
+        Text(
+            text = if (off) {
+                stringResource(
+                    R.string.route_off,
+                    Formatters.elevation(progress.offRouteM, settings.units),
+                )
+            } else if (etaMs != null) {
+                stringResource(
+                    R.string.route_remaining_eta,
+                    Formatters.distance(progress.remainingM, settings.units),
+                    Formatters.duration(etaMs),
+                )
+            } else {
+                stringResource(
+                    R.string.route_remaining,
+                    Formatters.distance(progress.remainingM, settings.units),
+                )
+            },
+            style = MaterialTheme.typography.labelLarge,
+            color = if (off) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 }
@@ -568,6 +897,19 @@ private fun ControlButton(
         }
     }
 }
+
+/** Flips a composable horizontally, for reading a reflection. */
+internal fun Modifier.mirrored(): Modifier = graphicsLayer(scaleX = -1f)
+
+/** Long enough that a row still open is not simply one being written. */
+private const val RECOVERY_STALE_MS = 60_000L
+
+/**
+ * How coarsely the clock is rounded before asking what day it is. A minute is
+ * fine enough that midnight is noticed while the app is open, and coarse
+ * enough that the answer is not recomputed on every recomposition.
+ */
+private const val DAY_CHECK_MS = 60_000L
 
 private val CONTROL_SIZE = 68.dp
 private val CONTROL_ICON_SIZE = 30.dp

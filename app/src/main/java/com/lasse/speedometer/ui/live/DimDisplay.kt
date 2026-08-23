@@ -37,8 +37,13 @@ fun DimDisplay(
     settings: AppSettings,
     onWake: () -> Unit,
     modifier: Modifier = Modifier,
+    overLimit: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    // A fixed red rather than the theme's error colour: this screen is drawn
+    // on black by hand, outside the Material surfaces, and has to stay legible
+    // in sunlight.
+    val speedColor = if (overLimit) Color(0xFFFF5449) else Color.White
 
     Column(
         modifier = modifier
@@ -58,13 +63,14 @@ fun DimDisplay(
             fontSize = 150.sp,
             lineHeight = 152.sp,
             letterSpacing = (-6).sp,
-            color = Color.White,
+            color = speedColor,
             textAlign = TextAlign.Center,
+            modifier = if (settings.layout.hudMirror) Modifier.mirrored() else Modifier,
         )
         Text(
             text = Formatters.speedUnit(settings.units),
             fontSize = 26.sp,
-            color = Color(0xFF9AA0A6),
+            color = if (overLimit) speedColor else Color(0xFF9AA0A6),
             textAlign = TextAlign.Center,
         )
         Text(

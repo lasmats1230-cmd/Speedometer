@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kept to two figures and a line of text: a widget competes with the wallpaper
+  for attention, and a dense one loses.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/widget_week_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="@color/widget_muted"
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:text="@string/widget_this_week" />
+
+    <TextView
+        android:id="@+id/widget_week_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="28sp"
+        android:textColor="@color/widget_accent"
+        tools:text="0.00 km" />
+
+    <!--
+      The goal bar and its caption are hidden unless a weekly goal is set:
+      a bar with no target is a decoration, and the widget has no room for one.
+    -->
+    <ProgressBar
+        android:id="@+id/widget_goal_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="6dp"
+        android:max="100"
+        android:progressTint="@color/widget_accent"
+        android:progressBackgroundTint="@color/widget_muted"
+        android:visibility="gone"
+        tools:progress="40"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/widget_goal_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="12sp"
+        android:textColor="@color/widget_muted"
+        android:visibility="gone"
+        tools:text="of 100 km · 3 days in a row"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/widget_total_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="12sp"
+        android:textColor="@color/widget_muted"
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:text="@string/widget_lifetime" />
+
+    <TextView
+        android:id="@+id/widget_total_value"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="18sp"
+        android:textColor="@color/widget_text"
+        tools:text="0.00 km" />
+
+    <TextView
+        android:id="@+id/widget_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="13sp"
+        android:textColor="@color/widget_accent"
+        android:text="@string/widget_open" />
+</LinearLayout>

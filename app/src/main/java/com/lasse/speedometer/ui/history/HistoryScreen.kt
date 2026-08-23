@@ -1,7 +1,10 @@
 package com.lasse.speedometer.ui.history
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,26 +18,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.automirrored.outlined.DirectionsBike
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.outlined.Luggage
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,19 +53,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lasse.speedometer.R
+import com.lasse.speedometer.data.db.ActivityType
+import com.lasse.speedometer.data.db.TripEntity
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.repo.TourSummary
 import com.lasse.speedometer.data.repo.TripListItem
-import com.lasse.speedometer.ui.components.EmptyState
+import com.lasse.speedometer.ui.components.ActivityDialog
+import com.lasse.speedometer.ui.components.CenteredEmptyState
+import com.lasse.speedometer.ui.components.Dimens
+import com.lasse.speedometer.ui.components.ListCard
+import com.lasse.speedometer.ui.components.MenuAction
+import com.lasse.speedometer.ui.components.OverflowMenu
+import com.lasse.speedometer.ui.components.ScreenTitle
 import com.lasse.speedometer.ui.components.SegmentedTabs
 import com.lasse.speedometer.ui.components.TrackThumbnail
+import com.lasse.speedometer.ui.components.icon
 import com.lasse.speedometer.util.Formatters
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.lasse.speedometer.util.LocaleFormats
 
 @Composable
 fun HistoryScreen(
@@ -63,17 +81,27 @@ fun HistoryScreen(
     snackbarHostState: SnackbarHostState,
     onOpenTrip: (Long) -> Unit,
     onOpenTour: (Long) -> Unit,
+    onStartRecording: () -> Unit,
     viewModel: HistoryViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val trips by viewModel.trips.collectAsState()
+    val hasAnyTrips by viewModel.hasAnyTrips.collectAsState()
     val tours by viewModel.tours.collectAsState()
     val tourList by viewModel.tourList.collectAsState()
+    val query by viewModel.query.collectAsState()
+    val sort by viewModel.sort.collectAsState()
+    val activityFilter by viewModel.activityFilter.collectAsState()
+    val presentActivities by viewModel.presentActivities.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var tripPendingDelete by remember { mutableStateOf<Long?>(null) }
     var tripForTour by remember { mutableStateOf<Long?>(null) }
+    var tripBeingRenamed by remember { mutableStateOf<TripEntity?>(null) }
+    var tripChangingActivity by remember { mutableStateOf<TripEntity?>(null) }
+    var tourBeingRenamed by remember { mutableStateOf<TourSummary?>(null) }
+    var sortMenuOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -87,31 +115,86 @@ fun HistoryScreen(
     }
 
     val downloadTemplate = stringResource(R.string.imported_route)
+    val importedTrip = stringResource(R.string.imported_trip)
+    val importNoTimes = stringResource(R.string.import_no_times)
+    val importFailed = stringResource(R.string.import_failed)
     val exportFailed = stringResource(R.string.export_failed)
     val syncedMessage = stringResource(R.string.synced)
     val healthUnavailable = stringResource(R.string.health_unavailable)
 
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, end = 8.dp, top = 20.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.history),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.weight(1f),
+    // GPX and TCX have no dependable MIME type across file pickers, so
+    // anything is accepted and the parser decides.
+    val tripPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importTrip(
+                uri = uri,
+                activity = settings.activity,
+                successTemplate = importedTrip,
+                noTimes = importNoTimes,
+                failure = importFailed,
             )
-            if (selectedTab == 0 && trips.isNotEmpty()) {
-                IconButton(onClick = { confirmDeleteAll = true }) {
-                    Icon(
-                        imageVector = Icons.Filled.DeleteSweep,
-                        contentDescription = stringResource(R.string.delete_all),
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        ScreenTitle(
+            title = stringResource(R.string.history),
+            actions = {
+                if (selectedTab == 0 && hasAnyTrips) {
+                    Box {
+                        IconButton(onClick = { sortMenuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = stringResource(R.string.sort_by),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = sortMenuOpen,
+                            onDismissRequest = { sortMenuOpen = false },
+                        ) {
+                            TripSort.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(option.labelRes)) },
+                                    leadingIcon = {
+                                        RadioButton(
+                                            selected = option == sort,
+                                            onClick = null,
+                                        )
+                                    },
+                                    onClick = {
+                                        sortMenuOpen = false
+                                        viewModel.setSort(option)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                if (selectedTab == 0) {
+                    OverflowMenu(
+                        actions = buildList {
+                            add(
+                                MenuAction(stringResource(R.string.import_trip)) {
+                                    tripPicker.launch(arrayOf("*/*"))
+                                }
+                            )
+                            if (hasAnyTrips) {
+                                add(
+                                    MenuAction(
+                                        label = stringResource(R.string.delete_all),
+                                        destructive = true,
+                                        onClick = { confirmDeleteAll = true },
+                                    )
+                                )
+                            }
+                        },
+                        contentDescription = stringResource(R.string.more),
                     )
                 }
-            }
-        }
+            },
+        )
 
         SegmentedTabs(
             options = listOf(
@@ -126,57 +209,176 @@ fun HistoryScreen(
         Spacer(Modifier.height(12.dp))
 
         when (selectedTab) {
-            0 -> if (trips.isEmpty()) {
-                CenteredEmpty(
-                    icon = Icons.AutoMirrored.Outlined.DirectionsBike,
-                    title = stringResource(R.string.no_trips_title),
-                    body = stringResource(R.string.no_trips_body),
-                )
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(trips, key = { it.trip.id }) { item ->
-                        TripRow(
-                            item = item,
-                            settings = settings,
-                            healthAvailable = viewModel.healthAvailable,
-                            onClick = { onOpenTrip(item.trip.id) },
-                            onDownload = {
-                                viewModel.downloadGpx(item.trip.id, downloadTemplate, exportFailed)
-                            },
-                            onShare = { viewModel.shareGpx(item.trip.id, exportFailed) },
-                            onSync = {
-                                viewModel.syncToHealth(
-                                    item.trip.id,
-                                    syncedMessage,
-                                    healthUnavailable,
+            0 -> {
+                if (hasAnyTrips) {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = viewModel::setQuery,
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.search_trips)) },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setQuery("") }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.clear),
+                                    )
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Dimens.Screen),
+                    )
+
+                    // Only worth offering when there is more than one kind of
+                    // trip to tell apart.
+                    if (presentActivities.size > 1) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = Dimens.Screen),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FilterChip(
+                                selected = activityFilter == null,
+                                onClick = { viewModel.setActivityFilter(null) },
+                                label = { Text(stringResource(R.string.filter_all)) },
+                            )
+                            presentActivities.forEach { activity ->
+                                FilterChip(
+                                    selected = activityFilter == activity,
+                                    onClick = {
+                                        viewModel.setActivityFilter(
+                                            if (activityFilter == activity) null else activity
+                                        )
+                                    },
+                                    label = { Text(stringResource(activity.labelRes)) },
                                 )
-                            },
-                            onAddToTour = { tripForTour = item.trip.id },
-                            onDelete = { tripPendingDelete = item.trip.id },
-                        )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                }
+
+                when {
+                    !hasAnyTrips -> CenteredEmptyState(
+                        icon = Icons.AutoMirrored.Outlined.DirectionsBike,
+                        title = stringResource(R.string.no_trips_title),
+                        body = stringResource(R.string.no_trips_body),
+                        actionLabel = stringResource(R.string.empty_start_recording),
+                        onAction = onStartRecording,
+                    )
+
+                    trips.isEmpty() -> CenteredEmptyState(
+                        icon = Icons.Outlined.SearchOff,
+                        title = stringResource(R.string.no_matches_title),
+                        body = stringResource(R.string.no_matches_body),
+                        actionLabel = stringResource(R.string.clear_filters),
+                        onAction = {
+                            viewModel.setQuery("")
+                            viewModel.setActivityFilter(null)
+                        },
+                    )
+
+                    else -> LazyColumn(
+                        contentPadding = PaddingValues(
+                            start = Dimens.Screen,
+                            end = Dimens.Screen,
+                            bottom = Dimens.BottomGap,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.Item),
+                    ) {
+                        // Months are the unit people scroll history in — "that
+                        // week in June" — and the header keeps a long list from
+                        // becoming an undifferentiated column of cards. Only
+                        // where the order is chronological: under "longest
+                        // first" a month heading would be a lie.
+                        val grouped = sort == TripSort.NEWEST || sort == TripSort.OLDEST
+
+                        itemsIndexed(
+                            items = trips,
+                            key = { _, item -> item.trip.id },
+                        ) { index, item ->
+                            // Header and card in one column rather than two
+                            // loose siblings, so the list's own spacing stays
+                            // between cards and not inside them.
+                            Column {
+                                if (grouped) {
+                                    val month = monthLabel(item.trip.startedAt)
+                                    val previous = trips.getOrNull(index - 1)
+                                        ?.let { monthLabel(it.trip.startedAt) }
+                                    if (month != previous) {
+                                        Text(
+                                            text = month,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(
+                                                start = 8.dp,
+                                                top = if (index == 0) 0.dp else 8.dp,
+                                                bottom = 6.dp,
+                                            ),
+                                        )
+                                    }
+                                }
+                                TripRow(
+                                    item = item,
+                                    settings = settings,
+                                    healthAvailable = viewModel.healthAvailable,
+                                    onClick = { onOpenTrip(item.trip.id) },
+                                    onDownload = {
+                                        viewModel.downloadGpx(
+                                            item.trip.id,
+                                            downloadTemplate,
+                                            exportFailed,
+                                        )
+                                    },
+                                    onShare = { viewModel.shareGpx(item.trip.id, exportFailed) },
+                                    onShareSummary = viewModel::shareSummary,
+                                    onSync = {
+                                        viewModel.syncToHealth(
+                                            item.trip.id,
+                                            syncedMessage,
+                                            healthUnavailable,
+                                        )
+                                    },
+                                    onRename = { tripBeingRenamed = item.trip },
+                                    onChangeActivity = { tripChangingActivity = item.trip },
+                                    onAddToTour = { tripForTour = item.trip.id },
+                                    onDelete = { tripPendingDelete = item.trip.id },
+                                )
+                            }
+                        }
                     }
                 }
             }
 
             else -> if (tours.isEmpty()) {
-                CenteredEmpty(
+                CenteredEmptyState(
                     icon = Icons.Outlined.Luggage,
                     title = stringResource(R.string.no_tours_title),
                     body = stringResource(R.string.no_tours_body),
                 )
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(
+                        start = Dimens.Screen,
+                        end = Dimens.Screen,
+                        bottom = Dimens.BottomGap,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.Item),
                 ) {
                     items(tours, key = { it.tour.id }) { summary ->
                         TourRow(
                             summary = summary,
                             settings = settings,
                             onClick = { onOpenTour(summary.tour.id) },
+                            onRename = { tourBeingRenamed = summary },
                             onDelete = { viewModel.deleteTour(summary.tour.id) },
                         )
                     }
@@ -186,39 +388,66 @@ fun HistoryScreen(
     }
 
     if (confirmDeleteAll) {
-        AlertDialog(
-            onDismissRequest = { confirmDeleteAll = false },
-            title = { Text(stringResource(R.string.delete_all_title)) },
-            text = { Text(stringResource(R.string.delete_all_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeleteAll = false
-                    viewModel.deleteAllTrips()
-                }) { Text(stringResource(R.string.delete)) }
+        ConfirmDialog(
+            title = stringResource(R.string.delete_all_title),
+            message = stringResource(R.string.delete_all_message),
+            confirmLabel = stringResource(R.string.delete),
+            destructive = true,
+            onConfirm = {
+                confirmDeleteAll = false
+                viewModel.deleteAllTrips()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteAll = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
+            onDismiss = { confirmDeleteAll = false },
         )
     }
 
     tripPendingDelete?.let { id ->
-        AlertDialog(
-            onDismissRequest = { tripPendingDelete = null },
-            title = { Text(stringResource(R.string.delete_trip_title)) },
-            text = { Text(stringResource(R.string.delete_trip_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    tripPendingDelete = null
-                    viewModel.deleteTrip(id)
-                }) { Text(stringResource(R.string.delete)) }
+        ConfirmDialog(
+            title = stringResource(R.string.delete_trip_title),
+            message = stringResource(R.string.delete_trip_message),
+            confirmLabel = stringResource(R.string.delete),
+            destructive = true,
+            onConfirm = {
+                tripPendingDelete = null
+                viewModel.deleteTrip(id)
             },
-            dismissButton = {
-                TextButton(onClick = { tripPendingDelete = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
+            onDismiss = { tripPendingDelete = null },
+        )
+    }
+
+    tripBeingRenamed?.let { trip ->
+        TextFieldDialog(
+            title = stringResource(R.string.rename_trip),
+            label = stringResource(R.string.trip_name),
+            initial = trip.title.orEmpty(),
+            onDismiss = { tripBeingRenamed = null },
+            onConfirm = { name ->
+                viewModel.renameTrip(trip.id, name)
+                tripBeingRenamed = null
+            },
+        )
+    }
+
+    tripChangingActivity?.let { trip ->
+        ActivityDialog(
+            selected = trip.activityType,
+            onDismiss = { tripChangingActivity = null },
+            onSelect = { activity ->
+                viewModel.setActivity(trip.id, activity)
+                tripChangingActivity = null
+            },
+        )
+    }
+
+    tourBeingRenamed?.let { summary ->
+        TextFieldDialog(
+            title = stringResource(R.string.rename_tour),
+            label = stringResource(R.string.tour_name),
+            initial = summary.tour.name,
+            onDismiss = { tourBeingRenamed = null },
+            onConfirm = { name ->
+                viewModel.renameTour(summary.tour.id, name)
+                tourBeingRenamed = null
             },
         )
     }
@@ -240,17 +469,6 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun CenteredEmpty(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    body: String,
-) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        EmptyState(icon = icon, title = title, body = body)
-    }
-}
-
-@Composable
 private fun TripRow(
     item: TripListItem,
     settings: AppSettings,
@@ -258,19 +476,37 @@ private fun TripRow(
     onClick: () -> Unit,
     onDownload: () -> Unit,
     onShare: () -> Unit,
+    onShareSummary: (String) -> Unit,
     onSync: () -> Unit,
+    onRename: () -> Unit,
+    onChangeActivity: () -> Unit,
     onAddToTour: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     val trip = item.trip
+    val units = settings.units
+    val summary = tripSummaryText(trip, settings)
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        onClick = onClick,
-    ) {
+    val actions = buildList {
+        add(MenuAction(stringResource(R.string.rename_trip), onClick = onRename))
+        add(MenuAction(stringResource(R.string.change_activity), onClick = onChangeActivity))
+        add(MenuAction(stringResource(R.string.share_summary)) { onShareSummary(summary) })
+        add(MenuAction(stringResource(R.string.share_gpx), onClick = onShare))
+        add(MenuAction(stringResource(R.string.download_gpx), onClick = onDownload))
+        if (healthAvailable) {
+            add(MenuAction(stringResource(R.string.sync_health_connect), onClick = onSync))
+        }
+        add(MenuAction(stringResource(R.string.add_to_tour), onClick = onAddToTour))
+        add(
+            MenuAction(
+                label = stringResource(R.string.delete),
+                destructive = true,
+                onClick = onDelete,
+            )
+        )
+    }
+
+    ListCard(onClick = onClick) {
         Row(
             modifier = Modifier.padding(start = 14.dp, top = 14.dp, bottom = 14.dp, end = 4.dp),
             verticalAlignment = Alignment.Top,
@@ -286,78 +522,67 @@ private fun TripRow(
                     .padding(start = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = trip.activityType.icon,
+                        contentDescription = stringResource(trip.activityType.labelRes),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(end = 0.dp),
+                    )
+                    Text(
+                        text = trip.title?.takeIf { it.isNotBlank() }
+                            ?: formatTripDate(trip.startedAt),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
                 Text(
-                    text = trip.title?.takeIf { it.isNotBlank() } ?: formatTripDate(trip.startedAt),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = Formatters.distance(trip.distanceM, settings.units),
+                    text = Formatters.distance(trip.distanceM, units),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "${stringResource(R.string.stat_avg)} " +
-                        Formatters.speed(trip.avgSpeedMps, settings.units),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                StatLine(
+                    label = stringResource(R.string.stat_avg),
+                    value = if (trip.activityType.prefersPace) {
+                        Formatters.pace(trip.avgSpeedMps, units)
+                    } else {
+                        Formatters.speed(trip.avgSpeedMps, units)
+                    },
                 )
-                Text(
-                    text = "${stringResource(R.string.stat_max)} " +
-                        Formatters.speed(trip.maxSpeedMps, settings.units),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                StatLine(
+                    label = stringResource(R.string.stat_max),
+                    value = Formatters.speed(trip.maxSpeedMps, units),
                 )
-                Text(
-                    text = "Duration ${Formatters.durationLong(trip.durationMs)}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                StatLine(
+                    label = stringResource(R.string.stat_time),
+                    value = Formatters.durationLong(trip.durationMs),
                 )
                 if (trip.ascentM >= 1 || trip.descentM >= 1) {
                     Text(
-                        text = "↑ ${Formatters.elevation(trip.ascentM, settings.units)}" +
-                            "   ↓ ${Formatters.elevation(trip.descentM, settings.units)}",
+                        text = "↑ ${Formatters.elevation(trip.ascentM, units)}" +
+                            "   ↓ ${Formatters.elevation(trip.descentM, units)}",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.more),
-                    )
-                }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.download_gpx)) },
-                        onClick = { menuOpen = false; onDownload() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.share_gpx)) },
-                        onClick = { menuOpen = false; onShare() },
-                    )
-                    if (healthAvailable) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.sync_health_connect)) },
-                            onClick = { menuOpen = false; onSync() },
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.add_to_tour)) },
-                        onClick = { menuOpen = false; onAddToTour() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.delete)) },
-                        onClick = { menuOpen = false; onDelete() },
-                    )
-                }
-            }
+            OverflowMenu(actions = actions, contentDescription = stringResource(R.string.more))
         }
     }
+}
+
+@Composable
+private fun StatLine(label: String, value: String) {
+    Text(
+        text = "$label $value",
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -365,16 +590,10 @@ private fun TourRow(
     summary: TourSummary,
     settings: AppSettings,
     onClick: () -> Unit,
+    onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        onClick = onClick,
-    ) {
+    ListCard(onClick = onClick) {
         Row(
             modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 16.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -403,22 +622,86 @@ private fun TourRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.more),
-                    )
-                }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.delete)) },
-                        onClick = { menuOpen = false; onDelete() },
-                    )
-                }
-            }
+            OverflowMenu(
+                actions = listOf(
+                    MenuAction(stringResource(R.string.rename_tour), onClick = onRename),
+                    MenuAction(
+                        label = stringResource(R.string.delete),
+                        destructive = true,
+                        onClick = onDelete,
+                    ),
+                ),
+                contentDescription = stringResource(R.string.more),
+            )
         }
     }
+}
+
+/** The app's one confirmation dialog, so every "are you sure" looks alike. */
+@Composable
+internal fun ConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    destructive: Boolean = false,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = confirmLabel,
+                    color = if (destructive) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+/** Naming a trip, a tour or anything else with one line of text. */
+@Composable
+internal fun TextFieldDialog(
+    title: String,
+    label: String,
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    allowEmpty: Boolean = false,
+) {
+    var value by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                label = { Text(label) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = allowEmpty || value.isNotBlank(),
+                onClick = { onConfirm(value.trim()) },
+            ) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -481,9 +764,11 @@ private fun AddToTourDialog(
     )
 }
 
-private val tripDateFormat = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
-private val tripTimeFormat = SimpleDateFormat("d MMM yyyy, HH:mm:ss", Locale.getDefault())
+internal fun formatTripDate(millis: Long): String =
+    LocaleFormats.format("d MMM yyyy, HH:mm", millis)
 
-internal fun formatTripDate(millis: Long): String = tripDateFormat.format(Date(millis))
+internal fun formatTripTime(millis: Long): String =
+    LocaleFormats.format("d MMM yyyy, HH:mm:ss", millis)
 
-internal fun formatTripTime(millis: Long): String = tripTimeFormat.format(Date(millis))
+/** "June 2026" — the heading a chronological list is broken up by. */
+private fun monthLabel(millis: Long): String = LocaleFormats.format("LLLL yyyy", millis)

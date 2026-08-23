@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Checkbox
@@ -20,12 +19,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +32,8 @@ import com.lasse.speedometer.R
 import com.lasse.speedometer.data.prefs.AppSettings
 import com.lasse.speedometer.data.prefs.MinimapSize
 import com.lasse.speedometer.data.prefs.StatType
+import com.lasse.speedometer.ui.components.DetailScaffold
+import com.lasse.speedometer.ui.components.Dimens
 import com.lasse.speedometer.ui.components.SegmentedTabs
 
 /**
@@ -50,37 +48,22 @@ fun LayoutSettingsScreen(
 ) {
     val layout = settings.layout
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                title = { Text(stringResource(R.string.settings_layout)) },
-                actions = {
-                    TextButton(onClick = viewModel::resetLayout) {
-                        Text(stringResource(R.string.reset))
-                    }
-                },
-            )
+    DetailScaffold(
+        title = stringResource(R.string.settings_layout),
+        onBack = onBack,
+        actions = {
+            TextButton(onClick = viewModel::resetLayout) {
+                Text(stringResource(R.string.reset))
+            }
         },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
+                start = Dimens.Screen,
+                end = Dimens.Screen,
                 top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding() + 24.dp,
+                bottom = padding.calculateBottomPadding() + Dimens.BottomGap,
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -139,9 +122,21 @@ fun LayoutSettingsScreen(
                         onCheckedChange = viewModel::setShowStatusChip,
                     )
                     SwitchRow(
+                        title = stringResource(R.string.layout_hud),
+                        subtitle = stringResource(R.string.layout_hud_summary),
+                        checked = layout.hudMirror,
+                        onCheckedChange = viewModel::setHudMirror,
+                    )
+                    SwitchRow(
                         title = stringResource(R.string.layout_show_timer),
                         checked = layout.showTimer,
                         onCheckedChange = viewModel::setShowTimer,
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.layout_show_today),
+                        subtitle = stringResource(R.string.layout_show_today_summary),
+                        checked = layout.showTodaySummary,
+                        onCheckedChange = viewModel::setShowTodaySummary,
                     )
                 }
             }
