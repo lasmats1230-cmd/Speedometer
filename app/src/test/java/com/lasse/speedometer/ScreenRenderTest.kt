@@ -323,7 +323,14 @@ private fun HugeText(content: @Composable () -> Unit) {
  * The screens read their data from flows backed by the database, so the first
  * frame is empty by design: asserting immediately would only ever test the
  * loading state.
+ *
+ * The budget is a deadlock guard, not a performance assertion — nothing here
+ * measures how fast a screen renders, and a passing test takes the same time
+ * whatever the number is, because the wait ends as soon as the text is there.
+ * Five seconds was too tight: on a runner with a cold Gradle cache, the
+ * statistics screen alone timed out three times over while the same commit
+ * passed everywhere else. Sized to survive a slow shared runner instead.
  */
 private fun androidx.compose.ui.test.junit4.ComposeContentTestRule.awaitText(text: String) {
-    waitUntil(5_000) { onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+    waitUntil(30_000) { onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
 }
